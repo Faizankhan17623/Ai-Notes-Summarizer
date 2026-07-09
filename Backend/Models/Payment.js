@@ -12,12 +12,17 @@ const paymentSchema = new mongoose.Schema(
         },
         plan: {
             type: String,
-            enum: ['Pro', 'ProMax'],
+            enum: ['Pro', 'ProMax', 'CreditPack'],
             required: true,
         },
         amount: {
             type: Number,
             required: true,
+        },
+        // only set for CreditPack payments sir — null for regular Pro/ProMax subscription rows
+        creditsGranted: {
+            type: Number,
+            default: null,
         },
         currency: {
             type: String,

@@ -2,6 +2,7 @@ import { createSlice } from "@reduxjs/toolkit"
 
 const initialState = {
     plans: [],
+    creditPacks: [],
     paymentsLive: false,
     loading: false
 }
@@ -13,6 +14,9 @@ const paymentSlice = createSlice({
         setPlans(state, value) {
             state.plans = value.payload
         },
+        setCreditPacks(state, value) {
+            state.creditPacks = value.payload
+        },
         setPaymentsLive(state, value) {
             state.paymentsLive = value.payload
         },
@@ -22,5 +26,5 @@ const paymentSlice = createSlice({
     }
 })
 
-export const { setPlans, setPaymentsLive, setLoading } = paymentSlice.actions
+export const { setPlans, setCreditPacks, setPaymentsLive, setLoading } = paymentSlice.actions
 export default paymentSlice.reducer

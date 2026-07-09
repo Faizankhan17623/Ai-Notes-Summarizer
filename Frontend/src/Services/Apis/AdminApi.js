@@ -2,6 +2,7 @@ const BASE_URL = import.meta.env.VITE_MAIN_BACKEND_URL
 
 export const AdminData = {
     overview: BASE_URL + "/admin/overview",
+    analytics: BASE_URL + "/admin/analytics",
     users: BASE_URL + "/admin/users",
     banUser: BASE_URL + "/admin/users",         // + /:userId/ban
     unbanUser: BASE_URL + "/admin/users",       // + /:userId/unban

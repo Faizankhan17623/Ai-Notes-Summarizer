@@ -34,8 +34,22 @@ const UserSchema = new mongoose.Schema(
         resetPasswordExpires: {
             type: Date,
         },
-        // credits used in the current cycle sir — reset elsewhere when a plan renews
+        // credits used in the current cycle sir — see creditCycleStart below, reset lazily by
+        // utils/Plans.js resetCycleIfNeeded, no cron needed
         count: {
+            type: Number,
+            default: 0
+        },
+        // anchors the current credit cycle sir — rolls on a 30-day window from this date,
+        // realigned to "now" on every successful Pro/ProMax payment (see verifyPayment)
+        creditCycleStart: {
+            type: Date,
+            default: Date.now
+        },
+        // one-time top-up credits sir — purchased via a CreditPack payment, spent AFTER the
+        // plan's monthly allowance is exhausted, reset to 0 alongside `count` at the same
+        // cycle boundary (see utils/Plans.js consumeCredit)
+        bonusCredits: {
             type: Number,
             default: 0
         },
@@ -75,6 +89,26 @@ const UserSchema = new mongoose.Schema(
             type: String,
             trim: true
         },
+        // self-healing brute-force lockout sir — separate from isBanned (admin-driven, permanent).
+        // this clears itself once lockUntil passes, no admin action needed
+        failedLoginAttempts: {
+            type: Number,
+            default: 0
+        },
+        lockUntil: {
+            type: Date,
+            default: null
+        },
+        // refresh token sir — same hash-only-storage principle as apiKeyHash below, the raw value
+        // only ever lives in the httpOnly refreshToken cookie, never in the DB
+        refreshTokenHash: {
+            type: String,
+            default: null
+        },
+        refreshTokenExpiresAt: {
+            type: Date,
+            default: null
+        },
         Subscription: {
             type: Boolean,
             default: false
@@ -87,6 +121,21 @@ const UserSchema = new mongoose.Schema(
         },
         // when the paid plan runs out sir — past this date the user is Basic again
         SubscriptionExpires: {
+            type: Date
+        },
+        // Pro/ProMax perk sir — programmatic access to POST /summarize only, see Middlewares/ApiKeyAuth.js
+        // only the SHA-256 hash is stored, same principle as the password — the raw key is shown once at
+        // creation time and never again, so a DB leak alone can't be used to impersonate the user
+        apiKeyHash: {
+            type: String,
+            default: null,
+            index: true,
+            sparse: true
+        },
+        apiKeyCreatedAt: {
+            type: Date
+        },
+        apiKeyLastUsedAt: {
             type: Date
         }
     },

@@ -1,9 +1,9 @@
 import toast from "react-hot-toast"
 import { apiConnector } from "../apiConnector.js"
 import { AdminData } from "../Apis/AdminApi.js"
-import { setOverview, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setLoading } from "../../Slices/adminSlice.js"
+import { setOverview, setAnalytics, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setLoading } from "../../Slices/adminSlice.js"
 
-const { overview, users, banUser, unbanUser, setRole, payments, audit, aiLogs, activeAnnouncement, announcements, deactivateAnnouncement } = AdminData
+const { overview, analytics, users, banUser, unbanUser, setRole, payments, audit, aiLogs, activeAnnouncement, announcements, deactivateAnnouncement } = AdminData
 
 export function GetOverview(token) {
     return async (dispatch) => {
@@ -14,6 +14,21 @@ export function GetOverview(token) {
             dispatch(setOverview(response.data.overview))
         } catch (error) {
             console.error("Error fetching overview", error)
+        } finally {
+            dispatch(setLoading(false))
+        }
+    }
+}
+
+export function GetAnalytics(token) {
+    return async (dispatch) => {
+        dispatch(setLoading(true))
+        try {
+            const response = await apiConnector("GET", analytics, null, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setAnalytics(response.data.analytics))
+        } catch (error) {
+            console.error("Error fetching analytics", error)
         } finally {
             dispatch(setLoading(false))
         }

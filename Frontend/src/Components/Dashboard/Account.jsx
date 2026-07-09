@@ -7,15 +7,19 @@ import {
     GetProfile, UpdateFirstName, UpdateLastName, UpdatePassword,
     DeleteAccount, RecoverAccount, LogoutUser
 } from '../../Services/operations/Auth.js'
+import { GetPlans, StartCreditPackCheckout } from '../../Services/operations/Payment.js'
 import Navbar from '../Home/Navbar.jsx'
 import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
+import ApiKeySection from './ApiKeySection.jsx'
 
 const Account = () => {
     const dispatch = useDispatch()
     const navigate = useNavigate()
-    const { token } = useSelector((state) => state.auth)
+    const { token, user } = useSelector((state) => state.auth)
     const { profile, plan, activity, loading } = useSelector((state) => state.profile)
+    const { creditPacks, paymentsLive } = useSelector((state) => state.payment)
+    const isPaidPlan = user?.SubType && user.SubType !== 'Basic'
 
     const [firstName, setFirstName] = useState('')
     const [lastName, setLastName] = useState('')
@@ -26,6 +30,10 @@ const Account = () => {
     useEffect(() => {
         dispatch(GetProfile(token))
     }, [dispatch, token])
+
+    useEffect(() => {
+        dispatch(GetPlans())
+    }, [dispatch])
 
     useEffect(() => {
         if (profile) {
@@ -72,9 +80,34 @@ const Account = () => {
                     <div className="border border-richblack-700 rounded-lg p-6">
                         <h2 className="text-richblack-5 font-semibold mb-3">Plan</h2>
                         <p className="text-richblack-200">{plan.name} — {plan.creditsLimit === null ? "unlimited" : `${plan.creditsUsed}/${plan.creditsLimit}`} summaries used this month</p>
+                        {plan.creditsLimit !== null && plan.bonusCredits > 0 && (
+                            <p className="text-richblack-400 text-sm mt-1">+ {plan.bonusCredits} top-up credits available this cycle</p>
+                        )}
                         {activity && (
                             <p className="text-richblack-400 text-sm mt-2">{activity.noteCount} total notes · {activity.chatCount} chats</p>
                         )}
+                    </div>
+                )}
+
+                {plan && plan.creditsLimit !== null && (
+                    <div className="border border-richblack-700 rounded-lg p-6">
+                        <h2 className="text-richblack-5 font-semibold mb-1">Need more credits?</h2>
+                        <p className="text-richblack-400 text-sm mb-4">
+                            You have {plan.bonusCredits || 0} top-up credits available this cycle.
+                        </p>
+                        <div className="grid md:grid-cols-3 gap-4">
+                            {creditPacks.map((pack) => (
+                                <div key={pack.key} className="border border-richblack-700 rounded-lg p-4">
+                                    <p className="text-richblack-5 font-semibold">{pack.name}</p>
+                                    <p className="text-yellow-50 text-xl font-bold mb-3">₹{pack.priceInr}</p>
+                                    <IconBtn
+                                        text={paymentsLive ? "Buy" : "Coming soon"}
+                                        disabled={!paymentsLive}
+                                        onclick={() => dispatch(StartCreditPackCheckout(pack.key, token, user))}
+                                    />
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
 
@@ -111,6 +144,8 @@ const Account = () => {
                         }}
                     />
                 </div>
+
+                <ApiKeySection isPaidPlan={isPaidPlan} />
 
                 {!profile.Buffer && (
                     <div className="border border-pink-200/50 rounded-lg p-6">

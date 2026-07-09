@@ -2,6 +2,7 @@ import { createSlice } from "@reduxjs/toolkit"
 
 const initialState = {
     overview: null,
+    analytics: null,
     users: [],
     payments: [],
     auditLogs: [],
@@ -16,6 +17,9 @@ const adminSlice = createSlice({
     reducers: {
         setOverview(state, value) {
             state.overview = value.payload
+        },
+        setAnalytics(state, value) {
+            state.analytics = value.payload
         },
         setUsers(state, value) {
             state.users = value.payload
@@ -38,5 +42,5 @@ const adminSlice = createSlice({
     }
 })
 
-export const { setOverview, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setLoading } = adminSlice.actions
+export const { setOverview, setAnalytics, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setLoading } = adminSlice.actions
 export default adminSlice.reducer

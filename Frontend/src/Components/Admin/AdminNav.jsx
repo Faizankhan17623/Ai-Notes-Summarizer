@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 
 const links = [
     { to: '/Admin', label: 'Overview', end: true },
+    { to: '/Admin/Analytics', label: 'Analytics' },
     { to: '/Admin/Users', label: 'Users' },
     { to: '/Admin/Payments', label: 'Payments' },
     { to: '/Admin/Audit', label: 'Audit log' },

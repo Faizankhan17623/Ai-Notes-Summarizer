@@ -3,14 +3,9 @@ import './index.css'
 import App from './App.jsx'
 import { Toaster } from 'react-hot-toast'
 import { BrowserRouter } from 'react-router-dom'
-import { configureStore } from '@reduxjs/toolkit'
-import rootReducers from './reducer/index.js'
 import { Provider } from 'react-redux'
 import { HelmetProvider } from 'react-helmet-async'
-
-const store = configureStore({
-  reducer: rootReducers
-})
+import { store } from './store.js'
 
 createRoot(document.getElementById('root')).render(
   <HelmetProvider>

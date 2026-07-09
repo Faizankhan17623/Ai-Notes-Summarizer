@@ -1,10 +1,25 @@
 import toast from "react-hot-toast"
-import { apiConnector } from "../apiConnector.js"
+import { apiConnector, setCsrfToken } from "../apiConnector.js"
 import { UserData } from "../Apis/UserApi.js"
 import { setLoading, setToken, setUser, setLogin, setSignupData } from "../../Slices/authSlice.js"
 import { setProfile, setPlan, setActivity } from "../../Slices/profileSlice.js"
 
-const { sendOtp, createUser, login, forgotPassword, resetPassword, profile, updateFirstName, updateLastName, updatePassword, deleteAccount, recoverAccount } = UserData
+const { sendOtp, createUser, login, forgotPassword, resetPassword, profile, updateFirstName, updateLastName, updatePassword, deleteAccount, recoverAccount, logout, csrfToken } = UserData
+
+// fetched once on app mount and again right after login sir — the CSRF secret cookie may be
+// freshly (re)set at login, so the in-memory token needs to be refreshed to match
+export function FetchCsrfToken() {
+    return async () => {
+        try {
+            const response = await apiConnector("GET", csrfToken)
+            if (response.data?.success) {
+                setCsrfToken(response.data.csrfToken)
+            }
+        } catch (error) {
+            console.error("Error fetching CSRF token", error)
+        }
+    }
+}
 
 export function SendOtp(email, navigate) {
     return async (dispatch) => {
@@ -74,6 +89,8 @@ export function LoginUser(email, password, navigate) {
             dispatch(setLogin(true))
             localStorage.setItem("token", JSON.stringify(response.data.token))
             localStorage.setItem("user", JSON.stringify(response.data.user))
+            // the CSRF secret cookie is freshly (re)set on login sir — refresh the in-memory token to match
+            dispatch(FetchCsrfToken())
             if (navigate) navigate("/Dashboard")
         } catch (error) {
             console.error("Error logging in", error)
@@ -86,7 +103,13 @@ export function LoginUser(email, password, navigate) {
 }
 
 export function LogoutUser(navigate) {
-    return (dispatch) => {
+    return async (dispatch) => {
+        try {
+            await apiConnector("POST", logout)
+        } catch (error) {
+            // best-effort sir — clear local state regardless, the access token will simply expire on its own
+            console.error("Error logging out on the server", error)
+        }
         dispatch(setToken(null))
         dispatch(setUser(null))
         dispatch(setLogin(false))

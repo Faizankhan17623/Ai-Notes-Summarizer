@@ -12,7 +12,11 @@ const mailSender = require('../utils/Nodemailer.js')
 
 const { deleteAccountEmail } = require('../Templates/DeleteAccount.js')
 const { passwordResetTemplate } = require('../Templates/passwordResetTemplate.js')
-const { getEffectivePlan } = require('../utils/Plans.js')
+const { getEffectivePlan, resetCycleIfNeeded } = require('../utils/Plans.js')
+const { isStrongPassword } = require('../utils/PasswordPolicy.js')
+const { hashToken, signAccessToken, issueRefreshToken, REFRESH_TOKEN_TTL_MS } = require('../utils/RefreshToken.js')
+
+const isProd = process.env.NODE_ENV === 'production'
 
 // ============================================================
 // SEND OTP
@@ -88,13 +92,7 @@ exports.createUser = async (req, res) => {
 
         // strong password required sir — mirrors the frontend rule, enforced here too since
         // this endpoint can be hit directly, bypassing the form's client-side checks
-        const isStrongPassword = password.length >= 8
-            && /[a-z]/.test(password)
-            && /[A-Z]/.test(password)
-            && /\d/.test(password)
-            && /[^A-Za-z0-9]/.test(password)
-
-        if (!isStrongPassword) {
+        if (!isStrongPassword(password)) {
             return res.status(400).json({
                 success: false,
                 field: 'password',
@@ -187,14 +185,41 @@ exports.loginUser = async (req, res) => {
             })
         }
 
+        // account-level brute-force lockout sir — separate from isBanned, self-healing, no admin
+        // action needed. Checked BEFORE bcrypt.compare so a locked account never pays the bcrypt
+        // cost and gets the identical response whether or not the password given was correct
+        if (existingUser.lockUntil && existingUser.lockUntil > Date.now()) {
+            const minutesLeft = Math.ceil((existingUser.lockUntil - Date.now()) / 60000)
+            return res.status(423).json({
+                success: false,
+                message: `Too many failed attempts. This account is temporarily locked, try again in ${minutesLeft} minute(s)`,
+            })
+        }
+
         const Comparing = await bcrypt.compare(password, existingUser.password)
 
         if (!Comparing) {
+            // 5 consecutive failures locks the account for 15 minutes sir — syncs with authLimiter's
+            // own 15-minute window so the user gets one consistent "try again later" mental model
+            const attempts = (existingUser.failedLoginAttempts || 0) + 1
+            const update = { failedLoginAttempts: attempts }
+            if (attempts >= 5) {
+                update.lockUntil = new Date(Date.now() + 15 * 60 * 1000)
+                update.failedLoginAttempts = 0
+            }
+            await User.findByIdAndUpdate(existingUser._id, update)
+
             return res.status(401).json({
                 success: false,
                 field: 'password',
                 message: 'Incorrect password, please try again',
             })
+        }
+
+        // success sir — clear any accumulated failures/lock on the same doc that gets .save()-d below
+        if (existingUser.failedLoginAttempts || existingUser.lockUntil) {
+            existingUser.failedLoginAttempts = 0
+            existingUser.lockUntil = null
         }
 
         // a soft-deleted account logging back in inside the buffer window is recovered automatically sir
@@ -205,29 +230,38 @@ exports.loginUser = async (req, res) => {
 
         const { _id, firstName, lastName, role, SubType } = existingUser
 
-        const JwtCreation = jwt.sign(
-            { id: _id, firstName, lastName },
-            process.env.JWT_PRIVATE_KEY,
-            { expiresIn: '7d' }
-        )
+        // short-lived access token + a separate long-lived refresh token sir — only the refresh
+        // token's SHA-256 hash is stored (mirrors the existing apiKeyHash pattern), the raw value
+        // lives only in its own httpOnly cookie, never in the JSON body or localStorage
+        const accessToken = signAccessToken(existingUser)
+        const rawRefreshToken = issueRefreshToken()
 
-        existingUser.token = JwtCreation
+        existingUser.refreshTokenHash = hashToken(rawRefreshToken)
+        existingUser.refreshTokenExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS)
+        existingUser.token = accessToken
         await existingUser.save()
 
-        const SetCookie = cookie.serialize('token', JwtCreation, {
+        const accessCookie = cookie.serialize('token', accessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: isProd,
             sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60,
+            maxAge: 60 * 60,
             path: '/',
         })
+        const refreshCookie = cookie.serialize('refreshToken', rawRefreshToken, {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60,
+            path: '/api/v1',
+        })
 
-        res.setHeader('Set-Cookie', SetCookie)
+        res.setHeader('Set-Cookie', [accessCookie, refreshCookie])
 
         return res.status(200).json({
             success: true,
             message: 'Logged in successfully',
-            token: JwtCreation,
+            token: accessToken,
             user: {
                 id: _id,
                 firstName,
@@ -242,6 +276,105 @@ exports.loginUser = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Failed to login',
+        })
+    }
+}
+
+// ============================================================
+// REFRESH TOKEN — silently mints a new access token from the httpOnly refresh cookie sir
+// no Auth middleware here on purpose, the access token is expected to be expired/expiring
+// ============================================================
+exports.refreshToken = async (req, res) => {
+    try {
+        const raw = req.cookies?.refreshToken
+
+        if (!raw) {
+            return res.status(401).json({
+                success: false,
+                message: 'No refresh token, please log in again',
+            })
+        }
+
+        const hashed = hashToken(raw)
+        const user = await User.findOne({ refreshTokenHash: hashed })
+
+        if (!user || !user.refreshTokenExpiresAt || user.refreshTokenExpiresAt < Date.now()) {
+            return res.status(401).json({
+                success: false,
+                message: 'Refresh token invalid or expired, please log in again',
+            })
+        }
+
+        if (user.isBanned) {
+            return res.status(403).json({
+                success: false,
+                message: user.banReason
+                    ? `Your account has been suspended: ${user.banReason}`
+                    : 'Your account has been suspended, please contact support',
+            })
+        }
+
+        const accessToken = signAccessToken(user)
+        user.token = accessToken
+        await user.save()
+
+        const accessCookie = cookie.serialize('token', accessToken, {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: 'lax',
+            maxAge: 60 * 60,
+            path: '/',
+        })
+        res.setHeader('Set-Cookie', accessCookie)
+
+        return res.status(200).json({
+            success: true,
+            token: accessToken,
+        })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to refresh session',
+        })
+    }
+}
+
+// ============================================================
+// LOGOUT — clears both cookies and revokes the refresh token server-side sir
+// ============================================================
+exports.logoutUser = async (req, res) => {
+    try {
+        await User.findByIdAndUpdate(req.User.id, {
+            refreshTokenHash: null,
+            refreshTokenExpiresAt: null,
+        })
+
+        const clearAccess = cookie.serialize('token', '', {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: 'lax',
+            maxAge: 0,
+            path: '/',
+        })
+        const clearRefresh = cookie.serialize('refreshToken', '', {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: 'lax',
+            maxAge: 0,
+            path: '/api/v1',
+        })
+        res.setHeader('Set-Cookie', [clearAccess, clearRefresh])
+
+        return res.status(200).json({
+            success: true,
+            message: 'Logged out successfully',
+        })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to log out',
         })
     }
 }
@@ -363,7 +496,13 @@ exports.updatePassword = async (req, res) => {
         const saltRounds = 10
         const hashing = await bcrypt.hash(newPassword, saltRounds)
 
-        await User.findByIdAndUpdate(userId, { password: hashing })
+        // changing the password kills any stolen refresh token too sir — same spirit as revoking
+        // API keys elsewhere, a leaked refresh token shouldn't survive a password change
+        await User.findByIdAndUpdate(userId, {
+            password: hashing,
+            refreshTokenHash: null,
+            refreshTokenExpiresAt: null,
+        })
 
         return res.status(200).json({
             success: true,
@@ -471,7 +610,13 @@ exports.resetPassword = async (req, res) => {
         const encryptedPassword = await bcrypt.hash(newPassword, 10)
         await User.findOneAndUpdate(
             { resetPasswordToken: token },
-            { password: encryptedPassword, resetPasswordToken: null, resetPasswordExpires: null },
+            {
+                password: encryptedPassword,
+                resetPasswordToken: null,
+                resetPasswordExpires: null,
+                refreshTokenHash: null,
+                refreshTokenExpiresAt: null,
+            },
         )
 
         return res.status(200).json({
@@ -604,7 +749,7 @@ exports.getProfile = async (req, res) => {
         const id = req.User.id
 
         const user = await User.findById(id)
-            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count createdAt Buffer BufferTiming')
+            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits createdAt Buffer BufferTiming')
 
         if (!user) {
             return res.status(404).json({
@@ -612,6 +757,10 @@ exports.getProfile = async (req, res) => {
                 message: 'User not found, please log in again',
             })
         }
+
+        // apply the lazy credit-cycle reset BEFORE reading count/bonusCredits below sir — otherwise
+        // a stale cycle's usage would show even though the reset has technically already occurred
+        await resetCycleIfNeeded(user)
 
         // the effective plan sir — an expired Pro is a Basic again
         const plan = getEffectivePlan(user)
@@ -629,6 +778,7 @@ exports.getProfile = async (req, res) => {
                 name: plan.name,
                 creditsUsed: user.count,
                 creditsLimit: plan.credits,          // null means unlimited sir
+                bonusCredits: user.bonusCredits,
                 maxMessagesPerChat: plan.maxMessagesPerChat,
                 expiresAt: plan.key === 'Basic' ? null : user.SubscriptionExpires,
             },
