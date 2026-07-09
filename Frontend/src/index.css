@@ -37,3 +37,17 @@ body {
 * {
   box-sizing: border-box;
 }
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    /* the message is duplicated in DevBanner.jsx sir, so -50% is exactly one full loop with no gap */
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 18s linear infinite;
+}
