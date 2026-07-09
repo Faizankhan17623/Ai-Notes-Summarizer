@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { GetPlans, CreateOrder } from '../../Services/operations/Payment.js'
+import { GetPlans, StartCheckout } from '../../Services/operations/Payment.js'
 import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
 
@@ -22,7 +22,7 @@ const Pricing = () => {
             return
         }
         if (planKey === 'Basic') return
-        await dispatch(CreateOrder(planKey, token))
+        dispatch(StartCheckout(planKey, token, user))
     }
 
     if (loading) return <Loading text="Loading plans..." />

@@ -6,6 +6,7 @@ import { FaPlus, FaHistory } from 'react-icons/fa'
 import { GetAllNotes } from '../../Services/operations/Notes.js'
 import { GetProfile } from '../../Services/operations/Auth.js'
 import Navbar from '../Home/Navbar.jsx'
+import AnalyticsWidget from './AnalyticsWidget.jsx'
 
 const DashboardHome = () => {
     const dispatch = useDispatch()
@@ -45,6 +46,8 @@ const DashboardHome = () => {
                         <p className="text-richblack-300 text-sm">Browse your past summaries</p>
                     </Link>
                 </div>
+
+                <AnalyticsWidget />
 
                 <h2 className="text-richblack-5 font-semibold mb-4">Recent notes</h2>
                 {recent.length === 0 ? (

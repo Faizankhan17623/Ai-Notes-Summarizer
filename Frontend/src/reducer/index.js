@@ -6,6 +6,8 @@ import studyKitReducer from '../Slices/studyKitSlice'
 import paymentReducer from '../Slices/paymentSlice'
 import profileReducer from '../Slices/profileSlice'
 import adminReducer from '../Slices/adminSlice'
+import apiKeyReducer from '../Slices/apiKeySlice'
+import analyticsReducer from '../Slices/analyticsSlice'
 
 const rootReducers = combineReducers({
     auth: authReducer,
@@ -15,6 +17,8 @@ const rootReducers = combineReducers({
     payment: paymentReducer,
     profile: profileReducer,
     admin: adminReducer,
+    apiKey: apiKeyReducer,
+    analytics: analyticsReducer,
 })
 
 export default rootReducers

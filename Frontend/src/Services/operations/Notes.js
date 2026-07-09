@@ -1,9 +1,9 @@
 import toast from "react-hot-toast"
-import { apiConnector } from "../apiConnector.js"
+import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { NotesData } from "../Apis/NotesApi.js"
-import { setAllNotes, setCurrentNote, setLoading } from "../../Slices/notesSlice.js"
+import { setAllNotes, setCurrentNote, setTagsAndFolders, setLoading } from "../../Slices/notesSlice.js"
 
-const { summarize, allNotes, singleNote, deleteNote } = NotesData
+const { summarize, allNotes, tags, singleNote, deleteNote, organizeNote, enableShare, disableShare, sharedNote, exportNote } = NotesData
 
 // summarize sir — pass either { notes: text, sourceType } or a FormData with a `notes` file field
 export function SummarizeNotes(payload, token, navigate) {
@@ -34,12 +34,13 @@ export function SummarizeNotes(payload, token, navigate) {
     }
 }
 
-export function GetAllNotes(token) {
+// filters is optional sir — { search, tag, folder, pinned } — all independent, pass only what's needed
+export function GetAllNotes(token, filters = {}) {
     return async (dispatch) => {
         try {
             const response = await apiConnector("GET", allNotes, null, {
                 Authorization: `Bearer ${token}`
-            })
+            }, filters)
 
             if (!response.data.success) {
                 throw new Error(response.data.message)
@@ -93,6 +94,139 @@ export function DeleteNote(noteId, token, navigate) {
         } catch (error) {
             console.error("Error deleting note", error)
             toast.error(error?.response?.data?.message || "Could not delete the note")
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+export function GetTagsAndFolders(token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", tags, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            dispatch(setTagsAndFolders({ tags: response.data.tags, folders: response.data.folders }))
+        } catch (error) {
+            console.error("Error fetching tags/folders", error)
+        }
+    }
+}
+
+// updates sir — pass only the fields you want to change: { tags, folder, pinned }
+export function OrganizeNote(noteId, updates, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("PATCH", `${organizeNote}/${noteId}/organize`, updates, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            dispatch(setCurrentNote(response.data.note))
+            dispatch(GetTagsAndFolders(token))
+            toast.success("Note updated")
+        } catch (error) {
+            console.error("Error organizing note", error)
+            toast.error(error?.response?.data?.message || "Could not update the note")
+        }
+    }
+}
+
+export function EnableShare(noteId, token) {
+    return async () => {
+        try {
+            const response = await apiConnector("POST", `${enableShare}/${noteId}/share`, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            return response.data.shareId
+        } catch (error) {
+            console.error("Error enabling share", error)
+            toast.error(error?.response?.data?.message || "Could not enable sharing")
+            return null
+        }
+    }
+}
+
+export function DisableShare(noteId, token) {
+    return async () => {
+        try {
+            const response = await apiConnector("DELETE", `${disableShare}/${noteId}/share`, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            toast.success("Sharing disabled")
+            return true
+        } catch (error) {
+            console.error("Error disabling share", error)
+            toast.error(error?.response?.data?.message || "Could not disable sharing")
+            return false
+        }
+    }
+}
+
+// public sir — no auth header, used by the standalone SharedNote page
+export function GetSharedNote(shareId) {
+    return async (dispatch) => {
+        dispatch(setLoading(true))
+        try {
+            const response = await apiConnector("GET", `${sharedNote}/${shareId}`)
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            dispatch(setCurrentNote(response.data.note))
+        } catch (error) {
+            console.error("Error fetching shared note", error)
+        } finally {
+            dispatch(setLoading(false))
+        }
+    }
+}
+
+// triggers a real file download sir — axios responseType 'blob' + a synthetic <a> click,
+// since the browser has no native "download this authenticated URL" primitive
+export function ExportNote(noteId, format, title, token) {
+    return async () => {
+        const toastId = toast.loading(`Exporting as ${format.toUpperCase()}...`)
+        try {
+            const response = await axiosinstance({
+                method: 'GET',
+                url: `${exportNote}/${noteId}/export/${format}`,
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: 'blob',
+            })
+
+            const url = window.URL.createObjectURL(new Blob([response.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', `${title || 'note'}.${format}`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+
+            toast.success('Export ready')
+        } catch (error) {
+            console.error("Error exporting note", error)
+            toast.error("Could not export the note")
         } finally {
             toast.dismiss(toastId)
         }

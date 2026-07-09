@@ -13,6 +13,8 @@ import IconBtn from '../extra/IconBtn.jsx'
 import ActionItemsCard from './ActionItemsCard.jsx'
 import FlashcardDeck from './FlashcardDeck.jsx'
 import QuizPlayer from './QuizPlayer.jsx'
+import NoteOrganizer from './NoteOrganizer.jsx'
+import ShareExport from './ShareExport.jsx'
 
 const Report = () => {
     const { noteId } = useParams()
@@ -70,6 +72,9 @@ const Report = () => {
                         </button>
                     </div>
                 </div>
+
+                <NoteOrganizer note={currentNote} />
+                <ShareExport note={currentNote} />
 
                 <div className="border border-richblack-700 rounded-lg p-6 mb-6">
                     <h2 className="text-richblack-5 font-semibold mb-2">TL;DR</h2>
