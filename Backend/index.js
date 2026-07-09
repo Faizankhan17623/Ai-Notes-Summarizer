@@ -1,0 +1,76 @@
+require('dotenv').config({ quiet: true })
+require('colors')
+
+const express = require('express')
+const app = express()
+const cors = require('cors')
+const helmet = require('helmet')
+const fileUpload = require('express-fileupload')
+const cookieParser = require('cookie-parser')
+
+const Port = process.env.PORT || 4000
+
+const connectDB = require('./Installation/mongo')
+const auth = require('./Routes/Auth.js')
+const notes = require('./Routes/Notes.js')
+const chat = require('./Routes/Chat.js')
+const payment = require('./Routes/Payment.js')
+const admin = require('./Routes/Admin.js')
+const { globalLimiter } = require('./Middlewares/RateLimit.js')
+
+// deployed behind a proxy (Render/Railway/nginx) sir — needed so the rate limiter sees the REAL client IP
+app.set('trust proxy', 1)
+
+// security headers on every response sir
+app.use(helmet())
+
+app.use(express.json())
+
+// credentials:true so the auth cookie flows sir — the frontend must call axios with withCredentials:true
+// NOTE: origin:'*' is not usable here — browsers reject Access-Control-Allow-Origin:* together
+// with Access-Control-Allow-Credentials:true, so a wildcard would silently break the cookie-based
+// login instead of fixing anything. An allowlist is the only way to keep credentials working.
+// allowlist instead of a single origin sir — production AND local dev both work no matter what FRONTEND_URL says
+// trailing slashes are stripped sir — an Origin header never has one, and a mismatch silently kills CORS
+const allowedOrigins = [
+    'http://localhost:5173',
+]
+if (process.env.FRONTEND_URL) {
+    const extra = process.env.FRONTEND_URL.trim().replace(/\/+$/, '')
+    if (!allowedOrigins.includes(extra)) allowedOrigins.push(extra)
+}
+// in dev, Vite auto-bumps to 5174/5175/... if 5173 is busy sir — rather than chase the port,
+// allow any localhost/127.0.0.1 origin on any port while developing. Production stays locked
+// to the explicit allowlist above (NODE_ENV must be set to 'production' when you deploy).
+const isDev = process.env.NODE_ENV !== 'production'
+const isLocalhost = (origin) => /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)
+
+app.use(cors({
+    // requests with no Origin header (curl, health checks, server-to-server) pass through sir
+    origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin) || (isDev && isLocalhost(origin))),
+    credentials: true
+}))
+app.use(cookieParser())
+app.use(fileUpload())
+
+// generous global rate limit sir — the tight per-route ones live in the route files
+app.use(globalLimiter)
+
+app.use('/api/v1', auth)
+app.use('/api/v1', notes)
+app.use('/api/v1', chat)
+app.use('/api/v1', payment)
+app.use('/api/v1', admin)
+
+connectDB()
+
+app.get('/', (req, res) => {
+    return res.json({
+        success: true,
+        message: 'Your server is up and running ...',
+    })
+})
+
+app.listen(Port, () => {
+    console.log(`Server running on port ${Port}`.bgGreen.black.bold)
+})
