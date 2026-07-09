@@ -24,6 +24,9 @@ const Navbar = () => {
                         <Link to="/Dashboard" className="text-richblack-100 hover:text-richblack-25 text-sm">
                             Dashboard
                         </Link>
+                        <Link to="/Dashboard/Review" className="text-richblack-100 hover:text-richblack-25 text-sm">
+                            Review
+                        </Link>
                         {['Admin', 'Support'].includes(user?.role) && (
                             <Link to="/Admin" className="text-richblack-100 hover:text-richblack-25 text-sm">
                                 Admin

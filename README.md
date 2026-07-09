@@ -6,7 +6,10 @@ Turn any notes into a clear, structured summary — paste text, upload a PDF/Wor
 
 - **Summarize notes** from pasted/typed text, PDF, DOCX, TXT, or voice dictation (browser Web Speech API — no extra API key needed)
 - **Chat with your notes** — ask follow-up questions grounded strictly in the note you're viewing
-- **Plan-tiered summaries** — Basic (key points + action items), Pro (+ sections & key terms), Pro Max (+ quiz & flashcards) — with real credit gating enforced per plan
+- **Plan-tiered summaries** — Basic (key points + structured action items: tasks/key dates/decisions), Pro (+ sections & key terms), Pro Max (+ an initial quiz & flashcard set) — with real credit gating enforced per plan
+- **On-demand flashcards** (Pro/Pro Max) — generate more flashcards from any note at any time, independent of the initial summary
+- **Spaced-repetition review** — flashcards are scheduled with an SM-2-based algorithm (again/hard/good/easy ratings); a dedicated Review page shows every card due across all your notes
+- **On-demand quizzes** (Pro/Pro Max) — generate fresh multiple-choice quizzes from any note, take them, and see a scored result with explanations
 - **Auth** — signup with OTP email verification, JWT (httpOnly cookie + bearer), forgot/reset password, 2-day account delete/recover buffer
 - **Admin dashboard** — user management (ban/roles), AI usage/cost monitor, payments, audit log, site-wide announcements
 - **Payments** — Razorpay integration, currently in "coming soon" stub mode until live keys are added

@@ -21,6 +21,7 @@ const Pricing = lazy(() => import('./Components/Home/Pricing'))
 const DashboardHome = lazy(() => import('./Components/Dashboard/DashboardHome'))
 const NewSummary = lazy(() => import('./Components/Dashboard/NewSummary'))
 const Report = lazy(() => import('./Components/Dashboard/Report'))
+const Review = lazy(() => import('./Components/Dashboard/Review'))
 const History = lazy(() => import('./Components/Dashboard/History'))
 const Chat = lazy(() => import('./Components/Dashboard/Chat'))
 const Account = lazy(() => import('./Components/Dashboard/Account'))
@@ -74,6 +75,7 @@ function App() {
           <Route path="/Dashboard" element={<PrivateRoute><DashboardHome /></PrivateRoute>} />
           <Route path="/Dashboard/New-Summary" element={<PrivateRoute><NewSummary /></PrivateRoute>} />
           <Route path="/Dashboard/Note/:noteId" element={<PrivateRoute><Report /></PrivateRoute>} />
+          <Route path="/Dashboard/Review" element={<PrivateRoute><Review /></PrivateRoute>} />
           <Route path="/Dashboard/History" element={<PrivateRoute><History /></PrivateRoute>} />
           <Route path="/Dashboard/Chats" element={<PrivateRoute><Chat /></PrivateRoute>} />
           <Route path="/Dashboard/Chat/:chatId" element={<PrivateRoute><Chat /></PrivateRoute>} />

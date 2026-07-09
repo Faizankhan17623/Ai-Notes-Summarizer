@@ -1,6 +1,8 @@
 const mongoose = require('mongoose')
 const Note = require('../Models/Note')
 const Chat = require('../Models/Chat')
+const Flashcard = require('../Models/Flashcard')
+const Quiz = require('../Models/Quiz')
 const User = require('../Models/User')
 
 // GET /notes — the history list sir, rawText left out to keep the payload light
@@ -82,9 +84,13 @@ exports.deleteNote = async (req, res) => {
             })
         }
 
-        // a note's chats are meaningless without it sir, clean them up too
+        // a note's chats/flashcards/quizzes are meaningless without it sir, clean them all up too
         const orphanedChats = await Chat.find({ note: note._id }).select('_id')
-        await Chat.deleteMany({ note: note._id })
+        await Promise.all([
+            Chat.deleteMany({ note: note._id }),
+            Flashcard.deleteMany({ note: note._id }),
+            Quiz.deleteMany({ note: note._id }),
+        ])
         await User.findByIdAndUpdate(id, {
             $pull: {
                 Notes: note._id,

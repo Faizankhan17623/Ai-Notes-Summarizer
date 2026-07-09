@@ -6,24 +6,34 @@ import { FaComments, FaTrash } from 'react-icons/fa'
 import Swal from 'sweetalert2'
 import { GetSingleNote, DeleteNote } from '../../Services/operations/Notes.js'
 import { CreateChat } from '../../Services/operations/Chat.js'
+import { GenerateFlashcards, GetFlashcardsForNote, GenerateQuiz, GetQuizzesForNote } from '../../Services/operations/StudyKit.js'
 import Navbar from '../Home/Navbar.jsx'
 import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
+import ActionItemsCard from './ActionItemsCard.jsx'
+import FlashcardDeck from './FlashcardDeck.jsx'
+import QuizPlayer from './QuizPlayer.jsx'
 
 const Report = () => {
     const { noteId } = useParams()
     const dispatch = useDispatch()
     const navigate = useNavigate()
-    const { token } = useSelector((state) => state.auth)
+    const { token, user } = useSelector((state) => state.auth)
     const { currentNote, loading } = useSelector((state) => state.notes)
+    const { flashcards, quizzes, activeQuiz } = useSelector((state) => state.studyKit)
+
+    const isPaidPlan = user?.SubType && user.SubType !== 'Basic'
 
     useEffect(() => {
         dispatch(GetSingleNote(noteId, token))
+        dispatch(GetFlashcardsForNote(noteId, token))
+        dispatch(GetQuizzesForNote(noteId, token))
     }, [dispatch, noteId, token])
 
     if (loading || !currentNote) return <Loading text="Loading summary..." />
 
     const summary = currentNote.summary || {}
+    const latestQuiz = activeQuiz || quizzes[0]
 
     const handleDelete = async () => {
         const result = await Swal.fire({
@@ -103,49 +113,35 @@ const Report = () => {
                     </div>
                 )}
 
-                {summary.actionItems?.length > 0 && (
-                    <div className="border border-richblack-700 rounded-lg p-6 mb-6">
-                        <h2 className="text-richblack-5 font-semibold mb-3">Action items</h2>
-                        <ul className="list-disc list-inside space-y-2 text-richblack-200">
-                            {summary.actionItems.map((item, i) => <li key={i}>{item}</li>)}
-                        </ul>
-                    </div>
-                )}
+                <ActionItemsCard actionItems={summary.actionItems} />
 
-                {summary.flashcards?.length > 0 && (
-                    <div className="border border-richblack-700 rounded-lg p-6 mb-6">
-                        <h2 className="text-richblack-5 font-semibold mb-3">Flashcards</h2>
-                        <div className="grid md:grid-cols-2 gap-3">
-                            {summary.flashcards.map((card, i) => (
-                                <div key={i} className="bg-richblack-800 rounded-md p-4">
-                                    <p className="text-yellow-50 text-sm font-medium mb-1">{card.front}</p>
-                                    <p className="text-richblack-200 text-sm">{card.back}</p>
-                                </div>
-                            ))}
-                        </div>
+                {/* Flashcards sir — standalone cards generated on-demand, independent of the initial summary */}
+                <div className="border border-richblack-700 rounded-lg p-6 mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-richblack-5 font-semibold">Flashcards</h2>
+                        {isPaidPlan ? (
+                            <IconBtn text="Generate more" outline onclick={() => dispatch(GenerateFlashcards(noteId, 10, token))} />
+                        ) : (
+                            <Link to="/Pricing" className="text-yellow-50 text-xs">Upgrade to generate flashcards</Link>
+                        )}
                     </div>
-                )}
+                    <FlashcardDeck cards={flashcards} noteId={noteId} allowDelete />
+                </div>
 
-                {summary.quiz?.length > 0 && (
-                    <div className="border border-richblack-700 rounded-lg p-6">
-                        <h2 className="text-richblack-5 font-semibold mb-3">Quiz</h2>
-                        <div className="space-y-5">
-                            {summary.quiz.map((q, i) => (
-                                <div key={i}>
-                                    <p className="text-richblack-5 font-medium mb-2">{i + 1}. {q.question}</p>
-                                    <ul className="space-y-1">
-                                        {q.options?.map((opt, j) => (
-                                            <li key={j} className={`text-sm px-3 py-1.5 rounded ${j === q.correctIndex ? "bg-caribbeangreen-800/20 text-caribbeangreen-300" : "text-richblack-300"}`}>
-                                                {opt}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                    <p className="text-richblack-400 text-xs mt-2">{q.explanation}</p>
-                                </div>
-                            ))}
-                        </div>
+                {/* Quiz sir — same on-demand pattern, one active quiz shown at a time (most recent) */}
+                <div className="border border-richblack-700 rounded-lg p-6">
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-richblack-5 font-semibold">Quiz</h2>
+                        {isPaidPlan ? (
+                            <IconBtn text="Generate new quiz" outline onclick={() => dispatch(GenerateQuiz(noteId, 8, token))} />
+                        ) : (
+                            <Link to="/Pricing" className="text-yellow-50 text-xs">Upgrade to generate quizzes</Link>
+                        )}
                     </div>
-                )}
+                    {latestQuiz ? <QuizPlayer key={latestQuiz._id} quiz={latestQuiz} /> : (
+                        <p className="text-richblack-400 text-sm">No quiz yet — generate one above.</p>
+                    )}
+                </div>
             </div>
         </div>
     )

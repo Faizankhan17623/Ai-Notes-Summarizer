@@ -13,13 +13,21 @@ const SUMMARY_RULES = `RULES:
 - All arrays should be ordered by importance, most important first.
 - Respond ONLY with a valid JSON object in EXACTLY the shape shown — no markdown fences, no commentary, no text before or after.`
 
+// actionItems shape sir — split into tasks/keyDates/decisions instead of one flat array,
+// most useful for meeting notes specifically. Same shape at every tier.
+const ACTION_ITEMS_SHAPE = `"actionItems": {
+    "tasks": ["a task or follow-up mentioned in the notes, with owner/deadline if stated, empty array if none"],
+    "keyDates": ["a specific date or deadline mentioned in the notes, with what it's for, empty array if none"],
+    "decisions": ["a decision that was made or agreed on in the notes, empty array if none"]
+  }`
+
 // the JSON shape each tier gets back sir — Pro extends Basic, ProMax extends Pro
 const SUMMARY_SHAPES = {
     Basic: `{
   "title": "a short 5-8 word title for these notes",
   "tldr": "1-2 sentence summary of the whole thing",
   "keyPoints": ["short, specific key point pulled from the notes (5-8 items)"],
-  "actionItems": ["a task or follow-up mentioned in the notes, empty array if none"]
+  ${ACTION_ITEMS_SHAPE}
 }`,
 
     Pro: `{
@@ -38,7 +46,7 @@ const SUMMARY_SHAPES = {
       "meaning": "1 sentence explaining it using context from the notes"
     }
   ],
-  "actionItems": ["a task, decision, or follow-up mentioned in the notes, with owner/deadline if stated, empty array if none"]
+  ${ACTION_ITEMS_SHAPE}
 }
 - Break the notes into 2-6 logical "sections" based on topic shifts.
 - Return 4-8 "keyTerms".`,
@@ -59,7 +67,7 @@ const SUMMARY_SHAPES = {
       "meaning": "1 sentence explaining it using context from the notes"
     }
   ],
-  "actionItems": ["a task, decision, or follow-up mentioned in the notes, with owner/deadline if stated, empty array if none"],
+  ${ACTION_ITEMS_SHAPE},
   "quiz": [
     {
       "question": "a question that tests understanding of a key point in the notes",
@@ -89,6 +97,63 @@ Respond ONLY with a valid JSON object in EXACTLY this shape — no markdown fenc
 ${shape}
 
 ${SUMMARY_RULES}`
+}
+
+// ---------- ON-DEMAND FLASHCARD / QUIZ PROMPTS (controllers/StudyKit.js) ----------
+// used by "generate more" — separate from the initial summary so Pro/ProMax users can
+// top up cards/questions from a note at any time without re-summarizing it
+
+// existingFronts/existingQuestions are passed in so a repeated "generate more" click
+// doesn't just return the same cards/questions again sir
+const buildFlashcardPrompt = (noteText, count, existingFronts = []) => {
+    const avoid = existingFronts.length
+        ? `\n\nDo NOT repeat these existing flashcard fronts (make new, different ones):\n${existingFronts.map((f) => `- ${f}`).join('\n')}`
+        : ''
+
+    return `You are an expert study coach. Generate flashcards from the notes below to help someone memorize and review the material.
+
+=== THE NOTES ===
+${noteText}
+
+Generate exactly ${count} flashcards (fewer only if the notes genuinely don't contain enough distinct content).${avoid}
+
+RULES:
+- Every card must be grounded strictly in the notes above — do NOT invent facts.
+- "front" is a short term or question, "back" is the concise answer/definition.
+- Respond ONLY with a valid JSON object in EXACTLY this shape — no markdown fences, no commentary:
+{
+  "flashcards": [
+    { "front": "a term or question from the notes", "back": "the answer/definition, grounded in the notes" }
+  ]
+}`
+}
+
+const buildQuizPrompt = (noteText, count, existingQuestions = []) => {
+    const avoid = existingQuestions.length
+        ? `\n\nDo NOT repeat these existing questions (make new, different ones):\n${existingQuestions.map((q) => `- ${q}`).join('\n')}`
+        : ''
+
+    return `You are an expert study coach. Generate a multiple-choice quiz from the notes below to test understanding of the material.
+
+=== THE NOTES ===
+${noteText}
+
+Generate exactly ${count} questions (fewer only if the notes genuinely don't contain enough distinct content).${avoid}
+
+RULES:
+- Every question must be grounded strictly in the notes above — do NOT invent facts.
+- Each question has exactly 4 options, with exactly one correct.
+- Respond ONLY with a valid JSON object in EXACTLY this shape — no markdown fences, no commentary:
+{
+  "questions": [
+    {
+      "question": "a question that tests understanding of a key point in the notes",
+      "options": ["four plausible answer options, one of them correct"],
+      "correctIndex": 0,
+      "explanation": "1 sentence on why that answer is correct, grounded in the notes"
+    }
+  ]
+}`
 }
 
 // ---------- CHAT PROMPTS (controllers/Chat.js) ----------
@@ -130,4 +195,4 @@ RULES:
 - If asked something completely unrelated to these notes or studying, politely steer back to the notes.`
 }
 
-module.exports = { buildSummarySystemPrompt, buildChatSystemPrompt }
+module.exports = { buildSummarySystemPrompt, buildChatSystemPrompt, buildFlashcardPrompt, buildQuizPrompt }
