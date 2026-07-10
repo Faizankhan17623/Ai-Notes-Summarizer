@@ -29,6 +29,7 @@ const Review = lazy(() => import('./Components/Dashboard/Review'))
 const History = lazy(() => import('./Components/Dashboard/History'))
 const Chat = lazy(() => import('./Components/Dashboard/Chat'))
 const Account = lazy(() => import('./Components/Dashboard/Account'))
+const AdminLayout = lazy(() => import('./Components/Admin/AdminLayout'))
 const AdminOverview = lazy(() => import('./Components/Admin/Overview'))
 const AdminAnalytics = lazy(() => import('./Components/Admin/Analytics'))
 const AdminUsers = lazy(() => import('./Components/Admin/Users'))
@@ -96,13 +97,16 @@ function App() {
             <Route path="/Dashboard/Account" element={<Account />} />
           </Route>
 
-          {/* Admin and Support only sir — the backend re-checks the role on every call anyway */}
-          <Route path="/Admin" element={<AdminRoute><AdminOverview /></AdminRoute>} />
-          <Route path="/Admin/Analytics" element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
-          <Route path="/Admin/Users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
-          <Route path="/Admin/Payments" element={<AdminRoute><AdminPayments /></AdminRoute>} />
-          <Route path="/Admin/Audit" element={<AdminRoute><AdminAudit /></AdminRoute>} />
-          <Route path="/Admin/Announcements" element={<AdminRoute><AdminAnnouncements /></AdminRoute>} />
+          {/* Admin and Support only sir — the backend re-checks the role on every call anyway.
+              One shared sidebar shell via Outlet instead of every page rendering its own Navbar+AdminNav */}
+          <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
+            <Route path="/Admin" element={<AdminOverview />} />
+            <Route path="/Admin/Analytics" element={<AdminAnalytics />} />
+            <Route path="/Admin/Users" element={<AdminUsers />} />
+            <Route path="/Admin/Payments" element={<AdminPayments />} />
+            <Route path="/Admin/Audit" element={<AdminAudit />} />
+            <Route path="/Admin/Announcements" element={<AdminAnnouncements />} />
+          </Route>
 
           {/* anything unknown goes home sir */}
           <Route path="*" element={<Navigate to="/" />} />

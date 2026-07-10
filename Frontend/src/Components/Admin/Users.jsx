@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
+import { FaSearch } from 'react-icons/fa'
 import Swal from 'sweetalert2'
 import { GetUsers, BanUser, UnbanUser, SetRole } from '../../Services/operations/Admin.js'
-import Navbar from '../Home/Navbar.jsx'
-import AdminNav from './AdminNav.jsx'
-import Loading from '../extra/Loading.jsx'
+import StatusBadge from './StatusBadge.jsx'
 
 const Users = () => {
     const dispatch = useDispatch()
@@ -33,59 +32,63 @@ const Users = () => {
     }
 
     return (
-        <div className="min-h-screen bg-richblack-900">
+        <div className="px-6 md:px-10 py-10">
             <Helmet><title>Admin Users — AI Notes Summarizer</title></Helmet>
-            <Navbar />
-            <AdminNav />
+            <h1 className="font-display text-3xl font-semibold text-richblack-5 mb-6">Users</h1>
 
-            <div className="max-w-5xl mx-auto px-6 py-10">
-                <h1 className="text-2xl font-bold text-richblack-5 mb-6">Users</h1>
-
+            <div className="relative mb-6 max-w-sm">
+                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-richblack-500" size={13} />
                 <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search by name or email..."
-                    className="w-full bg-richblack-800 border border-richblack-700 text-richblack-5 rounded-md px-4 py-2 outline-none focus:border-yellow-50 mb-6"
+                    className="w-full bg-surface border border-border-soft text-richblack-5 rounded-md pl-9 pr-4 py-2 outline-none focus:border-yellow-50 transition-colors"
                 />
+            </div>
 
-                {loading ? (
-                    <Loading text="Loading users..." />
-                ) : (
+            {loading ? (
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-8 h-8 border-2 border-yellow-50 border-t-transparent rounded-full animate-spin" />
+                </div>
+            ) : (
+                <div className="border border-border-soft bg-surface rounded-lg overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
                             <thead>
-                                <tr className="text-richblack-400 border-b border-richblack-700">
-                                    <th className="py-2 pr-4">Name</th>
-                                    <th className="py-2 pr-4">Email</th>
-                                    <th className="py-2 pr-4">Role</th>
-                                    <th className="py-2 pr-4">Plan</th>
-                                    <th className="py-2 pr-4">Status</th>
-                                    <th className="py-2 pr-4">Actions</th>
+                                <tr className="text-richblack-400 border-b border-border-soft">
+                                    <th className="py-3 px-4 font-medium">Name</th>
+                                    <th className="py-3 px-4 font-medium">Email</th>
+                                    <th className="py-3 px-4 font-medium">Role</th>
+                                    <th className="py-3 px-4 font-medium">Plan</th>
+                                    <th className="py-3 px-4 font-medium">Status</th>
+                                    <th className="py-3 px-4 font-medium">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {users.map((u) => (
-                                    <tr key={u._id} className="border-b border-richblack-800 text-richblack-200">
-                                        <td className="py-2 pr-4">{u.firstName} {u.lastName}</td>
-                                        <td className="py-2 pr-4">{u.email}</td>
-                                        <td className="py-2 pr-4">
+                                    <tr key={u._id} className="border-b border-border-soft last:border-b-0 text-richblack-200 hover:bg-surface-hover transition-colors">
+                                        <td className="py-3 px-4 text-richblack-5">{u.firstName} {u.lastName}</td>
+                                        <td className="py-3 px-4">{u.email}</td>
+                                        <td className="py-3 px-4">
                                             <select
                                                 value={u.role}
                                                 onChange={(e) => dispatch(SetRole(u._id, e.target.value, token))}
-                                                className="bg-richblack-800 rounded px-2 py-1"
+                                                className="bg-surface-hover border border-border-soft rounded px-2 py-1 text-richblack-200 outline-none focus:border-yellow-50"
                                             >
                                                 <option value="User">User</option>
                                                 <option value="Support">Support</option>
                                                 <option value="Admin">Admin</option>
                                             </select>
                                         </td>
-                                        <td className="py-2 pr-4">{u.SubType}</td>
-                                        <td className="py-2 pr-4">{u.isBanned ? <span className="text-pink-200">Banned</span> : <span className="text-caribbeangreen-300">Active</span>}</td>
-                                        <td className="py-2 pr-4">
+                                        <td className="py-3 px-4 font-mono text-xs">{u.SubType}</td>
+                                        <td className="py-3 px-4">
+                                            {u.isBanned ? <StatusBadge tone="danger">Banned</StatusBadge> : <StatusBadge tone="good">Active</StatusBadge>}
+                                        </td>
+                                        <td className="py-3 px-4">
                                             {u.isBanned ? (
-                                                <button onClick={() => dispatch(UnbanUser(u._id, token))} className="text-caribbeangreen-300 cursor-pointer">Unban</button>
+                                                <button onClick={() => dispatch(UnbanUser(u._id, token))} className="text-good text-xs font-medium cursor-pointer hover:underline">Unban</button>
                                             ) : (
-                                                <button onClick={() => handleBan(u._id)} className="text-pink-200 cursor-pointer">Ban</button>
+                                                <button onClick={() => handleBan(u._id)} className="text-danger-soft text-xs font-medium cursor-pointer hover:underline">Ban</button>
                                             )}
                                         </td>
                                     </tr>
@@ -93,8 +96,8 @@ const Users = () => {
                             </tbody>
                         </table>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     )
 }

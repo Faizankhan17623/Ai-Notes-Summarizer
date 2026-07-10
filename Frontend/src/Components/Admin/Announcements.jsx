@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
 import { GetAnnouncements, CreateAnnouncement, DeactivateAnnouncement } from '../../Services/operations/Admin.js'
-import Navbar from '../Home/Navbar.jsx'
-import AdminNav from './AdminNav.jsx'
-import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
+import StatusBadge from './StatusBadge.jsx'
 
 const Announcements = () => {
     const dispatch = useDispatch()
@@ -25,45 +23,48 @@ const Announcements = () => {
     }
 
     return (
-        <div className="min-h-screen bg-richblack-900">
+        <div className="max-w-3xl px-6 md:px-10 py-10">
             <Helmet><title>Admin Announcements — AI Notes Summarizer</title></Helmet>
-            <Navbar />
-            <AdminNav />
+            <h1 className="font-display text-3xl font-semibold text-richblack-5 mb-6">Announcements</h1>
 
-            <div className="max-w-3xl mx-auto px-6 py-10">
-                <h1 className="text-2xl font-bold text-richblack-5 mb-6">Announcements</h1>
+            <form onSubmit={handlePublish} className="flex gap-2 mb-8">
+                <input
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="New announcement message..."
+                    className="flex-1 bg-surface border border-border-soft text-richblack-5 rounded-md px-4 py-2 outline-none focus:border-yellow-50 transition-colors"
+                />
+                <IconBtn text="Publish" type="submit" disabled={!message.trim()} />
+            </form>
 
-                <form onSubmit={handlePublish} className="flex gap-2 mb-8">
-                    <input
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        placeholder="New announcement message..."
-                        className="flex-1 bg-richblack-800 border border-richblack-700 text-richblack-5 rounded-md px-4 py-2 outline-none focus:border-yellow-50"
-                    />
-                    <IconBtn text="Publish" type="submit" disabled={!message.trim()} />
-                </form>
-
-                {loading ? (
-                    <Loading text="Loading announcements..." />
-                ) : (
-                    <div className="space-y-3">
-                        {announcements.map((a) => (
-                            <div key={a._id} className="border border-border-soft bg-surface rounded-md p-4 flex items-center justify-between">
-                                <div>
-                                    <p className="text-richblack-5">{a.message}</p>
-                                    <p className="text-richblack-400 text-xs mt-1">{new Date(a.createdAt).toLocaleString()} — {a.active ? <span className="text-caribbeangreen-300">Active</span> : "Inactive"}</p>
+            {loading ? (
+                <div className="flex items-center justify-center py-20">
+                    <div className="w-8 h-8 border-2 border-yellow-50 border-t-transparent rounded-full animate-spin" />
+                </div>
+            ) : announcements.length === 0 ? (
+                <div className="border border-border-soft bg-surface rounded-lg text-center py-16 px-8">
+                    <p className="text-richblack-400 text-sm">No announcements yet.</p>
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {announcements.map((a) => (
+                        <div key={a._id} className="border border-border-soft bg-surface rounded-lg p-4 flex items-center justify-between gap-4">
+                            <div className="min-w-0">
+                                <p className="text-richblack-5">{a.message}</p>
+                                <div className="flex items-center gap-2 mt-1.5">
+                                    <span className="text-richblack-400 text-xs">{new Date(a.createdAt).toLocaleString()}</span>
+                                    {a.active ? <StatusBadge tone="good">Active</StatusBadge> : <StatusBadge tone="neutral">Inactive</StatusBadge>}
                                 </div>
-                                {a.active && (
-                                    <button onClick={() => dispatch(DeactivateAnnouncement(a._id, token))} className="text-pink-200 text-sm cursor-pointer">
-                                        Deactivate
-                                    </button>
-                                )}
                             </div>
-                        ))}
-                        {announcements.length === 0 && <p className="text-richblack-400 text-sm">No announcements yet.</p>}
-                    </div>
-                )}
-            </div>
+                            {a.active && (
+                                <button onClick={() => dispatch(DeactivateAnnouncement(a._id, token))} className="text-danger-soft text-xs font-medium cursor-pointer hover:underline shrink-0">
+                                    Deactivate
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     )
 }
