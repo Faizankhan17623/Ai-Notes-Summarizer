@@ -2,6 +2,11 @@
 
 Turn any notes into a clear, structured summary — paste text, upload a PDF/Word/TXT file, or just talk. Built with an Express + MongoDB backend and a React + Vite frontend, powered by Groq for AI summarization and chat.
 
+## Live demo
+
+- **Frontend:** [ai-notes-summarizer-v2.vercel.app](https://ai-notes-summarizer-v2.vercel.app/)
+- **Backend API:** [ai-notes-summarizer-v2.onrender.com](https://ai-notes-summarizer-v2.onrender.com)
+
 ## Features
 
 - **Summarize notes** from pasted/typed text, PDF, DOCX, TXT, or voice dictation (browser Web Speech API — no extra API key needed)
