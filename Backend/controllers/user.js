@@ -785,7 +785,7 @@ exports.getProfile = async (req, res) => {
         const id = req.User.id
 
         const user = await User.findById(id)
-            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits receiveDigest createdAt Buffer BufferTiming')
+            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits receiveDigest currentStreak createdAt Buffer BufferTiming')
 
         if (!user) {
             return res.status(404).json({
@@ -821,6 +821,7 @@ exports.getProfile = async (req, res) => {
             activity: {
                 noteCount,
                 chatCount,
+                currentStreak: user.currentStreak,
             }
         })
     } catch (error) {

@@ -4,6 +4,7 @@ const Groq = require('groq-sdk')
 const Note = require('../Models/Note')
 const Flashcard = require('../Models/Flashcard')
 const Quiz = require('../Models/Quiz')
+const User = require('../Models/User')
 
 const { consumeCredit, getUserPlan } = require('../utils/Plans')
 const { buildFlashcardPrompt, buildQuizPrompt } = require('../utils/Prompts')
@@ -163,6 +164,26 @@ exports.reviewFlashcard = async (req, res) => {
         card.dueDate = next.dueDate
         card.lastReviewedAt = new Date()
         await card.save()
+
+        // daily study streak sir — same calendar day check by UTC date string, not a 24h delta,
+        // so "yesterday 11pm then today 1am" correctly counts as two different days
+        const dayKey = (d) => d.toISOString().slice(0, 10)
+        const today = new Date()
+        const user = await User.findById(id).select('currentStreak lastStreakDate')
+
+        if (!user.lastStreakDate) {
+            user.currentStreak = 1
+        } else {
+            const last = dayKey(user.lastStreakDate)
+            const now = dayKey(today)
+            if (last !== now) {
+                const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
+                user.currentStreak = last === dayKey(yesterday) ? user.currentStreak + 1 : 1
+            }
+            // else: already reviewed something today sir — no change, this isn't a second day
+        }
+        user.lastStreakDate = today
+        await user.save()
 
         return res.status(200).json({ success: true, flashcard: card })
     } catch (error) {

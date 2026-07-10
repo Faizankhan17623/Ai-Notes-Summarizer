@@ -21,13 +21,17 @@ const ACTION_ITEMS_SHAPE = `"actionItems": {
     "decisions": ["a decision that was made or agreed on in the notes, empty array if none"]
   }`
 
+// pre-fills the note's tags at creation time sir — same shape at every tier, no separate AI call
+const SUGGESTED_TAGS_SHAPE = `"suggestedTags": ["2-3 short, specific topic tags for this note, e.g. Work, Lecture, Finance — no more than 2 words each"]`
+
 // the JSON shape each tier gets back sir — Pro extends Basic, ProMax extends Pro
 const SUMMARY_SHAPES = {
     Basic: `{
   "title": "a short 5-8 word title for these notes",
   "tldr": "1-2 sentence summary of the whole thing",
   "keyPoints": ["short, specific key point pulled from the notes (5-8 items)"],
-  ${ACTION_ITEMS_SHAPE}
+  ${ACTION_ITEMS_SHAPE},
+  ${SUGGESTED_TAGS_SHAPE}
 }`,
 
     Pro: `{
@@ -46,7 +50,8 @@ const SUMMARY_SHAPES = {
       "meaning": "1 sentence explaining it using context from the notes"
     }
   ],
-  ${ACTION_ITEMS_SHAPE}
+  ${ACTION_ITEMS_SHAPE},
+  ${SUGGESTED_TAGS_SHAPE}
 }
 - Break the notes into 2-6 logical "sections" based on topic shifts.
 - Return 4-8 "keyTerms".`,
@@ -81,7 +86,8 @@ const SUMMARY_SHAPES = {
       "front": "a term or question from the notes",
       "back": "the answer/definition, grounded in the notes"
     }
-  ]
+  ],
+  ${SUGGESTED_TAGS_SHAPE}
 }
 - Break the notes into 2-6 logical "sections" based on topic shifts.
 - Return 4-8 "keyTerms".

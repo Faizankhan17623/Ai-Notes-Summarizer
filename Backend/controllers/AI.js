@@ -125,6 +125,12 @@ exports.Calling = async (req, res) => {
             })
         }
 
+        // pre-fills the note's tags from the AI's suggestion sir — defensive guard since the
+        // model's output isn't guaranteed to match the schema exactly
+        const suggestedTags = Array.isArray(summary.suggestedTags)
+            ? summary.suggestedTags.filter((t) => typeof t === 'string' && t.trim()).slice(0, 3)
+            : []
+
         const note = await Note.create({
             user: id,
             title: summary.title,
@@ -132,6 +138,7 @@ exports.Calling = async (req, res) => {
             rawText: text,
             plan: spend.plan,
             summary,
+            tags: suggestedTags,
         })
 
         return res.status(200).json({

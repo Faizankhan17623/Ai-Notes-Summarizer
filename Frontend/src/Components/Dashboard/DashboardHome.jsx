@@ -21,7 +21,7 @@ const DashboardHome = () => {
     const dispatch = useDispatch()
     const { token, user } = useSelector((state) => state.auth)
     const { allNotes } = useSelector((state) => state.notes)
-    const { plan } = useSelector((state) => state.profile)
+    const { plan, activity } = useSelector((state) => state.profile)
 
     useEffect(() => {
         dispatch(GetAllNotes(token))
@@ -52,7 +52,7 @@ const DashboardHome = () => {
                 </Link>
             </div>
 
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <div className="border border-border-soft rounded-lg p-5 bg-surface">
                     <p className="text-xs uppercase tracking-wide text-richblack-400 mb-2">Notes this week</p>
                     <p className="font-mono text-2xl text-richblack-5">{notesThisWeek}</p>
@@ -67,6 +67,14 @@ const DashboardHome = () => {
                         <p className="font-mono text-2xl text-richblack-5">
                             {plan.creditsLimit === null ? '∞' : `${Math.max(plan.creditsLimit - plan.creditsUsed, 0)}`}
                             {plan.creditsLimit !== null && <span className="text-sm text-richblack-400 font-sans">/{plan.creditsLimit}</span>}
+                        </p>
+                    </div>
+                )}
+                {activity && activity.currentStreak > 0 && (
+                    <div className="border border-border-soft rounded-lg p-5 bg-surface">
+                        <p className="text-xs uppercase tracking-wide text-richblack-400 mb-2">Study streak</p>
+                        <p className="font-mono text-2xl text-richblack-5">
+                            {activity.currentStreak} <span className="text-sm text-richblack-400 font-sans">day{activity.currentStreak === 1 ? '' : 's'}</span>
                         </p>
                     </div>
                 )}

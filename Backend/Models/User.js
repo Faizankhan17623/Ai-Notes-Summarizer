@@ -63,6 +63,18 @@ const UserSchema = new mongoose.Schema(
             type: Boolean,
             default: true
         },
+        // consecutive days with at least one flashcard review sir — resets to 1 if a day is
+        // missed, updated only in reviewFlashcard (StudyKit.js), never elsewhere
+        currentStreak: {
+            type: Number,
+            default: 0
+        },
+        // the last calendar day a review counted toward the streak sir — used to detect
+        // "already counted today" vs "yesterday" vs "missed a day"
+        lastStreakDate: {
+            type: Date,
+            default: null
+        },
         // 2-day soft-delete buffer sir
         Buffer: {
             type: Boolean,
