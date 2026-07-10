@@ -2,10 +2,9 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { FaPaperPlane, FaTrash } from 'react-icons/fa'
+import { FaPaperPlane, FaTrash, FaComments } from 'react-icons/fa'
 import Swal from 'sweetalert2'
 import { GetAllChats, GetSingleChat, SendMessage, DeleteChat } from '../../Services/operations/Chat.js'
-import Loading from '../extra/Loading.jsx'
 import MicButton from '../extra/MicButton.jsx'
 
 const Chat = () => {
@@ -58,56 +57,97 @@ const Chat = () => {
         <>
             <Helmet><title>Chat — AI Notes Summarizer</title></Helmet>
 
-            <div className="flex max-w-6xl mx-auto w-full px-6 py-8 gap-6">
-                {/* sidebar sir */}
-                <div className="w-64 shrink-0 border-r border-richblack-700 pr-4">
-                    <h2 className="text-richblack-5 font-semibold mb-4">Your chats</h2>
-                    <div className="space-y-2">
-                        {allChats.map((c) => (
-                            <div key={c._id} className={`flex items-center justify-between rounded-md p-2 ${c._id === chatId ? "bg-richblack-800" : ""}`}>
-                                <Link to={`/Dashboard/Chat/${c._id}`} className="text-sm text-richblack-200 hover:text-richblack-5 truncate flex-1">
-                                    {c.title}
-                                </Link>
-                                <button onClick={() => handleDelete(c._id)} className="text-richblack-500 hover:text-pink-200 cursor-pointer">
-                                    <FaTrash size={12} />
-                                </button>
-                            </div>
-                        ))}
-                        {allChats.length === 0 && <p className="text-richblack-400 text-xs">No chats yet — start one from a note's summary page.</p>}
+            <div className="flex h-[calc(100vh-73px)]">
+                {/* chat list sir */}
+                <aside className="w-72 shrink-0 border-r border-border-soft bg-surface-raised flex flex-col">
+                    <div className="px-5 py-5 border-b border-border-soft">
+                        <h1 className="font-display text-lg font-semibold text-richblack-5">Your chats</h1>
+                        <p className="text-richblack-400 text-xs mt-1">Start one from any note's summary page</p>
                     </div>
-                </div>
+
+                    <div className="flex-1 overflow-y-auto py-2">
+                        {allChats.length === 0 ? (
+                            <div className="px-5 py-8 text-center">
+                                <FaComments className="text-richblack-600 text-2xl mx-auto mb-3" />
+                                <p className="text-richblack-400 text-sm">No chats yet</p>
+                            </div>
+                        ) : (
+                            allChats.map((c) => (
+                                <div
+                                    key={c._id}
+                                    className={`group flex items-center justify-between mx-2 rounded-md px-3 py-2.5 transition-colors ${c._id === chatId ? "bg-yellow-50/10" : "hover:bg-surface-hover"}`}
+                                >
+                                    <Link
+                                        to={`/Dashboard/Chat/${c._id}`}
+                                        className={`text-sm truncate flex-1 ${c._id === chatId ? "text-richblack-5 font-medium" : "text-richblack-200"}`}
+                                    >
+                                        {c.title}
+                                    </Link>
+                                    <button
+                                        onClick={() => handleDelete(c._id)}
+                                        className="text-richblack-500 hover:text-pink-200 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0"
+                                    >
+                                        <FaTrash size={12} />
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </aside>
 
                 {/* conversation sir */}
-                <div className="flex-1 flex flex-col">
-                    {!chatId || loading ? (
-                        <Loading text={chatId ? "Loading chat..." : "Select a chat to begin"} />
+                <div className="flex-1 flex flex-col min-w-0">
+                    {!chatId ? (
+                        <div className="flex-1 flex items-center justify-center">
+                            <div className="text-center">
+                                <FaComments className="text-richblack-700 text-4xl mx-auto mb-4" />
+                                <p className="text-richblack-300 text-sm">Select a chat from the list to continue the conversation</p>
+                            </div>
+                        </div>
+                    ) : loading ? (
+                        <div className="flex-1 flex items-center justify-center">
+                            <div className="w-8 h-8 border-2 border-yellow-50 border-t-transparent rounded-full animate-spin" />
+                        </div>
                     ) : (
                         <>
-                            <div className="flex-1 overflow-y-auto space-y-4 mb-4 max-h-[60vh]">
+                            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
                                 {currentChat?.messages?.map((m, i) => (
                                     <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[75%] rounded-lg px-4 py-2 text-sm whitespace-pre-wrap ${m.role === 'user' ? 'bg-yellow-50 text-richblack-900' : 'bg-richblack-800 text-richblack-100'}`}>
+                                        <div
+                                            className={`max-w-[70%] rounded-lg px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${m.role === 'user'
+                                                ? 'bg-yellow-50 text-richblack-900'
+                                                : 'bg-surface border border-border-soft text-richblack-100'
+                                                }`}
+                                        >
                                             {m.content}
                                         </div>
                                     </div>
                                 ))}
                                 {replying && (
                                     <div className="flex justify-start">
-                                        <div className="bg-richblack-800 text-richblack-400 rounded-lg px-4 py-2 text-sm">Thinking...</div>
+                                        <div className="bg-surface border border-border-soft text-richblack-400 rounded-lg px-4 py-2.5 text-sm flex items-center gap-1.5">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse" />
+                                            <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse [animation-delay:150ms]" />
+                                            <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse [animation-delay:300ms]" />
+                                        </div>
                                     </div>
                                 )}
                                 <div ref={bottomRef} />
                             </div>
 
-                            <form onSubmit={handleSend} className="flex items-center gap-2">
+                            <form onSubmit={handleSend} className="flex items-center gap-2 px-6 py-4 border-t border-border-soft bg-surface-raised">
                                 <input
                                     value={message}
                                     onChange={(e) => setMessage(e.target.value)}
                                     placeholder="Ask something about your notes..."
-                                    className="flex-1 bg-richblack-800 border border-richblack-700 text-richblack-5 rounded-md px-4 py-2 outline-none focus:border-yellow-50"
+                                    className="flex-1 bg-surface border border-border-soft text-richblack-5 rounded-md px-4 py-2.5 outline-none focus:border-yellow-50 transition-colors"
                                 />
                                 <MicButton onTranscript={handleTranscript} />
-                                <button type="submit" disabled={replying || !message.trim()} className="bg-yellow-50 text-richblack-900 rounded-md p-2.5 disabled:opacity-50 cursor-pointer">
+                                <button
+                                    type="submit"
+                                    disabled={replying || !message.trim()}
+                                    className="bg-yellow-50 text-richblack-900 rounded-md p-2.5 disabled:opacity-50 cursor-pointer hover:scale-95 transition-all"
+                                >
                                     <FaPaperPlane />
                                 </button>
                             </form>

@@ -5,7 +5,14 @@ import { useEffect, useState } from 'react'
 const useTheme = () => {
     const [theme, setThemeState] = useState(() => {
         const saved = localStorage.getItem('theme')
-        return saved ? JSON.parse(saved) : 'dark'
+        if (!saved) return 'dark'
+        // defensive sir — tolerates either a JSON-encoded value ("dark") or a raw
+        // unencoded one (dark) that may have been written before this was standardized
+        try {
+            return JSON.parse(saved)
+        } catch {
+            return saved === 'light' ? 'light' : 'dark'
+        }
     })
 
     useEffect(() => {
