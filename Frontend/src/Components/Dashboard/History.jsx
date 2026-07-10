@@ -5,7 +5,6 @@ import { Helmet } from 'react-helmet-async'
 import { FaTrash, FaThumbtack } from 'react-icons/fa'
 import Swal from 'sweetalert2'
 import { GetAllNotes, GetTagsAndFolders, OrganizeNote, DeleteNote } from '../../Services/operations/Notes.js'
-import Navbar from '../Home/Navbar.jsx'
 import Loading from '../extra/Loading.jsx'
 
 const History = () => {
@@ -60,9 +59,8 @@ const History = () => {
     }
 
     return (
-        <div className="min-h-screen bg-richblack-900">
+        <>
             <Helmet><title>History — AI Notes Summarizer</title></Helmet>
-            <Navbar />
 
             <div className="max-w-3xl mx-auto px-6 py-12">
                 <h1 className="text-2xl font-bold text-richblack-5 mb-6">Your notes</h1>
@@ -98,7 +96,7 @@ const History = () => {
                 ) : (
                     <div className="space-y-3">
                         {allNotes.map((note) => (
-                            <Link key={note._id} to={`/Dashboard/Note/${note._id}`} className="flex items-center justify-between border border-richblack-700 rounded-md p-4 hover:border-yellow-50 transition-all">
+                            <Link key={note._id} to={`/Dashboard/Note/${note._id}`} className="flex items-center justify-between border border-border-soft bg-surface rounded-md p-4 hover:border-yellow-50 transition-all">
                                 <div>
                                     <div className="flex items-center gap-2">
                                         <p className="text-richblack-5 font-medium">{note.title}</p>
@@ -129,7 +127,7 @@ const History = () => {
                     </div>
                 )}
             </div>
-        </div>
+        </>
     )
 }
 

@@ -5,7 +5,6 @@ import { Helmet } from 'react-helmet-async'
 import { FaPaperPlane, FaTrash } from 'react-icons/fa'
 import Swal from 'sweetalert2'
 import { GetAllChats, GetSingleChat, SendMessage, DeleteChat } from '../../Services/operations/Chat.js'
-import Navbar from '../Home/Navbar.jsx'
 import Loading from '../extra/Loading.jsx'
 import MicButton from '../extra/MicButton.jsx'
 
@@ -56,11 +55,10 @@ const Chat = () => {
     }
 
     return (
-        <div className="min-h-screen bg-richblack-900 flex flex-col">
+        <>
             <Helmet><title>Chat — AI Notes Summarizer</title></Helmet>
-            <Navbar />
 
-            <div className="flex flex-1 max-w-6xl mx-auto w-full px-6 py-8 gap-6">
+            <div className="flex max-w-6xl mx-auto w-full px-6 py-8 gap-6">
                 {/* sidebar sir */}
                 <div className="w-64 shrink-0 border-r border-richblack-700 pr-4">
                     <h2 className="text-richblack-5 font-semibold mb-4">Your chats</h2>
@@ -117,7 +115,7 @@ const Chat = () => {
                     )}
                 </div>
             </div>
-        </div>
+        </>
     )
 }
 

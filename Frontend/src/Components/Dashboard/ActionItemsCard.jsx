@@ -8,7 +8,7 @@ const ActionItemsCard = ({ actionItems }) => {
     if (Array.isArray(actionItems)) {
         if (actionItems.length === 0) return null
         return (
-            <div className="border border-richblack-700 rounded-lg p-6 mb-6">
+            <div className="border border-border-soft bg-surface rounded-lg p-6 mb-6">
                 <h2 className="text-richblack-5 font-semibold mb-3">Action items</h2>
                 <ul className="list-disc list-inside space-y-2 text-richblack-200">
                     {actionItems.map((item, i) => <li key={i}>{item}</li>)}
@@ -22,7 +22,7 @@ const ActionItemsCard = ({ actionItems }) => {
     if (tasks.length === 0 && keyDates.length === 0 && decisions.length === 0) return null
 
     return (
-        <div className="border border-richblack-700 rounded-lg p-6 mb-6 space-y-4">
+        <div className="border border-border-soft bg-surface rounded-lg p-6 mb-6 space-y-4">
             <h2 className="text-richblack-5 font-semibold">Action items</h2>
 
             {tasks.length > 0 && (

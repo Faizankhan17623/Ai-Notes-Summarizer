@@ -10,7 +10,7 @@ const Navbar = () => {
 
     return (
         <nav className="w-full border-b border-richblack-700 flex items-center justify-between px-6 py-4">
-            <Link to="/" className="text-xl font-bold text-yellow-50">
+            <Link to="/" className="font-display text-xl font-semibold text-yellow-50">
                 AI Notes Summarizer
             </Link>
 

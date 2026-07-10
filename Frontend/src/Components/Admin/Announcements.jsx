@@ -48,7 +48,7 @@ const Announcements = () => {
                 ) : (
                     <div className="space-y-3">
                         {announcements.map((a) => (
-                            <div key={a._id} className="border border-richblack-700 rounded-md p-4 flex items-center justify-between">
+                            <div key={a._id} className="border border-border-soft bg-surface rounded-md p-4 flex items-center justify-between">
                                 <div>
                                     <p className="text-richblack-5">{a.message}</p>
                                     <p className="text-richblack-400 text-xs mt-1">{new Date(a.createdAt).toLocaleString()} — {a.active ? <span className="text-caribbeangreen-300">Active</span> : "Inactive"}</p>

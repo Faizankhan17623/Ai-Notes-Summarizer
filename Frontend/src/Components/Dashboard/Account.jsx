@@ -8,7 +8,6 @@ import {
     DeleteAccount, RecoverAccount, LogoutUser
 } from '../../Services/operations/Auth.js'
 import { GetPlans, StartCreditPackCheckout } from '../../Services/operations/Payment.js'
-import Navbar from '../Home/Navbar.jsx'
 import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
 import ApiKeySection from './ApiKeySection.jsx'
@@ -60,9 +59,8 @@ const Account = () => {
     if (loading || !profile) return <Loading text="Loading profile..." />
 
     return (
-        <div className="min-h-screen bg-richblack-900">
+        <>
             <Helmet><title>Account — AI Notes Summarizer</title></Helmet>
-            <Navbar />
 
             <div className="max-w-2xl mx-auto px-6 py-12 space-y-8">
                 <h1 className="text-2xl font-bold text-richblack-5">Account</h1>
@@ -77,7 +75,7 @@ const Account = () => {
                 )}
 
                 {plan && (
-                    <div className="border border-richblack-700 rounded-lg p-6">
+                    <div className="border border-border-soft bg-surface rounded-lg p-6">
                         <h2 className="text-richblack-5 font-semibold mb-3">Plan</h2>
                         <p className="text-richblack-200">{plan.name} — {plan.creditsLimit === null ? "unlimited" : `${plan.creditsUsed}/${plan.creditsLimit}`} summaries used this month</p>
                         {plan.creditsLimit !== null && plan.bonusCredits > 0 && (
@@ -90,14 +88,14 @@ const Account = () => {
                 )}
 
                 {plan && plan.creditsLimit !== null && (
-                    <div className="border border-richblack-700 rounded-lg p-6">
+                    <div className="border border-border-soft bg-surface rounded-lg p-6">
                         <h2 className="text-richblack-5 font-semibold mb-1">Need more credits?</h2>
                         <p className="text-richblack-400 text-sm mb-4">
                             You have {plan.bonusCredits || 0} top-up credits available this cycle.
                         </p>
                         <div className="grid md:grid-cols-3 gap-4">
                             {creditPacks.map((pack) => (
-                                <div key={pack.key} className="border border-richblack-700 rounded-lg p-4">
+                                <div key={pack.key} className="border border-border-soft bg-surface rounded-lg p-4">
                                     <p className="text-richblack-5 font-semibold">{pack.name}</p>
                                     <p className="text-yellow-50 text-xl font-bold mb-3">₹{pack.priceInr}</p>
                                     <IconBtn
@@ -111,7 +109,7 @@ const Account = () => {
                     </div>
                 )}
 
-                <div className="border border-richblack-700 rounded-lg p-6 space-y-4">
+                <div className="border border-border-soft bg-surface rounded-lg p-6 space-y-4">
                     <h2 className="text-richblack-5 font-semibold">Profile</h2>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -130,7 +128,7 @@ const Account = () => {
                     <p className="text-richblack-400 text-sm">Email: {profile.email}</p>
                 </div>
 
-                <div className="border border-richblack-700 rounded-lg p-6 space-y-4">
+                <div className="border border-border-soft bg-surface rounded-lg p-6 space-y-4">
                     <h2 className="text-richblack-5 font-semibold">Change password</h2>
                     <input type="password" placeholder="Old password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} className="w-full bg-richblack-700 text-richblack-5 rounded-md px-3 py-2 outline-none" />
                     <input type="password" placeholder="New password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full bg-richblack-700 text-richblack-5 rounded-md px-3 py-2 outline-none" />
@@ -157,7 +155,7 @@ const Account = () => {
                     </div>
                 )}
             </div>
-        </div>
+        </>
     )
 }
 

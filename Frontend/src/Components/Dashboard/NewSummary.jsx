@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { FaFileUpload, FaKeyboard } from 'react-icons/fa'
 import { SummarizeNotes } from '../../Services/operations/Notes.js'
-import Navbar from '../Home/Navbar.jsx'
 import MicButton from '../extra/MicButton.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
 
@@ -46,27 +45,27 @@ const NewSummary = () => {
     }
 
     return (
-        <div className="min-h-screen bg-richblack-900">
+        <div className="px-6 md:px-10 py-10">
             <Helmet><title>New Summary — AI Notes Summarizer</title></Helmet>
-            <Navbar />
 
-            <div className="max-w-3xl mx-auto px-6 py-12">
-                <h1 className="text-2xl font-bold text-richblack-5 mb-6">Summarize your notes</h1>
-
-                <div className="flex gap-2 mb-6">
+            <div className="flex items-center justify-between mb-6">
+                <h1 className="font-display text-2xl font-semibold text-richblack-5">New summary</h1>
+                <div className="flex gap-1 bg-surface-raised border border-border-soft rounded-md p-1">
                     {TABS.map(({ key, label, icon: Icon }) => (
                         <button
                             key={key}
                             onClick={() => setTab(key)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium cursor-pointer transition-all
-                                ${tab === key ? "bg-yellow-50 text-richblack-900" : "bg-richblack-800 text-richblack-200 hover:bg-richblack-700"}`}
+                            className={`flex items-center gap-2 px-3.5 py-1.5 rounded text-sm font-medium cursor-pointer transition-all
+                                ${tab === key ? "bg-yellow-50 text-richblack-900" : "text-richblack-300 hover:text-richblack-5"}`}
                         >
                             <Icon /> {label}
                         </button>
                     ))}
                 </div>
+            </div>
 
-                <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} className="grid lg:grid-cols-2 gap-5 items-start">
+                <div className="border border-border-soft rounded-lg bg-surface p-5">
                     {tab === 'text' ? (
                         <div>
                             <div className="flex items-center justify-between mb-2">
@@ -78,14 +77,16 @@ const NewSummary = () => {
                                 onChange={(e) => { setDictated(false); setText(e.target.value) }}
                                 rows={14}
                                 placeholder="Paste meeting notes, lecture notes, or just type freely... or hit Speak to dictate."
-                                className="w-full bg-richblack-800 border border-richblack-700 text-richblack-5 rounded-md px-4 py-3 outline-none focus:border-yellow-50 resize-none"
+                                className="w-full bg-transparent text-richblack-5 outline-none resize-none placeholder:text-richblack-500"
                             />
-                            <p className="text-richblack-400 text-xs mt-2">{text.trim().length} characters</p>
+                            <div className="flex items-center justify-between pt-3 mt-3 border-t border-border-soft">
+                                <p className="text-richblack-400 text-xs font-mono">{text.trim().length} characters</p>
+                            </div>
                         </div>
                     ) : (
                         <div>
-                            <label className="text-sm text-richblack-100 block mb-2">Upload a PDF, Word (.docx), or TXT file</label>
-                            <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-richblack-700 rounded-lg py-16 cursor-pointer hover:border-yellow-50 transition-all">
+                            <label className="text-sm text-richblack-100 block mb-3">Upload a PDF, Word (.docx), or TXT file</label>
+                            <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-border-soft rounded-lg py-16 cursor-pointer hover:border-yellow-50 transition-all">
                                 <FaFileUpload className="text-richblack-300 text-3xl" />
                                 <span className="text-richblack-300 text-sm">
                                     {file ? file.name : "Click to choose a file"}
@@ -100,15 +101,25 @@ const NewSummary = () => {
                         </div>
                     )}
 
-                    <div className="mt-6">
+                    <div className="mt-5">
                         <IconBtn
                             text={loading ? "Summarizing..." : "Summarize"}
                             type="submit"
                             disabled={loading || (tab === 'text' ? !text.trim() : !file)}
                         />
                     </div>
-                </form>
-            </div>
+                </div>
+
+                {/* preview panel sir — the app still submits then navigates to the note's own
+                    Report page rather than rendering the result inline, so this is a placeholder
+                    for now, not a live preview. Real estate reserved for a future inline-result pass */}
+                <div className="border border-border-soft rounded-lg bg-surface min-h-[360px] flex items-center justify-center px-8 py-12 text-center">
+                    <div>
+                        <p className="text-richblack-300 text-sm mb-1">Your structured summary will appear here</p>
+                        <p className="text-richblack-500 text-xs">Submit your notes on the left to get a TL;DR, key points, and action items.</p>
+                    </div>
+                </div>
+            </form>
         </div>
     )
 }

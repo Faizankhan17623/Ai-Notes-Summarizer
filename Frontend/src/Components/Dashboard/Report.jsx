@@ -7,7 +7,6 @@ import Swal from 'sweetalert2'
 import { GetSingleNote, DeleteNote } from '../../Services/operations/Notes.js'
 import { CreateChat } from '../../Services/operations/Chat.js'
 import { GenerateFlashcards, GetFlashcardsForNote, GenerateQuiz, GetQuizzesForNote } from '../../Services/operations/StudyKit.js'
-import Navbar from '../Home/Navbar.jsx'
 import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
 import ActionItemsCard from './ActionItemsCard.jsx'
@@ -53,9 +52,8 @@ const Report = () => {
     }
 
     return (
-        <div className="min-h-screen bg-richblack-900">
+        <>
             <Helmet><title>{summary.title || 'Summary'} — AI Notes Summarizer</title></Helmet>
-            <Navbar />
 
             <div className="max-w-3xl mx-auto px-6 py-12">
                 <div className="flex items-start justify-between mb-6">
@@ -76,12 +74,12 @@ const Report = () => {
                 <NoteOrganizer note={currentNote} />
                 <ShareExport note={currentNote} />
 
-                <div className="border border-richblack-700 rounded-lg p-6 mb-6">
+                <div className="border border-border-soft bg-surface rounded-lg p-6 mb-6">
                     <h2 className="text-richblack-5 font-semibold mb-2">TL;DR</h2>
                     <p className="text-richblack-200">{summary.tldr}</p>
                 </div>
 
-                <div className="border border-richblack-700 rounded-lg p-6 mb-6">
+                <div className="border border-border-soft bg-surface rounded-lg p-6 mb-6">
                     <h2 className="text-richblack-5 font-semibold mb-3">Key points</h2>
                     <ul className="list-disc list-inside space-y-2 text-richblack-200">
                         {summary.keyPoints?.map((point, i) => <li key={i}>{point}</li>)}
@@ -89,7 +87,7 @@ const Report = () => {
                 </div>
 
                 {summary.sections?.length > 0 && (
-                    <div className="border border-richblack-700 rounded-lg p-6 mb-6">
+                    <div className="border border-border-soft bg-surface rounded-lg p-6 mb-6">
                         <h2 className="text-richblack-5 font-semibold mb-3">Sections</h2>
                         <div className="space-y-4">
                             {summary.sections.map((section, i) => (
@@ -105,7 +103,7 @@ const Report = () => {
                 )}
 
                 {summary.keyTerms?.length > 0 && (
-                    <div className="border border-richblack-700 rounded-lg p-6 mb-6">
+                    <div className="border border-border-soft bg-surface rounded-lg p-6 mb-6">
                         <h2 className="text-richblack-5 font-semibold mb-3">Key terms</h2>
                         <div className="space-y-3">
                             {summary.keyTerms.map((kt, i) => (
@@ -121,7 +119,7 @@ const Report = () => {
                 <ActionItemsCard actionItems={summary.actionItems} />
 
                 {/* Flashcards sir — standalone cards generated on-demand, independent of the initial summary */}
-                <div className="border border-richblack-700 rounded-lg p-6 mb-6">
+                <div className="border border-border-soft bg-surface rounded-lg p-6 mb-6">
                     <div className="flex items-center justify-between mb-3">
                         <h2 className="text-richblack-5 font-semibold">Flashcards</h2>
                         {isPaidPlan ? (
@@ -134,7 +132,7 @@ const Report = () => {
                 </div>
 
                 {/* Quiz sir — same on-demand pattern, one active quiz shown at a time (most recent) */}
-                <div className="border border-richblack-700 rounded-lg p-6">
+                <div className="border border-border-soft bg-surface rounded-lg p-6">
                     <div className="flex items-center justify-between mb-3">
                         <h2 className="text-richblack-5 font-semibold">Quiz</h2>
                         {isPaidPlan ? (
@@ -148,7 +146,7 @@ const Report = () => {
                     )}
                 </div>
             </div>
-        </div>
+        </>
     )
 }
 

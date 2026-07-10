@@ -20,6 +20,7 @@ const Login = lazy(() => import('./Components/Login/User'))
 const ForgotPassword = lazy(() => import('./Components/Login/ForgotPassword'))
 const ResetPassword = lazy(() => import('./Components/Login/ResetPassword'))
 const Pricing = lazy(() => import('./Components/Home/Pricing'))
+const DashboardLayout = lazy(() => import('./Components/Dashboard/DashboardLayout'))
 const DashboardHome = lazy(() => import('./Components/Dashboard/DashboardHome'))
 const NewSummary = lazy(() => import('./Components/Dashboard/NewSummary'))
 const Report = lazy(() => import('./Components/Dashboard/Report'))
@@ -82,15 +83,18 @@ function App() {
           <Route path="/forgot-password" element={<OpenRoute><ForgotPassword /></OpenRoute>} />
           <Route path="/reset-password/:token" element={<OpenRoute><ResetPassword /></OpenRoute>} />
 
-          {/* Only for the logged-IN sir */}
-          <Route path="/Dashboard" element={<PrivateRoute><DashboardHome /></PrivateRoute>} />
-          <Route path="/Dashboard/New-Summary" element={<PrivateRoute><NewSummary /></PrivateRoute>} />
-          <Route path="/Dashboard/Note/:noteId" element={<PrivateRoute><Report /></PrivateRoute>} />
-          <Route path="/Dashboard/Review" element={<PrivateRoute><Review /></PrivateRoute>} />
-          <Route path="/Dashboard/History" element={<PrivateRoute><History /></PrivateRoute>} />
-          <Route path="/Dashboard/Chats" element={<PrivateRoute><Chat /></PrivateRoute>} />
-          <Route path="/Dashboard/Chat/:chatId" element={<PrivateRoute><Chat /></PrivateRoute>} />
-          <Route path="/Dashboard/Account" element={<PrivateRoute><Account /></PrivateRoute>} />
+          {/* Only for the logged-IN sir — one shared sidebar shell via Outlet instead of every
+              page rendering its own Navbar */}
+          <Route element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
+            <Route path="/Dashboard" element={<DashboardHome />} />
+            <Route path="/Dashboard/New-Summary" element={<NewSummary />} />
+            <Route path="/Dashboard/Note/:noteId" element={<Report />} />
+            <Route path="/Dashboard/Review" element={<Review />} />
+            <Route path="/Dashboard/History" element={<History />} />
+            <Route path="/Dashboard/Chats" element={<Chat />} />
+            <Route path="/Dashboard/Chat/:chatId" element={<Chat />} />
+            <Route path="/Dashboard/Account" element={<Account />} />
+          </Route>
 
           {/* Admin and Support only sir — the backend re-checks the role on every call anyway */}
           <Route path="/Admin" element={<AdminRoute><AdminOverview /></AdminRoute>} />

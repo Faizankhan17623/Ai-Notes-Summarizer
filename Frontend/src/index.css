@@ -25,7 +25,48 @@
 
   --color-pink-200: #ffadce;
 
-  --font-sans: 'Inter', system-ui, sans-serif;
+  /* lifted-surface tokens sir — cards sit on a surface distinct from the page background,
+     not just an outline on top of it */
+  --color-surface: #10131c;
+  --color-surface-raised: #161a26;
+  --color-surface-hover: #1b202e;
+  --color-border-soft: #1c2130;
+
+  /* status colors sir — distinct from the yellow accent, used only for state (review
+     urgency, success/warning/danger), never as a second brand color */
+  --color-good: #4bd39c;
+  --color-warn: #ffb454;
+  --color-danger-soft: #ff8fa3;
+
+  /* --font-sans used to reference 'Inter', which was never actually loaded anywhere (no
+     link tag, no @font-face) sir — it was silently falling back to system-ui this whole
+     time. Making that fallback the honest default instead of a broken promise. Fraunces is
+     a new display font for headings only, loaded for real via the @font-face rules below */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+}
+
+@font-face {
+  font-family: 'Fraunces';
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/fraunces-light.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/fraunces-semibold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/jbmono-regular.woff2') format('woff2');
 }
 
 body {

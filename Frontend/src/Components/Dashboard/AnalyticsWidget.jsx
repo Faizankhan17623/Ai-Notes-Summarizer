@@ -24,7 +24,7 @@ const AnalyticsWidget = () => {
     const chartData = data.notesByDay.map((d) => ({ date: d._id.slice(5), count: d.count }))
 
     return (
-        <div className="border border-richblack-700 rounded-lg p-6 mb-10">
+        <div className="border border-border-soft bg-surface rounded-lg p-6 mb-10">
             <h2 className="text-richblack-5 font-semibold mb-4">Your activity</h2>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

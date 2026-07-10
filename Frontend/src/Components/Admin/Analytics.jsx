@@ -7,7 +7,7 @@ import AdminNav from './AdminNav.jsx'
 import Loading from '../extra/Loading.jsx'
 
 const StatCard = ({ label, value }) => (
-    <div className="border border-richblack-700 rounded-lg p-6">
+    <div className="border border-border-soft bg-surface rounded-lg p-6">
         <p className="text-richblack-400 text-sm mb-1">{label}</p>
         <p className="text-3xl font-bold text-richblack-5">{value}</p>
     </div>
@@ -65,17 +65,17 @@ const Analytics = () => {
                     <Loading text="Loading analytics..." />
                 ) : (
                     <>
-                        <div className="border border-richblack-700 rounded-lg p-6">
+                        <div className="border border-border-soft bg-surface rounded-lg p-6">
                             <h2 className="text-richblack-5 font-semibold mb-4">Revenue — last 30 days</h2>
                             <BarChart data={analytics.revenue.byDay} valueKey="total" formatValue={(v) => `₹${v}`} />
                         </div>
 
-                        <div className="border border-richblack-700 rounded-lg p-6">
+                        <div className="border border-border-soft bg-surface rounded-lg p-6">
                             <h2 className="text-richblack-5 font-semibold mb-4">New signups — last 30 days</h2>
                             <BarChart data={analytics.signups.byDay} valueKey="count" />
                         </div>
 
-                        <div className="border border-richblack-700 rounded-lg p-6">
+                        <div className="border border-border-soft bg-surface rounded-lg p-6">
                             <h2 className="text-richblack-5 font-semibold mb-4">Top users by usage — last 30 days</h2>
                             {analytics.topUsers.length === 0 ? (
                                 <p className="text-richblack-400 text-sm">No usage in this window yet.</p>
@@ -109,7 +109,7 @@ const Analytics = () => {
                             )}
                         </div>
 
-                        <div className="border border-richblack-700 rounded-lg p-6">
+                        <div className="border border-border-soft bg-surface rounded-lg p-6">
                             <h2 className="text-richblack-5 font-semibold mb-4">Credit &amp; top-up stats</h2>
                             <div className="grid md:grid-cols-3 gap-4 mb-6">
                                 {analytics.creditStats.usersAtLimit.map((row) => (

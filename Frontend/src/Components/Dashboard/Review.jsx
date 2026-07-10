@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { GetDueFlashcards } from '../../Services/operations/StudyKit.js'
-import Navbar from '../Home/Navbar.jsx'
 import Loading from '../extra/Loading.jsx'
 import FlashcardDeck from './FlashcardDeck.jsx'
 
@@ -18,9 +17,8 @@ const Review = () => {
     }, [dispatch, token])
 
     return (
-        <div className="min-h-screen bg-richblack-900">
+        <>
             <Helmet><title>Review — AI Notes Summarizer</title></Helmet>
-            <Navbar />
 
             <div className="max-w-xl mx-auto px-6 py-12">
                 <h1 className="text-2xl font-bold text-richblack-5 mb-1">Flashcard review</h1>
@@ -37,7 +35,7 @@ const Review = () => {
                     <FlashcardDeck cards={dueFlashcards} />
                 )}
             </div>
-        </div>
+        </>
     )
 }
 

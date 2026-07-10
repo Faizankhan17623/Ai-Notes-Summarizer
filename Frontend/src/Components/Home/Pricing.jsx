@@ -37,7 +37,7 @@ const Pricing = () => {
 
             <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
                 {plans.map((plan) => (
-                    <div key={plan.key} className={`border rounded-lg p-6 flex flex-col ${plan.key === user?.SubType ? 'border-yellow-50' : 'border-richblack-700'}`}>
+                    <div key={plan.key} className={`border bg-surface rounded-lg p-6 flex flex-col ${plan.key === user?.SubType ? 'border-yellow-50' : 'border-border-soft'}`}>
                         <h2 className="text-xl font-bold text-richblack-5 mb-2">{plan.name}</h2>
                         <p className="text-3xl font-bold text-yellow-50 mb-4">
                             {plan.priceInr ? `₹${plan.priceInr}/mo` : "Free"}

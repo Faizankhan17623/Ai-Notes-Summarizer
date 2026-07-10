@@ -37,12 +37,12 @@ const SharedNote = () => {
                 <p className="text-richblack-400 text-xs mb-2">Shared summary · <Link to="/" className="text-yellow-50">AI Notes Summarizer</Link></p>
                 <h1 className="text-2xl font-bold text-richblack-5 mb-6">{summary.title}</h1>
 
-                <div className="border border-richblack-700 rounded-lg p-6 mb-6">
+                <div className="border border-border-soft bg-surface rounded-lg p-6 mb-6">
                     <h2 className="text-richblack-5 font-semibold mb-2">TL;DR</h2>
                     <p className="text-richblack-200">{summary.tldr}</p>
                 </div>
 
-                <div className="border border-richblack-700 rounded-lg p-6 mb-6">
+                <div className="border border-border-soft bg-surface rounded-lg p-6 mb-6">
                     <h2 className="text-richblack-5 font-semibold mb-3">Key points</h2>
                     <ul className="list-disc list-inside space-y-2 text-richblack-200">
                         {summary.keyPoints?.map((point, i) => <li key={i}>{point}</li>)}
@@ -50,7 +50,7 @@ const SharedNote = () => {
                 </div>
 
                 {summary.sections?.length > 0 && (
-                    <div className="border border-richblack-700 rounded-lg p-6 mb-6">
+                    <div className="border border-border-soft bg-surface rounded-lg p-6 mb-6">
                         <h2 className="text-richblack-5 font-semibold mb-3">Sections</h2>
                         <div className="space-y-4">
                             {summary.sections.map((section, i) => (
@@ -66,7 +66,7 @@ const SharedNote = () => {
                 )}
 
                 {summary.keyTerms?.length > 0 && (
-                    <div className="border border-richblack-700 rounded-lg p-6 mb-6">
+                    <div className="border border-border-soft bg-surface rounded-lg p-6 mb-6">
                         <h2 className="text-richblack-5 font-semibold mb-3">Key terms</h2>
                         <div className="space-y-3">
                             {summary.keyTerms.map((kt, i) => (

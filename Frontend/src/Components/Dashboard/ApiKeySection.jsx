@@ -17,7 +17,7 @@ const ApiKeySection = ({ isPaidPlan }) => {
 
     if (!isPaidPlan) {
         return (
-            <div className="border border-richblack-700 rounded-lg p-6">
+            <div className="border border-border-soft bg-surface rounded-lg p-6">
                 <h2 className="text-richblack-5 font-semibold mb-2">API access</h2>
                 <p className="text-richblack-400 text-sm">
                     Programmatic access to the summarize endpoint is a Pro / Pro Max perk.{' '}
@@ -33,7 +33,7 @@ const ApiKeySection = ({ isPaidPlan }) => {
     }
 
     return (
-        <div className="border border-richblack-700 rounded-lg p-6 space-y-3">
+        <div className="border border-border-soft bg-surface rounded-lg p-6 space-y-3">
             <h2 className="text-richblack-5 font-semibold">API access</h2>
             <p className="text-richblack-400 text-sm">
                 Call <code className="bg-richblack-800 px-1.5 py-0.5 rounded text-xs">POST /external/summarize</code> with an{' '}
