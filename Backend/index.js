@@ -21,6 +21,7 @@ const analytics = require('./Routes/Analytics.js')
 const admin = require('./Routes/Admin.js')
 const { globalLimiter } = require('./Middlewares/RateLimit.js')
 const { generateCsrfToken, invalidCsrfTokenError } = require('./Middlewares/Csrf.js')
+const { scheduleWeeklyDigest } = require('./utils/DigestJob.js')
 
 // deployed behind a proxy (Render/Railway/nginx) sir — needed so the rate limiter sees the REAL client IP
 app.set('trust proxy', 1)
@@ -83,6 +84,10 @@ app.use('/api/v1', analytics)
 app.use('/api/v1', admin)
 
 connectDB()
+
+// weekly summary email sir — in-process cron, no separate infra needed since the
+// web service process stays alive on Render
+scheduleWeeklyDigest()
 
 app.get('/', (req, res) => {
     return res.json({

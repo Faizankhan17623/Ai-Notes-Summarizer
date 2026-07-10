@@ -24,8 +24,8 @@ const Users = () => {
             inputPlaceholder: 'Reason (optional)',
             showCancelButton: true,
             confirmButtonText: 'Ban',
-            background: '#161D29',
-            color: '#F1F2FF',
+            background: 'var(--color-surface-raised)',
+            color: 'var(--color-richblack-5)',
         })
         if (banReason !== undefined) {
             dispatch(BanUser(userId, banReason, token))

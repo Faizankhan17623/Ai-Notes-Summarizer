@@ -58,6 +58,11 @@ const UserSchema = new mongoose.Schema(
             default: false,
             required: true
         },
+        // opt-out sir — most users want the weekly summary email, so it defaults on
+        receiveDigest: {
+            type: Boolean,
+            default: true
+        },
         // 2-day soft-delete buffer sir
         Buffer: {
             type: Boolean,

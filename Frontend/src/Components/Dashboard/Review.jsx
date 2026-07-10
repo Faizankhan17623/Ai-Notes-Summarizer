@@ -2,8 +2,9 @@ import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { GetDueFlashcards } from '../../Services/operations/StudyKit.js'
+import { GetDueFlashcards, ExportReviewQueue } from '../../Services/operations/StudyKit.js'
 import Loading from '../extra/Loading.jsx'
+import IconBtn from '../extra/IconBtn.jsx'
 import FlashcardDeck from './FlashcardDeck.jsx'
 
 // cross-note spaced-repetition review queue sir — everything due right now, across every note
@@ -21,7 +22,15 @@ const Review = () => {
             <Helmet><title>Review — AI Notes Summarizer</title></Helmet>
 
             <div className="max-w-xl mx-auto px-6 py-12">
-                <h1 className="text-2xl font-bold text-richblack-5 mb-1">Flashcard review</h1>
+                <div className="flex items-start justify-between mb-1">
+                    <h1 className="text-2xl font-bold text-richblack-5">Flashcard review</h1>
+                    <IconBtn
+                        text="Export as PDF"
+                        outline
+                        disabled={dueFlashcards.length === 0}
+                        onclick={() => dispatch(ExportReviewQueue(token))}
+                    />
+                </div>
                 <p className="text-richblack-400 text-sm mb-6">Cards due for review across all your notes right now.</p>
 
                 {loading ? (

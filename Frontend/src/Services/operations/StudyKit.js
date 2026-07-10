@@ -1,11 +1,11 @@
 import toast from "react-hot-toast"
-import { apiConnector } from "../apiConnector.js"
+import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { StudyKitData } from "../Apis/StudyKitApi.js"
 import { setFlashcards, setDueFlashcards, setQuizzes, setActiveQuiz, setLoading } from "../../Slices/studyKitSlice.js"
 
 const {
     generateFlashcards, flashcardsForNote, dueFlashcards, reviewFlashcard, deleteFlashcard,
-    generateQuiz, quizzesForNote, attemptQuiz, deleteQuiz
+    generateQuiz, quizzesForNote, attemptQuiz, deleteQuiz, exportReviewQueue
 } = StudyKitData
 
 // ---------- Flashcards ----------
@@ -113,6 +113,38 @@ export function DeleteFlashcard(cardId, noteId, token) {
         } catch (error) {
             console.error("Error deleting flashcard", error)
             toast.error(error?.response?.data?.message || "Could not delete the flashcard")
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+// downloads the whole due-flashcard review queue as a PDF study sheet sir — same blob/object-URL
+// pattern already used by ExportNote in Services/operations/Notes.js
+export function ExportReviewQueue(token) {
+    return async () => {
+        const toastId = toast.loading("Preparing your review queue PDF...")
+        try {
+            const response = await axiosinstance({
+                method: 'GET',
+                url: exportReviewQueue,
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: 'blob',
+            })
+
+            const url = window.URL.createObjectURL(new Blob([response.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', 'review-queue.pdf')
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+
+            toast.success('Export ready')
+        } catch (error) {
+            console.error("Error exporting the review queue", error)
+            toast.error("Could not export the review queue")
         } finally {
             toast.dismiss(toastId)
         }

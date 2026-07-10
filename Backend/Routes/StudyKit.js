@@ -16,11 +16,15 @@ const {
     attemptQuiz,
     deleteQuiz,
 } = require('../controllers/StudyKit.js')
+const { exportReviewQueue } = require('../controllers/Export.js')
 
 // generation hits Groq sir so it gets the AI rate limit + costs a credit, Pro+ only
 route.post('/notes/:noteId/flashcards', aiLimiter, doubleCsrfProtection, Auth, generateFlashcards)
 route.get('/notes/:noteId/flashcards', Auth, getFlashcardsForNote)
 route.get('/flashcards/due', Auth, getDueFlashcards)
+// must come before /flashcards/:id/review and /flashcards/:id below sir — same reason as
+// elsewhere in this codebase, "export" would otherwise be read as the :id param
+route.get('/flashcards/review/export', Auth, exportReviewQueue)
 route.post('/flashcards/:id/review', doubleCsrfProtection, reviewFlashcardRules, validate, Auth, reviewFlashcard)
 route.delete('/flashcards/:id', doubleCsrfProtection, Auth, deleteFlashcard)
 

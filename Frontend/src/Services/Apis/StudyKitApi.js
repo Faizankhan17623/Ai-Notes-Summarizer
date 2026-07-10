@@ -6,6 +6,7 @@ export const StudyKitData = {
     dueFlashcards: BASE_URL + "/flashcards/due",
     reviewFlashcard: BASE_URL + "/flashcards",   // + /:id/review
     deleteFlashcard: BASE_URL + "/flashcards",   // + /:id
+    exportReviewQueue: BASE_URL + "/flashcards/review/export",
 
     generateQuiz: BASE_URL + "/notes",           // + /:noteId/quiz
     quizzesForNote: BASE_URL + "/notes",         // + /:noteId/quizzes

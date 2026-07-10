@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import Swal from 'sweetalert2'
 import {
-    GetProfile, UpdateFirstName, UpdateLastName, UpdatePassword,
+    GetProfile, UpdateFirstName, UpdateLastName, UpdateDigestPreference, UpdatePassword,
     DeleteAccount, RecoverAccount, LogoutUser
 } from '../../Services/operations/Auth.js'
 import { GetPlans, StartCreditPackCheckout } from '../../Services/operations/Payment.js'
@@ -126,6 +126,14 @@ const Account = () => {
                         <IconBtn text="Save last name" outline onclick={() => dispatch(UpdateLastName(lastName, token))} />
                     </div>
                     <p className="text-richblack-400 text-sm">Email: {profile.email}</p>
+                    <label className="flex items-center gap-2 text-sm text-richblack-200 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={profile.receiveDigest ?? true}
+                            onChange={(e) => dispatch(UpdateDigestPreference(e.target.checked, token))}
+                        />
+                        Email me a weekly summary of my activity
+                    </label>
                 </div>
 
                 <div className="border border-border-soft bg-surface rounded-lg p-6 space-y-4">

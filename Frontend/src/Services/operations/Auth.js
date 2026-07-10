@@ -4,7 +4,7 @@ import { UserData } from "../Apis/UserApi.js"
 import { setLoading, setToken, setUser, setLogin, setSignupData } from "../../Slices/authSlice.js"
 import { setProfile, setPlan, setActivity } from "../../Slices/profileSlice.js"
 
-const { sendOtp, createUser, login, forgotPassword, resetPassword, profile, updateFirstName, updateLastName, updatePassword, deleteAccount, recoverAccount, logout, csrfToken } = UserData
+const { sendOtp, createUser, login, forgotPassword, resetPassword, profile, updateFirstName, updateLastName, updateDigestPreference, updatePassword, deleteAccount, recoverAccount, logout, csrfToken } = UserData
 
 // fetched once on app mount and again right after login sir — the CSRF secret cookie may be
 // freshly (re)set at login, so the in-memory token needs to be refreshed to match
@@ -230,6 +230,26 @@ export function UpdateLastName(lastName, token) {
             toast.error(error?.response?.data?.message || "Could not update last name")
         } finally {
             toast.dismiss(toastId)
+        }
+    }
+}
+
+export function UpdateDigestPreference(receiveDigest, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("PATCH", updateDigestPreference, { receiveDigest }, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            toast.success(receiveDigest ? "Weekly digest emails turned on" : "Weekly digest emails turned off")
+            dispatch(GetProfile(token))
+        } catch (error) {
+            console.error("Error updating digest preference", error)
+            toast.error(error?.response?.data?.message || "Could not update your preference")
         }
     }
 }

@@ -416,6 +416,42 @@ exports.updateFirstName = async (req, res) => {
 }
 
 // ============================================================
+// UPDATE DIGEST PREFERENCE
+// ============================================================
+exports.updateDigestPreference = async (req, res) => {
+    try {
+        const { receiveDigest } = req.body
+
+        if (typeof receiveDigest !== 'boolean') {
+            return res.status(400).json({
+                success: false,
+                message: 'receiveDigest must be true or false',
+            })
+        }
+
+        const userId = req.User.id
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { receiveDigest },
+            { new: true }
+        ).select('-password')
+
+        return res.status(200).json({
+            success: true,
+            message: 'Digest preference updated successfully',
+            user: updatedUser,
+        })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to update digest preference',
+        })
+    }
+}
+
+// ============================================================
 // UPDATE LAST NAME
 // ============================================================
 exports.updateLastName = async (req, res) => {
@@ -749,7 +785,7 @@ exports.getProfile = async (req, res) => {
         const id = req.User.id
 
         const user = await User.findById(id)
-            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits createdAt Buffer BufferTiming')
+            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits receiveDigest createdAt Buffer BufferTiming')
 
         if (!user) {
             return res.status(404).json({

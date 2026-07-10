@@ -42,8 +42,8 @@ const History = () => {
             icon: 'warning',
             showCancelButton: true,
             confirmButtonText: 'Delete',
-            background: '#161D29',
-            color: '#F1F2FF',
+            background: 'var(--color-surface-raised)',
+            color: 'var(--color-richblack-5)',
         })
         if (result.isConfirmed) {
             dispatch(DeleteNote(noteId, token))

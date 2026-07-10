@@ -21,6 +21,7 @@ const {
     getProfile,
     updateFirstName,
     updateLastName,
+    updateDigestPreference,
     updatePassword,
     forgotPassword,
     resetPassword,
@@ -49,6 +50,7 @@ route.post('/logout', doubleCsrfProtection, Auth, logoutUser)
 route.get('/profile', Auth, getProfile)
 route.patch('/profile/first-name', doubleCsrfProtection, updateFirstNameRules, validate, Auth, updateFirstName)
 route.patch('/profile/last-name', doubleCsrfProtection, updateLastNameRules, validate, Auth, updateLastName)
+route.patch('/profile/digest-preference', doubleCsrfProtection, Auth, updateDigestPreference)
 route.patch('/profile/password', doubleCsrfProtection, updatePasswordRules, validate, Auth, updatePassword)
 route.delete('/profile', doubleCsrfProtection, Auth, deleteAccount)
 route.post('/profile/recover', doubleCsrfProtection, Auth, recoverAccount)

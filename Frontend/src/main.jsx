@@ -13,7 +13,7 @@ createRoot(document.getElementById('root')).render(
       <BrowserRouter>
         <App />
         <Toaster position="top-right" reverseOrder={true} toastOptions={{
-          style: { background: '#2C333F', color: '#F1F2FF' }
+          style: { background: 'var(--color-surface-raised)', color: 'var(--color-richblack-5)' }
         }} />
       </BrowserRouter>
     </Provider>

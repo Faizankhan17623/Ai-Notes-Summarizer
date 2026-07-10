@@ -69,10 +69,41 @@
   src: url('/fonts/jbmono-regular.woff2') format('woff2');
 }
 
+/* light theme sir — redefines the same tokens rather than inverting per-component, so every
+   existing bg-richblack-900/text-yellow-50/etc. class switches automatically. Warm-neutral
+   ground (not stark white) to match the dark theme's warm-navy feel, yellow deepened to gold
+   so it stays legible on a light surface instead of washing out */
+:root[data-theme="light"] {
+  --color-richblack-5: #1c1d22;
+  --color-richblack-25: #2a2b31;
+  --color-richblack-100: #3d3f47;
+  --color-richblack-200: #53555e;
+  --color-richblack-300: #6b6d78;
+  --color-richblack-400: #83858f;
+  --color-richblack-500: #9a9ca5;
+  --color-richblack-600: #b3b5bc;
+  --color-richblack-700: #d8d6cd;
+  --color-richblack-800: #ece9e1;
+  --color-richblack-900: #faf9f6;
+
+  --color-yellow-50: #b8860a;
+  --color-yellow-100: #96690a;
+
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-hover: #f3f1ec;
+  --color-border-soft: #e4e1d8;
+
+  --color-good: #1f8f68;
+  --color-warn: #b8720a;
+  --color-danger-soft: #c2415a;
+}
+
 body {
   background-color: var(--color-richblack-900);
   color: var(--color-richblack-25);
   font-family: var(--font-sans);
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 * {

@@ -38,10 +38,10 @@ const AnalyticsWidget = () => {
                 <div style={{ width: '100%', height: 160 }}>
                     <ResponsiveContainer>
                         <AreaChart data={chartData}>
-                            <XAxis dataKey="date" stroke="#585D69" fontSize={11} />
-                            <YAxis allowDecimals={false} stroke="#585D69" fontSize={11} width={24} />
-                            <Tooltip contentStyle={{ background: '#161D29', border: '1px solid #2C333F', color: '#F1F2FF' }} />
-                            <Area type="monotone" dataKey="count" stroke="#FFD60A" fill="#FFD60A" fillOpacity={0.15} />
+                            <XAxis dataKey="date" stroke="var(--color-richblack-500)" fontSize={11} />
+                            <YAxis allowDecimals={false} stroke="var(--color-richblack-500)" fontSize={11} width={24} />
+                            <Tooltip contentStyle={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border-soft)', color: 'var(--color-richblack-5)' }} />
+                            <Area type="monotone" dataKey="count" stroke="var(--color-yellow-50)" fill="var(--color-yellow-50)" fillOpacity={0.15} />
                         </AreaChart>
                     </ResponsiveContainer>
                 </div>

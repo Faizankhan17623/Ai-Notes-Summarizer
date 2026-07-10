@@ -105,4 +105,32 @@ const toDocx = async (note) => {
     return Packer.toBuffer(doc)
 }
 
-module.exports = { toMarkdown, toPdf, toDocx }
+// ---------- Review queue PDF ----------
+// exports the full due-flashcard review queue as a printable study sheet sir — same
+// PDFDocument/buffer pattern as toPdf, different content: a list of cards, not one note's summary
+
+const toReviewQueuePdf = (flashcards) => {
+    return new Promise((resolve, reject) => {
+        const doc = new PDFDocument({ margin: 50 })
+        const chunks = []
+
+        doc.on('data', (chunk) => chunks.push(chunk))
+        doc.on('end', () => resolve(Buffer.concat(chunks)))
+        doc.on('error', reject)
+
+        doc.fontSize(20).text('Review Queue', { underline: true })
+        doc.moveDown()
+        doc.fontSize(11).fillColor('gray').text(`${flashcards.length} card${flashcards.length === 1 ? '' : 's'} due — generated ${new Date().toLocaleDateString()}`)
+        doc.moveDown(1.5)
+
+        flashcards.forEach((card, i) => {
+            doc.fillColor('black').fontSize(13).text(`${i + 1}. ${card.front}`)
+            doc.fontSize(11).fillColor('gray').text(`   ${card.back}`)
+            doc.moveDown(0.8)
+        })
+
+        doc.end()
+    })
+}
+
+module.exports = { toMarkdown, toPdf, toDocx, toReviewQueuePdf }

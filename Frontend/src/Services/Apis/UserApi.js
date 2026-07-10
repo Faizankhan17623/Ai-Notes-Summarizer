@@ -9,6 +9,7 @@ export const UserData = {
     profile: BASE_URL + "/profile",
     updateFirstName: BASE_URL + "/profile/first-name",
     updateLastName: BASE_URL + "/profile/last-name",
+    updateDigestPreference: BASE_URL + "/profile/digest-preference",
     updatePassword: BASE_URL + "/profile/password",
     deleteAccount: BASE_URL + "/profile",
     recoverAccount: BASE_URL + "/profile/recover",
