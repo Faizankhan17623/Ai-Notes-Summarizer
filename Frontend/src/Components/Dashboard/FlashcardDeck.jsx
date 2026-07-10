@@ -35,9 +35,16 @@ const FlashcardDeck = ({ cards, noteId, allowDelete = false }) => {
     return (
         <div>
             <div className="flex items-center justify-between mb-3">
-                <p className="text-richblack-400 text-xs">{index + 1} / {cards.length}</p>
+                <div className="flex items-center gap-2">
+                    <p className="text-richblack-400 text-xs font-mono">{index + 1} / {cards.length}</p>
+                    <div className="flex gap-0.5">
+                        {cards.map((_, i) => (
+                            <span key={i} className={`w-4 h-1 rounded-full ${i === index ? 'bg-yellow-50' : i < index ? 'bg-richblack-600' : 'bg-border-soft'}`} />
+                        ))}
+                    </div>
+                </div>
                 {allowDelete && (
-                    <button onClick={handleDelete} className="text-richblack-500 hover:text-pink-200 cursor-pointer">
+                    <button onClick={handleDelete} className="text-richblack-500 hover:text-danger-soft cursor-pointer">
                         <FaTrash size={12} />
                     </button>
                 )}
@@ -46,23 +53,26 @@ const FlashcardDeck = ({ cards, noteId, allowDelete = false }) => {
             <button
                 type="button"
                 onClick={() => setFlipped((f) => !f)}
-                className="w-full min-h-[160px] flex items-center justify-center text-center bg-richblack-800 border border-richblack-700 rounded-lg p-6 cursor-pointer hover:border-yellow-50 transition-all"
+                className={`w-full min-h-[220px] flex items-center justify-center text-center rounded-xl p-8 cursor-pointer transition-all shadow-lg ${flipped
+                    ? "bg-surface-hover border border-border-soft"
+                    : "bg-surface-raised border border-border-soft hover:border-yellow-50/50"
+                    }`}
             >
-                <p className={flipped ? "text-richblack-200" : "text-richblack-5 font-medium"}>
+                <p className={flipped ? "text-richblack-100 text-base leading-relaxed" : "text-richblack-5 font-display text-xl font-semibold leading-snug"}>
                     {flipped ? card.back : card.front}
                 </p>
             </button>
-            <p className="text-richblack-500 text-xs text-center mt-2">Click the card to {flipped ? "see the question" : "reveal the answer"}</p>
+            <p className="text-richblack-500 text-xs text-center mt-3">Click the card to {flipped ? "see the question" : "reveal the answer"}</p>
 
             {flipped ? (
                 <div className="grid grid-cols-4 gap-2 mt-4">
-                    <button onClick={() => handleRate('again')} className="bg-pink-200 text-richblack-900 rounded-md py-2 text-sm font-semibold cursor-pointer">Again</button>
-                    <button onClick={() => handleRate('hard')} className="bg-yellow-100 text-richblack-900 rounded-md py-2 text-sm font-semibold cursor-pointer">Hard</button>
-                    <button onClick={() => handleRate('good')} className="bg-yellow-50 text-richblack-900 rounded-md py-2 text-sm font-semibold cursor-pointer">Good</button>
-                    <button onClick={() => handleRate('easy')} className="bg-caribbeangreen-300 text-richblack-900 rounded-md py-2 text-sm font-semibold cursor-pointer">Easy</button>
+                    <button onClick={() => handleRate('again')} className="bg-danger-soft text-richblack-900 rounded-md py-2.5 text-sm font-semibold cursor-pointer hover:scale-95 transition-all">Again</button>
+                    <button onClick={() => handleRate('hard')} className="bg-warn text-richblack-900 rounded-md py-2.5 text-sm font-semibold cursor-pointer hover:scale-95 transition-all">Hard</button>
+                    <button onClick={() => handleRate('good')} className="bg-yellow-50 text-richblack-900 rounded-md py-2.5 text-sm font-semibold cursor-pointer hover:scale-95 transition-all">Good</button>
+                    <button onClick={() => handleRate('easy')} className="bg-good text-richblack-900 rounded-md py-2.5 text-sm font-semibold cursor-pointer hover:scale-95 transition-all">Easy</button>
                 </div>
             ) : (
-                <button onClick={next} className="w-full mt-4 text-richblack-300 text-sm cursor-pointer">
+                <button onClick={next} className="w-full mt-4 text-richblack-300 text-sm cursor-pointer hover:text-richblack-100 transition-colors">
                     Skip for now
                 </button>
             )}

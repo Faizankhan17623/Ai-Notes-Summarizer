@@ -1,9 +1,8 @@
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import { FaClipboardCheck, FaCheckCircle } from 'react-icons/fa'
 import { GetDueFlashcards, ExportReviewQueue } from '../../Services/operations/StudyKit.js'
-import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
 import FlashcardDeck from './FlashcardDeck.jsx'
 
@@ -21,9 +20,16 @@ const Review = () => {
         <>
             <Helmet><title>Review — AI Notes Summarizer</title></Helmet>
 
-            <div className="max-w-xl mx-auto px-6 py-12">
-                <div className="flex items-start justify-between mb-1">
-                    <h1 className="text-2xl font-bold text-richblack-5">Flashcard review</h1>
+            <div className="max-w-2xl mx-auto px-6 py-10">
+                <div className="flex items-start justify-between gap-4 mb-8">
+                    <div>
+                        <h1 className="font-display text-3xl font-semibold text-richblack-5">Flashcard review</h1>
+                        <p className="text-richblack-400 text-sm mt-1.5">
+                            {dueFlashcards.length > 0
+                                ? `${dueFlashcards.length} card${dueFlashcards.length === 1 ? '' : 's'} due across all your notes`
+                                : 'Cards due for review across all your notes right now'}
+                        </p>
+                    </div>
                     <IconBtn
                         text="Export as PDF"
                         outline
@@ -31,17 +37,25 @@ const Review = () => {
                         onclick={() => dispatch(ExportReviewQueue(token))}
                     />
                 </div>
-                <p className="text-richblack-400 text-sm mb-6">Cards due for review across all your notes right now.</p>
 
                 {loading ? (
-                    <Loading text="Loading due cards..." />
+                    <div className="flex items-center justify-center py-20">
+                        <div className="w-8 h-8 border-2 border-yellow-50 border-t-transparent rounded-full animate-spin" />
+                    </div>
                 ) : dueFlashcards.length === 0 ? (
-                    <div className="text-center py-12">
-                        <p className="text-richblack-300 mb-2">Nothing due right now — you're all caught up.</p>
-                        <p className="text-richblack-500 text-sm">Generate flashcards from a note's summary page to build your review queue.</p>
+                    <div className="border border-border-soft bg-surface rounded-lg text-center py-16 px-8">
+                        <FaCheckCircle className="text-good text-3xl mx-auto mb-4" />
+                        <p className="text-richblack-100 font-medium mb-1.5">You're all caught up</p>
+                        <p className="text-richblack-400 text-sm max-w-xs mx-auto">Generate flashcards from a note's summary page to build your review queue.</p>
                     </div>
                 ) : (
-                    <FlashcardDeck cards={dueFlashcards} />
+                    <div className="border border-border-soft bg-surface rounded-lg p-6 md:p-8">
+                        <div className="flex items-center gap-2 text-richblack-400 text-xs uppercase tracking-wide font-semibold mb-6">
+                            <FaClipboardCheck className="text-yellow-50" size={12} />
+                            Study session
+                        </div>
+                        <FlashcardDeck cards={dueFlashcards} />
+                    </div>
                 )}
             </div>
         </>
