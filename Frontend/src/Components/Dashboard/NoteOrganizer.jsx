@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { FaThumbtack, FaTimes } from 'react-icons/fa'
 import { OrganizeNote } from '../../Services/operations/Notes.js'
 
-// tags/folder/pin editing sir — lives on the Report page, right under the title
+// tags/folder/pin editing sir — lives in the Report page's right rail
 const NoteOrganizer = ({ note }) => {
     const dispatch = useDispatch()
     const { token } = useSelector((state) => state.auth)
@@ -32,37 +32,46 @@ const NoteOrganizer = ({ note }) => {
     }
 
     return (
-        <div className="flex flex-wrap items-center gap-3 mb-6">
+        <div className="space-y-4">
             <button
                 onClick={togglePin}
-                className={`flex items-center gap-1.5 text-xs rounded-md px-2.5 py-1 cursor-pointer ${note.pinned ? "bg-yellow-50 text-richblack-900" : "bg-richblack-800 text-richblack-300 border border-richblack-700"}`}
+                className={`flex items-center justify-center gap-1.5 text-xs rounded-md px-3 py-1.5 cursor-pointer w-full transition-colors ${note.pinned ? "bg-yellow-50 text-richblack-900" : "bg-surface-hover text-richblack-300 border border-border-soft hover:border-yellow-50"}`}
             >
-                <FaThumbtack size={10} /> {note.pinned ? "Pinned" : "Pin"}
+                <FaThumbtack size={10} /> {note.pinned ? "Pinned" : "Pin this note"}
             </button>
 
-            <input
-                value={folder}
-                onChange={(e) => setFolder(e.target.value)}
-                onBlur={saveFolder}
-                placeholder="Folder (optional)"
-                className="bg-richblack-800 border border-richblack-700 text-richblack-200 text-xs rounded-md px-2.5 py-1 w-36 outline-none focus:border-yellow-50"
-            />
+            <div>
+                <p className="text-xs uppercase tracking-wide text-richblack-400 mb-1.5">Folder</p>
+                <input
+                    value={folder}
+                    onChange={(e) => setFolder(e.target.value)}
+                    onBlur={saveFolder}
+                    placeholder="None"
+                    className="w-full bg-surface-hover border border-border-soft text-richblack-200 text-sm rounded-md px-3 py-1.5 outline-none focus:border-yellow-50"
+                />
+            </div>
 
-            <div className="flex flex-wrap items-center gap-1.5">
-                {(note.tags || []).map((tag) => (
-                    <span key={tag} className="flex items-center gap-1 text-xs bg-richblack-700 text-richblack-100 px-2 py-1 rounded">
-                        {tag}
-                        <button onClick={() => removeTag(tag)} className="cursor-pointer hover:text-pink-200">
-                            <FaTimes size={9} />
-                        </button>
-                    </span>
-                ))}
+            <div>
+                <p className="text-xs uppercase tracking-wide text-richblack-400 mb-1.5">Tags</p>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                    {(note.tags || []).map((tag) => (
+                        <span key={tag} className="flex items-center gap-1 text-xs bg-surface-hover text-richblack-100 border border-border-soft px-2 py-1 rounded">
+                            {tag}
+                            <button onClick={() => removeTag(tag)} className="cursor-pointer hover:text-pink-200">
+                                <FaTimes size={9} />
+                            </button>
+                        </span>
+                    ))}
+                    {(note.tags || []).length === 0 && (
+                        <span className="text-xs text-richblack-500">No tags yet</span>
+                    )}
+                </div>
                 <form onSubmit={addTag}>
                     <input
                         value={tagInput}
                         onChange={(e) => setTagInput(e.target.value)}
-                        placeholder="+ tag"
-                        className="bg-richblack-800 border border-richblack-700 text-richblack-200 text-xs rounded-md px-2 py-1 w-20 outline-none focus:border-yellow-50"
+                        placeholder="+ add a tag"
+                        className="w-full bg-surface-hover border border-border-soft text-richblack-200 text-xs rounded-md px-2.5 py-1.5 outline-none focus:border-yellow-50"
                     />
                 </form>
             </div>
