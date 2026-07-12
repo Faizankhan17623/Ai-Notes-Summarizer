@@ -76,9 +76,32 @@ const DashboardHome = () => {
                         <p className="font-mono text-2xl text-richblack-5">
                             {activity.currentStreak} <span className="text-sm text-richblack-400 font-sans">day{activity.currentStreak === 1 ? '' : 's'}</span>
                         </p>
+                        {activity.longestStreak > activity.currentStreak && (
+                            <p className="text-richblack-400 text-xs mt-1">Best: {activity.longestStreak} days</p>
+                        )}
                     </div>
                 )}
             </div>
+
+            {activity && activity.dailyGoal > 0 && (
+                <div className="border border-border-soft rounded-lg p-5 bg-surface mb-8">
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs uppercase tracking-wide text-richblack-400">Today's study goal</p>
+                        <p className="font-mono text-sm text-richblack-5">
+                            {activity.studyActionsToday} / {activity.dailyGoal}
+                        </p>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-surface-hover overflow-hidden">
+                        <div
+                            className="h-full bg-yellow-50 transition-all"
+                            style={{ width: `${Math.min((activity.studyActionsToday / activity.dailyGoal) * 100, 100)}%` }}
+                        />
+                    </div>
+                    {activity.studyActionsToday >= activity.dailyGoal && (
+                        <p className="text-yellow-50 text-xs mt-2">Goal reached for today</p>
+                    )}
+                </div>
+            )}
 
             <div className="grid lg:grid-cols-[1.3fr_1fr] gap-5">
                 <div className="border border-border-soft rounded-lg bg-surface overflow-hidden">

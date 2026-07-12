@@ -63,17 +63,31 @@ const UserSchema = new mongoose.Schema(
             type: Boolean,
             default: true
         },
-        // consecutive days with at least one flashcard review sir — resets to 1 if a day is
-        // missed, updated only in reviewFlashcard (StudyKit.js), never elsewhere
+        // consecutive days with at least one study action (flashcard review, quiz attempt, or
+        // new note) sir — resets to 1 if a day is missed, updated only via utils/Streak.js
         currentStreak: {
             type: Number,
             default: 0
         },
-        // the last calendar day a review counted toward the streak sir — used to detect
+        // the last calendar day a study action counted toward the streak sir — used to detect
         // "already counted today" vs "yesterday" vs "missed a day"
         lastStreakDate: {
             type: Date,
             default: null
+        },
+        // best currentStreak this user has ever reached sir — never decreases, only bumped
+        // upward in utils/Streak.js when currentStreak passes it
+        longestStreak: {
+            type: Number,
+            default: 0
+        },
+        // user-set target for study actions per day sir — purely a UI progress target, doesn't
+        // gate anything server-side
+        dailyGoal: {
+            type: Number,
+            default: 5,
+            min: 1,
+            max: 50
         },
         // 2-day soft-delete buffer sir
         Buffer: {

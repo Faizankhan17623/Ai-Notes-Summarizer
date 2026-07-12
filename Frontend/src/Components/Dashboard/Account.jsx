@@ -5,7 +5,7 @@ import { Helmet } from 'react-helmet-async'
 import { FaExclamationTriangle } from 'react-icons/fa'
 import Swal from 'sweetalert2'
 import {
-    GetProfile, UpdateFirstName, UpdateLastName, UpdateDigestPreference, UpdatePassword,
+    GetProfile, UpdateFirstName, UpdateLastName, UpdateDigestPreference, UpdateDailyGoal, UpdatePassword,
     DeleteAccount, RecoverAccount, LogoutUser
 } from '../../Services/operations/Auth.js'
 import { GetPlans, StartCreditPackCheckout } from '../../Services/operations/Payment.js'
@@ -33,6 +33,7 @@ const Account = () => {
     const [oldPassword, setOldPassword] = useState('')
     const [newPassword, setNewPassword] = useState('')
     const [confirmNewPassword, setConfirmNewPassword] = useState('')
+    const [dailyGoal, setDailyGoal] = useState(5)
 
     useEffect(() => {
         dispatch(GetProfile(token))
@@ -46,6 +47,7 @@ const Account = () => {
         if (profile) {
             setFirstName(profile.firstName)
             setLastName(profile.lastName)
+            setDailyGoal(profile.dailyGoal ?? 5)
         }
     }, [profile])
 
@@ -158,6 +160,31 @@ const Account = () => {
                             />
                             Email me a weekly summary of my activity
                         </label>
+                    </SectionCard>
+
+                    <SectionCard title="Study goal">
+                        <p className="text-richblack-400 text-sm -mt-2">
+                            Set a daily target for study actions (reviewing flashcards, taking quizzes, or creating summaries) to track on your dashboard.
+                        </p>
+                        {activity && (
+                            <p className="text-richblack-300 text-sm">
+                                Current streak: <span className="text-yellow-50 font-semibold">{activity.currentStreak || 0} day{activity.currentStreak === 1 ? '' : 's'}</span>
+                                {' · '}Longest streak: <span className="text-richblack-5 font-semibold">{activity.longestStreak || 0} day{activity.longestStreak === 1 ? '' : 's'}</span>
+                            </p>
+                        )}
+                        <div className="flex items-center gap-3">
+                            <label className="text-sm text-richblack-100" htmlFor="dailyGoal">Actions per day</label>
+                            <input
+                                id="dailyGoal"
+                                type="number"
+                                min={1}
+                                max={50}
+                                value={dailyGoal}
+                                onChange={(e) => setDailyGoal(Number(e.target.value))}
+                                className="w-24 bg-surface-hover border border-border-soft text-richblack-5 rounded-md px-3 py-2 outline-none focus:border-yellow-50 transition-colors"
+                            />
+                            <IconBtn text="Save goal" outline onclick={() => dispatch(UpdateDailyGoal(dailyGoal, token))} />
+                        </div>
                     </SectionCard>
 
                     <SectionCard title="Change password">

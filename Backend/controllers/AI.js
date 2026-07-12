@@ -1,10 +1,12 @@
 const Groq = require('groq-sdk')
 
 const Note = require('../Models/Note')
+const User = require('../Models/User')
 const { consumeCredit } = require('../utils/Plans')
 const { buildSummarySystemPrompt } = require('../utils/Prompts')
 const { logAi } = require('../utils/AdminLog')
 const { extractText } = require('../utils/Parsers')
+const { recordStudyActivity } = require('../utils/Streak')
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
@@ -140,6 +142,9 @@ exports.Calling = async (req, res) => {
             summary,
             tags: suggestedTags,
         })
+
+        const streakUser = await User.findById(id).select('currentStreak lastStreakDate longestStreak')
+        await recordStudyActivity(streakUser)
 
         return res.status(200).json({
             success: true,

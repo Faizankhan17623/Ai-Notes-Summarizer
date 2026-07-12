@@ -10,6 +10,7 @@ const { consumeCredit, getUserPlan } = require('../utils/Plans')
 const { buildFlashcardPrompt, buildQuizPrompt } = require('../utils/Prompts')
 const { logAi } = require('../utils/AdminLog')
 const { schedule } = require('../utils/SpacedRepetition')
+const { recordStudyActivity } = require('../utils/Streak')
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 const MODEL = 'qwen/qwen3-32b'
@@ -165,25 +166,8 @@ exports.reviewFlashcard = async (req, res) => {
         card.lastReviewedAt = new Date()
         await card.save()
 
-        // daily study streak sir — same calendar day check by UTC date string, not a 24h delta,
-        // so "yesterday 11pm then today 1am" correctly counts as two different days
-        const dayKey = (d) => d.toISOString().slice(0, 10)
-        const today = new Date()
-        const user = await User.findById(id).select('currentStreak lastStreakDate')
-
-        if (!user.lastStreakDate) {
-            user.currentStreak = 1
-        } else {
-            const last = dayKey(user.lastStreakDate)
-            const now = dayKey(today)
-            if (last !== now) {
-                const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
-                user.currentStreak = last === dayKey(yesterday) ? user.currentStreak + 1 : 1
-            }
-            // else: already reviewed something today sir — no change, this isn't a second day
-        }
-        user.lastStreakDate = today
-        await user.save()
+        const user = await User.findById(id).select('currentStreak lastStreakDate longestStreak')
+        await recordStudyActivity(user)
 
         return res.status(200).json({ success: true, flashcard: card })
     } catch (error) {
@@ -319,6 +303,9 @@ exports.attemptQuiz = async (req, res) => {
 
         quiz.lastAttempt = { score, total: quiz.questions.length, answers, attemptedAt: new Date() }
         await quiz.save()
+
+        const user = await User.findById(id).select('currentStreak lastStreakDate longestStreak')
+        await recordStudyActivity(user)
 
         return res.status(200).json({ success: true, score, total: quiz.questions.length, quiz })
     } catch (error) {

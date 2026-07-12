@@ -8,11 +8,14 @@ const User = require('../Models/User')
 const OTP = require('../Models/OTP.js')
 const Note = require('../Models/Note.js')
 const Chat = require('../Models/Chat.js')
+const Flashcard = require('../Models/Flashcard.js')
+const Quiz = require('../Models/Quiz.js')
 const mailSender = require('../utils/Nodemailer.js')
 
 const { deleteAccountEmail } = require('../Templates/DeleteAccount.js')
 const { passwordResetTemplate } = require('../Templates/passwordResetTemplate.js')
 const { getEffectivePlan, resetCycleIfNeeded } = require('../utils/Plans.js')
+const { dayKey } = require('../utils/Streak.js')
 const { isStrongPassword } = require('../utils/PasswordPolicy.js')
 const { hashToken, signAccessToken, issueRefreshToken, REFRESH_TOKEN_TTL_MS } = require('../utils/RefreshToken.js')
 
@@ -452,6 +455,42 @@ exports.updateDigestPreference = async (req, res) => {
 }
 
 // ============================================================
+// UPDATE DAILY STUDY GOAL
+// ============================================================
+exports.updateDailyGoal = async (req, res) => {
+    try {
+        const { dailyGoal } = req.body
+
+        if (typeof dailyGoal !== 'number' || !Number.isInteger(dailyGoal) || dailyGoal < 1 || dailyGoal > 50) {
+            return res.status(400).json({
+                success: false,
+                message: 'dailyGoal must be a whole number between 1 and 50',
+            })
+        }
+
+        const userId = req.User.id
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { dailyGoal },
+            { new: true }
+        ).select('-password')
+
+        return res.status(200).json({
+            success: true,
+            message: 'Daily study goal updated',
+            user: updatedUser,
+        })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to update daily goal',
+        })
+    }
+}
+
+// ============================================================
 // UPDATE LAST NAME
 // ============================================================
 exports.updateLastName = async (req, res) => {
@@ -785,7 +824,7 @@ exports.getProfile = async (req, res) => {
         const id = req.User.id
 
         const user = await User.findById(id)
-            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits receiveDigest currentStreak createdAt Buffer BufferTiming')
+            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits receiveDigest currentStreak longestStreak dailyGoal createdAt Buffer BufferTiming')
 
         if (!user) {
             return res.status(404).json({
@@ -801,10 +840,17 @@ exports.getProfile = async (req, res) => {
         // the effective plan sir — an expired Pro is a Basic again
         const plan = getEffectivePlan(user)
 
-        const [noteCount, chatCount] = await Promise.all([
+        // start of today in UTC sir — matches the calendar-day boundary used by recordStudyActivity
+        const todayStart = new Date(`${dayKey(new Date())}T00:00:00.000Z`)
+
+        const [noteCount, chatCount, notesToday, reviewsToday, quizzesToday] = await Promise.all([
             Note.countDocuments({ user: id }),
             Chat.countDocuments({ user: id }),
+            Note.countDocuments({ user: id, createdAt: { $gte: todayStart } }),
+            Flashcard.countDocuments({ user: id, lastReviewedAt: { $gte: todayStart } }),
+            Quiz.countDocuments({ user: id, 'lastAttempt.attemptedAt': { $gte: todayStart } }),
         ])
+        const studyActionsToday = notesToday + reviewsToday + quizzesToday
 
         return res.status(200).json({
             success: true,
@@ -822,6 +868,9 @@ exports.getProfile = async (req, res) => {
                 noteCount,
                 chatCount,
                 currentStreak: user.currentStreak,
+                longestStreak: user.longestStreak,
+                dailyGoal: user.dailyGoal,
+                studyActionsToday,
             }
         })
     } catch (error) {
