@@ -12,7 +12,7 @@ const Navbar = () => {
     const { theme, toggleTheme } = useTheme()
 
     return (
-        <nav className="w-full border-b border-richblack-700 flex items-center justify-between px-6 py-4">
+        <nav className="w-full border-b border-border-soft flex items-center justify-between px-6 py-4">
             <Link to="/" className="font-display text-xl font-semibold text-yellow-50">
                 AI Notes Summarizer
             </Link>
@@ -45,7 +45,7 @@ const Navbar = () => {
                         )}
                         <button
                             onClick={() => dispatch(LogoutUser(navigate))}
-                            className="bg-richblack-700 text-richblack-25 px-4 py-2 rounded-md text-sm cursor-pointer hover:bg-richblack-600"
+                            className="border border-border-soft text-richblack-100 px-4 py-2 rounded-md text-sm cursor-pointer hover:bg-surface-hover transition-colors"
                         >
                             Log out
                         </button>

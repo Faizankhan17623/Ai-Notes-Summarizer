@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { FaPlus, FaFilePdf, FaFileWord, FaFileAlt, FaMicrophone } from 'react-icons/fa'
+import { FaPlus, FaFilePdf, FaFileWord, FaFileAlt, FaMicrophone, FaThumbtack, FaInbox } from 'react-icons/fa'
 import { GetAllNotes } from '../../Services/operations/Notes.js'
 import { GetProfile } from '../../Services/operations/Auth.js'
 import AnalyticsWidget from './AnalyticsWidget.jsx'
@@ -53,16 +53,16 @@ const DashboardHome = () => {
             </div>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div className="border border-border-soft rounded-lg p-5 bg-surface">
+                <div className="border border-border-soft rounded-lg p-5 bg-surface hover:border-yellow-50/40 transition-colors">
                     <p className="text-xs uppercase tracking-wide text-richblack-400 mb-2">Notes this week</p>
                     <p className="font-mono text-2xl text-richblack-5">{notesThisWeek}</p>
                 </div>
-                <div className="border border-border-soft rounded-lg p-5 bg-surface">
+                <div className="border border-border-soft rounded-lg p-5 bg-surface hover:border-yellow-50/40 transition-colors">
                     <p className="text-xs uppercase tracking-wide text-richblack-400 mb-2">Total notes</p>
                     <p className="font-mono text-2xl text-richblack-5">{allNotes.length}</p>
                 </div>
                 {plan && (
-                    <div className="border border-border-soft rounded-lg p-5 bg-surface">
+                    <div className="border border-border-soft rounded-lg p-5 bg-surface hover:border-yellow-50/40 transition-colors">
                         <p className="text-xs uppercase tracking-wide text-richblack-400 mb-2">Credits left</p>
                         <p className="font-mono text-2xl text-richblack-5">
                             {plan.creditsLimit === null ? '∞' : `${Math.max(plan.creditsLimit - plan.creditsUsed, 0)}`}
@@ -71,7 +71,7 @@ const DashboardHome = () => {
                     </div>
                 )}
                 {activity && activity.currentStreak > 0 && (
-                    <div className="border border-border-soft rounded-lg p-5 bg-surface">
+                    <div className="border border-yellow-50/40 rounded-lg p-5 bg-yellow-50/5 hover:border-yellow-50/60 transition-colors">
                         <p className="text-xs uppercase tracking-wide text-richblack-400 mb-2">Study streak</p>
                         <p className="font-mono text-2xl text-richblack-5">
                             {activity.currentStreak} <span className="text-sm text-richblack-400 font-sans">day{activity.currentStreak === 1 ? '' : 's'}</span>
@@ -87,7 +87,11 @@ const DashboardHome = () => {
                         <Link to="/Dashboard/History" className="text-richblack-400 hover:text-yellow-50 text-xs transition-colors">View all →</Link>
                     </div>
                     {recent.length === 0 ? (
-                        <p className="text-richblack-400 text-sm px-5 py-6">No notes yet — create your first summary above.</p>
+                        <div className="text-center py-16 px-8">
+                            <FaInbox className="text-richblack-500 text-3xl mx-auto mb-3" />
+                            <p className="text-richblack-5 font-semibold mb-1">No notes yet</p>
+                            <p className="text-richblack-400 text-sm">Create your first summary to see it here.</p>
+                        </div>
                     ) : (
                         <div>
                             {recent.map((note) => {
@@ -105,7 +109,7 @@ const DashboardHome = () => {
                                             <span className="block text-richblack-5 text-sm font-medium truncate">{note.title}</span>
                                             <span className="block text-richblack-400 text-xs mt-0.5">{new Date(note.createdAt).toLocaleDateString()} · {note.sourceType}</span>
                                         </span>
-                                        {note.pinned && <span className="text-yellow-50 text-xs shrink-0">📌</span>}
+                                        {note.pinned && <FaThumbtack className="text-yellow-50 text-xs shrink-0" />}
                                     </Link>
                                 )
                             })}

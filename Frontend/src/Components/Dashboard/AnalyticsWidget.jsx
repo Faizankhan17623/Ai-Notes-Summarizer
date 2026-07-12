@@ -4,9 +4,9 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'rec
 import { GetMyAnalytics } from '../../Services/operations/Analytics.js'
 
 const StatBox = ({ label, value }) => (
-    <div className="bg-richblack-800 rounded-md p-3 text-center">
-        <p className="text-yellow-50 font-bold text-lg">{value}</p>
-        <p className="text-richblack-400 text-xs">{label}</p>
+    <div className="border border-border-soft bg-surface-hover rounded-md p-3 text-center">
+        <p className="font-mono text-yellow-50 font-bold text-lg">{value}</p>
+        <p className="text-richblack-400 text-xs mt-0.5">{label}</p>
     </div>
 )
 

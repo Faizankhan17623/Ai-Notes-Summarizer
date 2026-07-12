@@ -76,3 +76,139 @@ VITE_MAIN_BACKEND_URL=http://localhost:4000/api/v1
 ## License
 
 Personal project — all rights reserved.
+
+<!--
+FULL FEATURE INVENTORY (internal notes — not for public README, keep inside this comment block)
+
+AUTH & ACCOUNT SECURITY
+- Signup with OTP email verification (6-digit code, 5-min expiry)
+- Login via JWT: httpOnly access token (1h) + httpOnly refresh token (7d, hashed in DB), bearer-token fallback
+- Logout revokes refresh token server-side, clears cookies
+- Forgot / reset password via emailed time-limited token
+- Change password from Account page (invalidates refresh token)
+- Brute-force protection: per-IP rate limits (login/signup/OTP/AI) + 5-failed-logins -> 15-min self-healing lockout
+- Account ban/suspend enforced at Auth middleware
+- Soft-delete with 2-day recovery buffer, auto-recovers on login within window
+- RBAC roles: User / Support / Admin (PrivateRoute / AdminRoute / OpenRoute on frontend)
+- CSRF double-submit cookie protection
+- Magic-byte file upload validation (PDF/DOCX/TXT), not just extension/mimetype
+
+NOTES / SUMMARIZATION
+- Create summary from pasted text, uploaded file (PDF/DOCX/TXT), or voice dictation (Web Speech API, no API cost)
+- Plan-tiered summary depth:
+  - Basic: title, TL;DR, key points, action items (tasks/keyDates/decisions), AI-suggested tags
+  - Pro: + topic sections, key terms/definitions
+  - Pro Max: + initial quiz + initial flashcard set generated inline
+- Credit-gated generation (monthly cycle: Basic 5 / Pro 100 / ProMax unlimited) + purchasable top-up credits
+- AI-suggested tags (2-3 topics) at creation time
+- Note detail "Report" page: full summary render, embedded Study Tools, Organize + Share/Export rail, delete (cascades chats/flashcards/quizzes), jump into Chat
+- History page: full-text search (Mongo text index over title+rawText), filter by tag/folder/pinned, pin/unpin, delete
+- Organize: free-form tags, single folder, pin-to-top
+- Public share links (read-only, summary only — never raw text/flashcards/quiz)
+- Export note as Markdown, PDF, or DOCX
+- Dashboard home: stat tiles (notes this week/total/credits left/streak), recent notes, activity analytics widget
+
+CHAT WITH NOTES
+- Chat grounded in one specific note; AI restricted to that note's content
+- Plan-based context depth: Basic 10 / Pro 20 / ProMax 40 past turns replayed
+- Plan-based capability scope: Basic light Q&A, Pro adds quizzes/flashcards/reorganize on request, Pro Max full study coach (mock exams, multi-day study plans)
+- Plan-based message caps: Basic 60 / Pro 200 / ProMax unlimited per chat
+- Chat list sidebar + conversation view, voice-dictate messages, delete chat
+
+STUDY KIT - FLASHCARDS
+- On-demand flashcard generation per note (Pro/ProMax only, 1 credit), avoids duplicate fronts
+- SM-2 spaced repetition (ease factor, interval, review count, due date; again/hard/good/easy ratings)
+- Review queue page: every card due now across ALL notes, flip-card UI
+- Daily review streak tracking
+- Export review queue as PDF study sheet
+- Per-note flashcard browsing/deletion on Report page
+
+STUDY KIT - QUIZZES
+- On-demand MCQ quiz generation per note (Pro/ProMax only, 1 credit), avoids repeating prior questions
+- One-question-at-a-time player, submit all at once, scored with per-question correct/incorrect + explanations
+- Retake overwrites lastAttempt; quiz deletable
+
+PLANS, CREDITS & PAYMENTS
+- Three tiers: Basic (free, 5 credits/mo), Pro (Rs499/mo, 100 credits), Pro Max (Rs1499/mo, unlimited)
+- Lazy 30-day rolling credit cycle per user (auto-resets, no cron needed)
+- One-time credit top-up packs (small/medium/large: 20/50/100 credits)
+- Razorpay checkout: order creation + HMAC signature verification (stub "coming soon" mode until live keys added)
+- Public Pricing page with plan comparison + credit pack purchase, current-plan highlight
+- Subscription auto-reverts to Basic after SubscriptionExpires
+
+ACCOUNT / SETTINGS
+- View plan, credits used/remaining, bonus credits, total activity, study streak
+- Buy credit top-up packs inline
+- Edit first/last name separately
+- Toggle weekly digest email preference
+- Change password
+- Pro/ProMax API key management: generate (nsk_... shown once, SHA-256 hash stored), view status, revoke
+  -> used via POST /external/summarize with x-api-key header for programmatic summarization
+- Delete account (2-day recovery) / recover scheduled deletion (banner shown when active)
+
+ANALYTICS (USER-FACING)
+- Personal activity dashboard: notes/day (30-day area chart), total notes/chats/flashcards, cards reviewed,
+  quizzes attempted + average score, plan credit limit — embedded on Dashboard home
+
+ADMIN PANEL (isAdmin gated, shared AdminLayout sidebar)
+- Overview: total users/notes/chats, AI calls & failures (24h), plan breakdown
+- Analytics: revenue by day/week/month, signups (30-day bar chart), top 20 users by usage,
+  users-at-credit-limit counts, credit top-up revenue/stats
+- Users: paginated/searchable list, ban (with reason)/unban, inline role change
+- Payments: full payment history table
+- Audit: admin action log (ban/unban/set_role/create_announcement/etc.) + AI usage/cost monitor feed
+  (type, plan, model, tokens, latency, success/fail per Groq call)
+- Announcements: publish site-wide banner (deactivates prior), history, deactivate;
+  consumed publicly by AnnouncementBanner on every page (no login required)
+
+SITE-WIDE / MISC UI
+- Light/dark theme toggle, persisted
+- Announcement banner (dismissible)
+- Dev/under-construction banner
+- Persistent dashboard sidebar nav + live credit-usage progress bar
+- Lazy-loaded/code-split routes with spinner fallback, scroll-restore on route change
+- Toast notifications (react-hot-toast) + confirm dialogs (SweetAlert2) for destructive actions
+
+THIRD-PARTY INTEGRATIONS
+- Groq (LLM inference) for summarization/chat/flashcards/quizzes — all calls logged to AiLog for cost monitoring
+- Razorpay (payment orders + signature verification, stub mode)
+- Nodemailer/SMTP: OTP email, password reset, account-deletion notice, weekly digest (no-ops if SMTP unset)
+- Browser Web Speech API: voice dictation for note input and chat messages (no external API key)
+- MongoDB Atlas as primary datastore
+
+BACKGROUND JOBS
+- Weekly digest email: node-cron, Mondays 08:00 server time, per opted-in non-banned user,
+  summarizes notes created/chats had/flashcards due/quizzes taken; skips empty weeks; sequential sends
+
+DATA MODELS (MongoDB / Mongoose)
+- User, Note, Flashcard, Quiz, Chat, Payment, AiLog, AuditLog, Announcement, OTP
+  (see Backend/Models/*.js for full field lists)
+
+FULL FRONTEND ROUTES
+- Public: /, /Pricing, /shared/:shareId
+- Logged-out only: /Signup, /Verify-Otp, /Login, /forgot-password, /reset-password/:token
+- Dashboard: /Dashboard, /Dashboard/New-Summary, /Dashboard/Note/:noteId, /Dashboard/Review,
+  /Dashboard/History, /Dashboard/Chats, /Dashboard/Chat/:chatId, /Dashboard/Account
+- Admin/Support: /Admin, /Admin/Analytics, /Admin/Users, /Admin/Payments, /Admin/Audit, /Admin/Announcements
+
+FULL BACKEND API MAP (/api/v1)
+- Auth: POST /Send-otp, POST /Createuser, POST /Login, POST /forgot-password, POST /reset-password,
+  POST /refresh-token, POST /logout, GET /profile, PATCH /profile/first-name, PATCH /profile/last-name,
+  PATCH /profile/digest-preference, PATCH /profile/password, DELETE /profile, POST /profile/recover,
+  GET/POST/DELETE /api-key
+- Notes: POST /summarize, GET /shared/:shareId, GET /notes, GET /notes/tags, GET /notes/:noteId,
+  DELETE /notes/:noteId, PATCH /notes/:noteId/organize, POST/DELETE /notes/:noteId/share,
+  GET /notes/:noteId/export/:format
+- Study Kit: POST/GET /notes/:noteId/flashcards, GET /flashcards/due, GET /flashcards/review/export,
+  POST /flashcards/:id/review, DELETE /flashcards/:id, POST/GET /notes/:noteId/quiz(zes),
+  POST /quizzes/:id/attempt, DELETE /quizzes/:id
+- Chat: POST /chat, POST /chat/:chatId/message, GET /chat, GET /chat/:chatId, DELETE /chat/:chatId
+- Payment: GET /payment/plans, POST /payment/order, POST /payment/verify
+- Analytics: GET /analytics/me
+- Admin: GET /announcements/active (public), GET /admin/overview, GET /admin/analytics, GET /admin/users,
+  PATCH /admin/users/:id/ban|unban|role, GET /admin/payments, GET /admin/audit, GET /admin/ai-logs,
+  GET/POST /admin/announcements, PATCH /admin/announcements/:id/deactivate
+- External: POST /external/summarize (API-key auth)
+- Misc: GET /csrf-token
+-->
+

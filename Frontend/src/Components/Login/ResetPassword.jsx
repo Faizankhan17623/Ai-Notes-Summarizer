@@ -3,6 +3,9 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { ResetPassword as ResetPasswordOp } from '../../Services/operations/Auth.js'
+import AuthLayout from '../extra/AuthLayout.jsx'
+import Input from '../extra/Input.jsx'
+import Button from '../extra/Button.jsx'
 
 const ResetPassword = () => {
     const { register, handleSubmit, watch, formState: { errors } } = useForm()
@@ -17,28 +20,28 @@ const ResetPassword = () => {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-richblack-900 px-6 py-12">
+        <AuthLayout title="Choose a new password">
             <Helmet><title>Reset password — AI Notes Summarizer</title></Helmet>
-            <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-md bg-richblack-800 rounded-lg p-8 border border-richblack-700">
-                <h1 className="text-2xl font-bold text-richblack-5 mb-6">Choose a new password</h1>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <Input
+                    label="New password"
+                    type="password"
+                    {...register('newPassword', { required: true, minLength: 6 })}
+                    error={errors.newPassword && "At least 6 characters"}
+                />
 
-                <div className="mb-4">
-                    <label className="text-sm text-richblack-100 block mb-1">New password</label>
-                    <input type="password" {...register('newPassword', { required: true, minLength: 6 })} className="w-full bg-richblack-700 text-richblack-5 rounded-md px-3 py-2 outline-none" />
-                    {errors.newPassword && <p className="text-pink-200 text-xs mt-1">At least 6 characters</p>}
-                </div>
+                <Input
+                    label="Confirm new password"
+                    type="password"
+                    {...register('confirmNewPassword', { required: true, validate: (v) => v === newPassword || "Passwords do not match" })}
+                    error={errors.confirmNewPassword?.message}
+                />
 
-                <div className="mb-6">
-                    <label className="text-sm text-richblack-100 block mb-1">Confirm new password</label>
-                    <input type="password" {...register('confirmNewPassword', { required: true, validate: (v) => v === newPassword || "Passwords do not match" })} className="w-full bg-richblack-700 text-richblack-5 rounded-md px-3 py-2 outline-none" />
-                    {errors.confirmNewPassword && <p className="text-pink-200 text-xs mt-1">{errors.confirmNewPassword.message}</p>}
-                </div>
-
-                <button type="submit" disabled={loading} className="w-full bg-yellow-50 text-richblack-900 rounded-md py-2 font-semibold hover:scale-95 transition-all disabled:opacity-50 cursor-pointer">
+                <Button type="submit" disabled={loading} className="w-full">
                     {loading ? "Resetting..." : "Reset password"}
-                </button>
+                </Button>
             </form>
-        </div>
+        </AuthLayout>
     )
 }
 
