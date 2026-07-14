@@ -20,7 +20,7 @@ const Report = () => {
     const dispatch = useDispatch()
     const navigate = useNavigate()
     const { token, user } = useSelector((state) => state.auth)
-    const { currentNote, loading } = useSelector((state) => state.notes)
+    const { currentNote } = useSelector((state) => state.notes)
     const { flashcards, quizzes, activeQuiz } = useSelector((state) => state.studyKit)
 
     const isPaidPlan = user?.SubType && user.SubType !== 'Basic'
@@ -31,7 +31,11 @@ const Report = () => {
         dispatch(GetQuizzesForNote(noteId, token))
     }, [dispatch, noteId, token])
 
-    if (loading || !currentNote) return <Loading text="Loading summary..." />
+    // only gate on !currentNote sir — `loading` is a flag shared across every notes
+    // operation (summarize/fetch/delete/export), so gating on it here could unmount
+    // this whole page (and the Chat button's captured `navigate`) mid-click if some
+    // unrelated notes action starts loading while the note itself is already showing
+    if (!currentNote) return <Loading text="Loading summary..." />
 
     const summary = currentNote.summary || {}
     const latestQuiz = activeQuiz || quizzes[0]
