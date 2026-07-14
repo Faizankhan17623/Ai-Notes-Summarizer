@@ -29,7 +29,7 @@ const OTP = () => {
 
     return (
         <AuthLayout title="Verify your email" subtitle={`Enter the 6-digit code sent to ${signupData.email}`}>
-            <Helmet><title>Verify email — AI Notes Summarizer</title></Helmet>
+            <Helmet><title>Verify email — Notewise</title></Helmet>
             <form onSubmit={onSubmit}>
                 <input
                     value={otp}

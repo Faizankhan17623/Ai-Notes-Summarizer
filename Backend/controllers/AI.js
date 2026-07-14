@@ -5,7 +5,7 @@ const User = require('../Models/User')
 const { consumeCredit } = require('../utils/Plans')
 const { buildSummarySystemPrompt } = require('../utils/Prompts')
 const { logAi } = require('../utils/AdminLog')
-const { extractText } = require('../utils/Parsers')
+const { extractText, extractFromUrl, extractFromAudio } = require('../utils/Parsers')
 const { recordStudyActivity } = require('../utils/Streak')
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
@@ -21,11 +21,35 @@ exports.Calling = async (req, res) => {
         let sourceType = 'text'
 
         const file = req.files?.notes
+        const audioFile = req.files?.audio
         const pastedText = req.body?.notes
+        const articleUrl = req.body?.url
 
         if (file) {
             try {
                 const extracted = await extractText(file)
+                text = extracted.text
+                sourceType = extracted.sourceType
+            } catch (parseErr) {
+                return res.status(400).json({
+                    success: false,
+                    message: parseErr.message,
+                })
+            }
+        } else if (audioFile) {
+            try {
+                const extracted = await extractFromAudio(audioFile)
+                text = extracted.text
+                sourceType = extracted.sourceType
+            } catch (parseErr) {
+                return res.status(400).json({
+                    success: false,
+                    message: parseErr.message,
+                })
+            }
+        } else if (articleUrl && articleUrl.trim()) {
+            try {
+                const extracted = await extractFromUrl(articleUrl.trim())
                 text = extracted.text
                 sourceType = extracted.sourceType
             } catch (parseErr) {
@@ -44,7 +68,7 @@ exports.Calling = async (req, res) => {
         if (!text || !text.trim()) {
             return res.status(400).json({
                 success: false,
-                message: 'Please paste some notes, upload a file, or dictate your notes first',
+                message: 'Please paste some notes, upload a file, paste an article link, or dictate your notes first',
             })
         }
 

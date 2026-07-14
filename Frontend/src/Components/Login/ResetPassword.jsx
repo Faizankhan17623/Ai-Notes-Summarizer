@@ -21,7 +21,7 @@ const ResetPassword = () => {
 
     return (
         <AuthLayout title="Choose a new password">
-            <Helmet><title>Reset password — AI Notes Summarizer</title></Helmet>
+            <Helmet><title>Reset password — Notewise</title></Helmet>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <Input
                     label="New password"

@@ -22,7 +22,7 @@ const ForgotPassword = () => {
             subtitle="We'll email you a link to reset it."
             footer={<Link to="/Login" className="text-yellow-50 text-sm">Back to log in</Link>}
         >
-            <Helmet><title>Forgot password — AI Notes Summarizer</title></Helmet>
+            <Helmet><title>Forgot password — Notewise</title></Helmet>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <Input
                     label="Email"

@@ -21,7 +21,7 @@ const Overview = () => {
 
     return (
         <div className="px-6 md:px-10 py-10">
-            <Helmet><title>Admin Overview — AI Notes Summarizer</title></Helmet>
+            <Helmet><title>Admin Overview — Notewise</title></Helmet>
             <h1 className="font-display text-3xl font-semibold text-richblack-5 mb-8">Overview</h1>
 
             {loading || !overview ? (

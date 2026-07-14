@@ -1,21 +1,28 @@
 @import "tailwindcss";
 
 @theme {
-  --color-richblack-5: #f1f2ff;
-  --color-richblack-25: #dbdddd;
-  --color-richblack-100: #aeb2bf;
-  --color-richblack-200: #999dab;
-  --color-richblack-300: #838894;
-  --color-richblack-400: #6e727d;
-  --color-richblack-500: #585d69;
-  --color-richblack-600: #424854;
-  --color-richblack-700: #2c333f;
-  --color-richblack-800: #161d29;
-  --color-richblack-900: #000814;
+  --color-richblack-5: #f2f1fb;
+  --color-richblack-25: #dcdce6;
+  --color-richblack-100: #b0b1c4;
+  --color-richblack-200: #9a9bb0;
+  --color-richblack-300: #848599;
+  --color-richblack-400: #6f7085;
+  --color-richblack-500: #595a70;
+  --color-richblack-600: #43445a;
+  --color-richblack-700: #2d2e42;
+  --color-richblack-800: #181a2a;
+  --color-richblack-900: #0b0e17;
 
   --color-yellow-5: #fffaeb;
   --color-yellow-50: #ffd60a;
   --color-yellow-100: #e7a113;
+
+  /* secondary brand accent sir — soft violet, used for variety alongside the yellow
+     (secondary badges/buttons, highlights), never replacing yellow as the primary CTA color */
+  --color-violet-200: #ddd6fe;
+  --color-violet-300: #c4b5fd;
+  --color-violet-400: #a78bfa;
+  --color-violet-500: #8b6ef2;
 
   --color-caribbeangreen-100: #d2fdec;
   --color-caribbeangreen-200: #a5fad9;
@@ -27,10 +34,10 @@
 
   /* lifted-surface tokens sir — cards sit on a surface distinct from the page background,
      not just an outline on top of it */
-  --color-surface: #10131c;
-  --color-surface-raised: #161a26;
-  --color-surface-hover: #1b202e;
-  --color-border-soft: #1c2130;
+  --color-surface: #12151f;
+  --color-surface-raised: #171b28;
+  --color-surface-hover: #1c2130;
+  --color-border-soft: #1f2433;
 
   /* status colors sir — distinct from the yellow accent, used only for state (review
      urgency, success/warning/danger), never as a second brand color */
@@ -89,6 +96,11 @@
   --color-yellow-50: #b8860a;
   --color-yellow-100: #96690a;
 
+  --color-violet-200: #ede9fe;
+  --color-violet-300: #ddd0fc;
+  --color-violet-400: #7c5cd6;
+  --color-violet-500: #6845c4;
+
   --color-surface: #ffffff;
   --color-surface-raised: #ffffff;
   --color-surface-hover: #f3f1ec;
@@ -108,18 +120,4 @@ body {
 
 * {
   box-sizing: border-box;
-}
-
-@keyframes marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    /* the message is duplicated in DevBanner.jsx sir, so -50% is exactly one full loop with no gap */
-    transform: translateX(-50%);
-  }
-}
-
-.animate-marquee {
-  animation: marquee 18s linear infinite;
 }

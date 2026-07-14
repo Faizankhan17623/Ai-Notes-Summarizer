@@ -5,7 +5,7 @@ const { Auth } = require('../Middlewares/Auth.js')
 const { aiLimiter } = require('../Middlewares/RateLimit.js')
 const { doubleCsrfProtection } = require('../Middlewares/Csrf.js')
 const { validate } = require('../Middlewares/Validate.js')
-const { organizeNoteRules } = require('../Middlewares/ValidationRules.js')
+const { organizeNoteRules, summarizeRules } = require('../Middlewares/ValidationRules.js')
 const {
     getNotes,
     getTags,
@@ -19,7 +19,7 @@ const {
 const { exportNote } = require('../controllers/Export.js')
 
 // aiLimiter because every call here burns a Groq request + a credit sir
-route.post('/summarize', aiLimiter, doubleCsrfProtection, Auth, Calling)
+route.post('/summarize', aiLimiter, doubleCsrfProtection, summarizeRules, validate, Auth, Calling)
 
 // public sir — no auth, no rate limit beyond the global one. NOTE: must be registered before
 // /notes/:noteId below, otherwise Express reads "shared" as a shareId param on the wrong route

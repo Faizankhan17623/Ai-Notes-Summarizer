@@ -55,7 +55,7 @@ const Chat = () => {
 
     return (
         <>
-            <Helmet><title>Chat — AI Notes Summarizer</title></Helmet>
+            <Helmet><title>Chat — Notewise</title></Helmet>
 
             <div className="flex h-[calc(100vh-73px)]">
                 {/* chat list sir */}

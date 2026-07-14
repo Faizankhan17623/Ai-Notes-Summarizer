@@ -16,7 +16,7 @@ const Audit = () => {
 
     return (
         <div className="px-6 md:px-10 py-10 space-y-10">
-            <Helmet><title>Admin Audit — AI Notes Summarizer</title></Helmet>
+            <Helmet><title>Admin Audit — Notewise</title></Helmet>
 
             <div>
                 <h1 className="font-display text-3xl font-semibold text-richblack-5 mb-6">Admin actions</h1>

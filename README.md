@@ -1,4 +1,4 @@
-# AI Notes Summarizer
+# Notewise
 
 Turn any notes into a clear, structured summary — paste text, upload a PDF/Word/TXT file, or just talk. Built with an Express + MongoDB backend and a React + Vite frontend, powered by Groq for AI summarization and chat.
 

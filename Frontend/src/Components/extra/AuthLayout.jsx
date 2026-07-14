@@ -5,7 +5,7 @@ const AuthLayout = ({ title, subtitle, children, footer }) => (
     <div className="min-h-screen grid lg:grid-cols-2 bg-richblack-900">
         <div className="hidden lg:flex flex-col justify-between border-r border-border-soft bg-surface/40 px-12 py-12">
             <Link to="/" className="font-display text-xl font-semibold text-yellow-50">
-                AI Notes Summarizer
+                Notewise
             </Link>
             <div>
                 <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-yellow-50 bg-yellow-50/10 px-3 py-1 rounded-full mb-6">
@@ -18,13 +18,13 @@ const AuthLayout = ({ title, subtitle, children, footer }) => (
                     Summaries, flashcards, quizzes and a chat partner that knows exactly what's in your notes.
                 </p>
             </div>
-            <p className="text-richblack-500 text-xs">© {new Date().getFullYear()} AI Notes Summarizer</p>
+            <p className="text-richblack-500 text-xs">© {new Date().getFullYear()} Notewise</p>
         </div>
 
         <div className="flex items-center justify-center px-6 py-12">
             <div className="w-full max-w-md">
                 <Link to="/" className="lg:hidden font-display text-xl font-semibold text-yellow-50 mb-8 inline-block">
-                    AI Notes Summarizer
+                    Notewise
                 </Link>
                 <div className="border border-border-soft bg-surface rounded-lg p-8">
                     <h1 className="font-display text-2xl font-semibold text-richblack-5 mb-1">{title}</h1>

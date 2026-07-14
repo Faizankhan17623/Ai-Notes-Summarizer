@@ -20,7 +20,7 @@ const mailSender = async (email, title, body) => {
         })
 
         const info = await transporter.sendMail({
-            from: `"AI Notes Summarizer" <${process.env.MAIL_USER}>`,
+            from: `"Notewise" <${process.env.MAIL_USER}>`,
             to: email,
             subject: title,
             html: body,

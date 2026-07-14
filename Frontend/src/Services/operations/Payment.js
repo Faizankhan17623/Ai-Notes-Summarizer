@@ -107,7 +107,7 @@ export function StartCheckout(plan, token, userInfo) {
             key: orderData.key,
             amount: orderData.order.amount,
             currency: orderData.order.currency,
-            name: 'AI Notes Summarizer',
+            name: 'Notewise',
             description: `Upgrade to ${plan}`,
             order_id: orderData.order.id,
             handler: (response) => {
@@ -149,7 +149,7 @@ export function StartCreditPackCheckout(packKey, token, userInfo) {
             key: orderData.key,
             amount: orderData.order.amount,
             currency: orderData.order.currency,
-            name: 'AI Notes Summarizer',
+            name: 'Notewise',
             description: `Credit top-up (${packKey})`,
             order_id: orderData.order.id,
             handler: (response) => {

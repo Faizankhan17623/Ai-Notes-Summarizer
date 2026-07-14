@@ -70,3 +70,7 @@ exports.sendMessageRules = [param('chatId').isMongoId(), body('message').trim().
 
 exports.reviewFlashcardRules = [param('id').isMongoId(), body('rating').isIn(['again', 'hard', 'good', 'easy'])]
 exports.attemptQuizRules = [param('id').isMongoId(), body('answers').isArray({ min: 1 })]
+
+// url is optional here sir — /summarize also accepts pasted text or a file, this only
+// validates the shape of the url field when the article tab actually sends one
+exports.summarizeRules = [body('url').optional().trim().isURL({ require_protocol: true })]

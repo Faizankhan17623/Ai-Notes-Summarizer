@@ -26,7 +26,7 @@ const User = () => {
                 </p>
             }
         >
-            <Helmet><title>Log in — AI Notes Summarizer</title></Helmet>
+            <Helmet><title>Log in — Notewise</title></Helmet>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <Input
                     label="Email"

@@ -53,7 +53,7 @@ const Report = () => {
 
     return (
         <>
-            <Helmet><title>{summary.title || 'Summary'} — AI Notes Summarizer</title></Helmet>
+            <Helmet><title>{summary.title || 'Summary'} — Notewise</title></Helmet>
 
             <div className="max-w-6xl mx-auto px-6 md:px-10 py-10">
                 <div className="flex items-start justify-between gap-4 mb-8">

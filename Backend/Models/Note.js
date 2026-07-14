@@ -19,7 +19,7 @@ const noteSchema = new mongoose.Schema(
         // where the raw text came from sir
         sourceType: {
             type: String,
-            enum: ['text', 'pdf', 'docx', 'txt', 'voice'],
+            enum: ['text', 'pdf', 'docx', 'txt', 'voice', 'article', 'audio'],
             required: true
         },
         // the extracted/typed/dictated text that was actually summarized sir
@@ -51,6 +51,12 @@ const noteSchema = new mongoose.Schema(
             default: null
         },
         pinned: {
+            type: Boolean,
+            default: false
+        },
+        // separate from pinned sir — pinned controls sort order/visibility at the top of
+        // History, favorite is just a personal "starred" marker, filterable independently
+        favorite: {
             type: Boolean,
             default: false
         },

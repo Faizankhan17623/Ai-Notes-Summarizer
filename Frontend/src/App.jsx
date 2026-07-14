@@ -10,7 +10,6 @@ import PrivateRoute from './Hooks/PrivateRoute'
 import AdminRoute from './Hooks/AdminRoute'
 import ScrollToTop from './Components/extra/ScrollToTop'
 import AnnouncementBanner from './Components/extra/AnnouncementBanner'
-import DevBanner from './Components/extra/DevBanner'
 import { FetchCsrfToken } from './Services/operations/Auth.js'
 
 // Lazy-loaded route components sir — split into separate chunks for faster initial load
@@ -20,6 +19,15 @@ const Login = lazy(() => import('./Components/Login/User'))
 const ForgotPassword = lazy(() => import('./Components/Login/ForgotPassword'))
 const ResetPassword = lazy(() => import('./Components/Login/ResetPassword'))
 const Pricing = lazy(() => import('./Components/Home/Pricing'))
+const Features = lazy(() => import('./Components/Home/Features'))
+const Solutions = lazy(() => import('./Components/Home/Solutions'))
+const Resources = lazy(() => import('./Components/Home/Resources'))
+const HelpCenter = lazy(() => import('./Components/Home/HelpCenter'))
+const PrivacyPolicy = lazy(() => import('./Components/Home/PrivacyPolicy'))
+const TermsOfService = lazy(() => import('./Components/Home/TermsOfService'))
+const NoteGroundedChat = lazy(() => import('./Components/Home/NoteGroundedChat'))
+const FlashcardsAndQuizzes = lazy(() => import('./Components/Home/FlashcardsAndQuizzes'))
+const SpacedRepetitionFeature = lazy(() => import('./Components/Home/SpacedRepetitionFeature'))
 const DashboardLayout = lazy(() => import('./Components/Dashboard/DashboardLayout'))
 const DashboardHome = lazy(() => import('./Components/Dashboard/DashboardHome'))
 const NewSummary = lazy(() => import('./Components/Dashboard/NewSummary'))
@@ -47,9 +55,9 @@ const Homelayout = () => {
   return (
     <div className="bg-richblack-900 min-h-screen flex flex-col">
       <Helmet>
-        <title>AI Notes Summarizer — turn any notes into clear summaries</title>
+        <title>Notewise — turn any notes into clear summaries</title>
       </Helmet>
-      <Navbar />
+      <Navbar showMegaMenu />
       <div className="flex-1">
         <Banner />
       </div>
@@ -67,7 +75,6 @@ function App() {
 
   return (
     <>
-      <DevBanner />
       <AnnouncementBanner />
       <ScrollToTop />
       <Suspense fallback={<PageLoader />}>
@@ -75,6 +82,15 @@ function App() {
           {/* Public sir */}
           <Route path="/" element={<Homelayout />} />
           <Route path="/Pricing" element={<Pricing />} />
+          <Route path="/Features" element={<Features />} />
+          <Route path="/Solutions" element={<Solutions />} />
+          <Route path="/Resources" element={<Resources />} />
+          <Route path="/HelpCenter" element={<HelpCenter />} />
+          <Route path="/PrivacyPolicy" element={<PrivacyPolicy />} />
+          <Route path="/TermsOfService" element={<TermsOfService />} />
+          <Route path="/Features/Chat" element={<NoteGroundedChat />} />
+          <Route path="/Features/FlashcardsAndQuizzes" element={<FlashcardsAndQuizzes />} />
+          <Route path="/Features/SpacedRepetition" element={<SpacedRepetitionFeature />} />
           <Route path="/shared/:shareId" element={<SharedNote />} />
 
           {/* Only for the logged-OUT sir */}

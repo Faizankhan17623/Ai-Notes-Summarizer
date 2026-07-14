@@ -70,7 +70,7 @@ const Account = () => {
 
     return (
         <>
-            <Helmet><title>Account — AI Notes Summarizer</title></Helmet>
+            <Helmet><title>Account — Notewise</title></Helmet>
 
             <div className="max-w-3xl mx-auto px-6 py-10">
                 <h1 className="font-display text-3xl font-semibold text-richblack-5 mb-8">Account</h1>

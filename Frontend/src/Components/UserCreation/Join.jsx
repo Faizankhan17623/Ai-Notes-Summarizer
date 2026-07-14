@@ -29,7 +29,7 @@ const Join = () => {
                 </p>
             }
         >
-            <Helmet><title>Sign up — AI Notes Summarizer</title></Helmet>
+            <Helmet><title>Sign up — Notewise</title></Helmet>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                     <Input

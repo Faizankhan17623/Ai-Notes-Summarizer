@@ -18,7 +18,7 @@ const Review = () => {
 
     return (
         <>
-            <Helmet><title>Review — AI Notes Summarizer</title></Helmet>
+            <Helmet><title>Review — Notewise</title></Helmet>
 
             <div className="max-w-2xl mx-auto px-6 py-10">
                 <div className="flex items-start justify-between gap-4 mb-8">

@@ -11,12 +11,13 @@ const User = require('../Models/User')
 exports.getNotes = async (req, res) => {
     try {
         const id = req.User.id
-        const { search, tag, folder, pinned } = req.query
+        const { search, tag, folder, pinned, favorite } = req.query
 
         const filter = { user: id }
         if (tag) filter.tags = tag
         if (folder) filter.folder = folder
         if (pinned === 'true') filter.pinned = true
+        if (favorite === 'true') filter.favorite = true
 
         // full-text search sir — hits the { title, rawText } text index on Note,
         // which also matches the source content behind the summary, not just the title
@@ -24,7 +25,7 @@ exports.getNotes = async (req, res) => {
             filter.$text = { $search: search.trim() }
         }
 
-        let query = Note.find(filter).select('title sourceType plan tags folder pinned createdAt updatedAt')
+        let query = Note.find(filter).select('title sourceType plan tags folder pinned favorite createdAt updatedAt')
 
         // text-search results are most useful sorted by relevance sir, otherwise pinned-then-newest
         if (search && search.trim()) {
@@ -67,7 +68,7 @@ exports.organizeNote = async (req, res) => {
     try {
         const id = req.User.id
         const { noteId } = req.params
-        const { tags, folder, pinned } = req.body
+        const { tags, folder, pinned, favorite } = req.body
 
         if (!mongoose.isValidObjectId(noteId)) {
             return res.status(400).json({ success: false, message: 'Invalid note id' })
@@ -82,6 +83,7 @@ exports.organizeNote = async (req, res) => {
         }
         if (folder !== undefined) update.folder = folder ? String(folder).trim().slice(0, 60) : null
         if (pinned !== undefined) update.pinned = Boolean(pinned)
+        if (favorite !== undefined) update.favorite = Boolean(favorite)
 
         const note = await Note.findOneAndUpdate({ _id: noteId, user: id }, update, { new: true })
         if (!note) {

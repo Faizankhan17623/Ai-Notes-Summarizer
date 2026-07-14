@@ -57,7 +57,7 @@ app.use(cors({
 }))
 app.use(cookieParser())
 app.use(fileUpload({
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB sir — generous for notes (PDF/DOCX/TXT), not media
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB sir — covers notes (PDF/DOCX/TXT) and audio uploads
     abortOnLimit: true,
     responseOnLimit: JSON.stringify({ success: false, message: 'File is too large - maximum size is 10MB' }),
     safeFileNames: true,

@@ -4,8 +4,10 @@ import { useNavigate } from 'react-router-dom'
 import { FaSun, FaMoon } from 'react-icons/fa'
 import { LogoutUser } from '../../Services/operations/Auth.js'
 import useTheme from '../../Hooks/useTheme.js'
+import NavMegaMenu from './NavMegaMenu.jsx'
+import { NAV_MENUS } from './navMenuData.js'
 
-const Navbar = () => {
+const Navbar = ({ showMegaMenu = false }) => {
     const { token, user } = useSelector((state) => state.auth)
     const dispatch = useDispatch()
     const navigate = useNavigate()
@@ -14,8 +16,16 @@ const Navbar = () => {
     return (
         <nav className="w-full border-b border-border-soft flex items-center justify-between px-6 py-4">
             <Link to="/" className="font-display text-xl font-semibold text-yellow-50">
-                AI Notes Summarizer
+                Notewise
             </Link>
+
+            {showMegaMenu && (
+                <div className="hidden md:flex items-center gap-1">
+                    {NAV_MENUS.map((menu) => (
+                        <NavMegaMenu key={menu.label} menu={menu} />
+                    ))}
+                </div>
+            )}
 
             <div className="flex items-center gap-4">
                 <button
@@ -25,10 +35,6 @@ const Navbar = () => {
                 >
                     {theme === 'dark' ? <FaSun size={14} /> : <FaMoon size={14} />}
                 </button>
-
-                <Link to="/Pricing" className="text-richblack-100 hover:text-richblack-25 text-sm">
-                    Pricing
-                </Link>
 
                 {token ? (
                     <>
@@ -53,10 +59,10 @@ const Navbar = () => {
                 ) : (
                     <>
                         <Link to="/Login" className="text-richblack-100 hover:text-richblack-25 text-sm">
-                            Log in
+                            Sign in
                         </Link>
                         <Link to="/Signup" className="bg-yellow-50 text-richblack-900 px-4 py-2 rounded-md text-sm font-semibold hover:scale-95 transition-all">
-                            Sign up
+                            Try for free
                         </Link>
                     </>
                 )}

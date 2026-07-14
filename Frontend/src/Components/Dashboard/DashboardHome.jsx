@@ -37,7 +37,7 @@ const DashboardHome = () => {
 
     return (
         <div className="px-6 md:px-10 py-10">
-            <Helmet><title>Dashboard — AI Notes Summarizer</title></Helmet>
+            <Helmet><title>Dashboard — Notewise</title></Helmet>
 
             <div className="flex items-start justify-between mb-8">
                 <div>

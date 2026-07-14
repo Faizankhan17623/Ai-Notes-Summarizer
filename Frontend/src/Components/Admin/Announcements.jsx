@@ -24,7 +24,7 @@ const Announcements = () => {
 
     return (
         <div className="max-w-3xl px-6 md:px-10 py-10">
-            <Helmet><title>Admin Announcements — AI Notes Summarizer</title></Helmet>
+            <Helmet><title>Admin Announcements — Notewise</title></Helmet>
             <h1 className="font-display text-3xl font-semibold text-richblack-5 mb-6">Announcements</h1>
 
             <form onSubmit={handlePublish} className="flex gap-2 mb-8">

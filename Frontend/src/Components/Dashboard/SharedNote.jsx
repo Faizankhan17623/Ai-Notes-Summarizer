@@ -31,10 +31,10 @@ const SharedNote = () => {
 
     return (
         <div className="min-h-screen bg-richblack-900">
-            <Helmet><title>{summary.title || 'Shared note'} — AI Notes Summarizer</title></Helmet>
+            <Helmet><title>{summary.title || 'Shared note'} — Notewise</title></Helmet>
 
             <div className="max-w-3xl mx-auto px-6 py-12">
-                <p className="text-richblack-400 text-xs mb-2">Shared summary · <Link to="/" className="text-yellow-50">AI Notes Summarizer</Link></p>
+                <p className="text-richblack-400 text-xs mb-2">Shared summary · <Link to="/" className="text-yellow-50">Notewise</Link></p>
                 <h1 className="text-2xl font-bold text-richblack-5 mb-6">{summary.title}</h1>
 
                 <div className="border border-border-soft bg-surface rounded-lg p-6 mb-6">
