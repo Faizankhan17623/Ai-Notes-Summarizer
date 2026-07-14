@@ -5,5 +5,6 @@ export const ChatData = {
     allChats: BASE_URL + "/chat",
     singleChat: BASE_URL + "/chat",       // + /:chatId
     sendMessage: BASE_URL + "/chat",      // + /:chatId/message
+    regenerateReply: BASE_URL + "/chat",  // + /:chatId/regenerate
     deleteChat: BASE_URL + "/chat",       // + /:chatId
 }

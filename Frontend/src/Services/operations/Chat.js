@@ -3,7 +3,7 @@ import { apiConnector } from "../apiConnector.js"
 import { setAllChats, setCurrentChat, setLoading, setReplying } from "../../Slices/chatSlice.js"
 import { ChatData } from "../Apis/ChatApi.js"
 
-const { createChat, allChats, singleChat, sendMessage, deleteChat } = ChatData
+const { createChat, allChats, singleChat, sendMessage, regenerateReply, deleteChat } = ChatData
 
 // start a chat grounded in an already-saved note sir
 export function CreateChat(noteId, token, navigate) {
@@ -105,6 +105,41 @@ export function SendMessage(chatId, message, token, currentChat) {
             console.error("Error sending the message", error)
             toast.error(error?.response?.data?.message || "Could not send the message")
             // roll the optimistic bubble back sir
+            dispatch(setCurrentChat(currentChat))
+        } finally {
+            dispatch(setReplying(false))
+        }
+    }
+}
+
+// re-asks the last user message sir — replaces the last assistant reply in place
+// rather than appending a duplicate exchange to the conversation
+export function RegenerateReply(chatId, token, currentChat) {
+    return async (dispatch) => {
+        dispatch(setReplying(true))
+
+        // pull the stale reply off immediately sir so the "thinking" indicator
+        // takes its place instead of sitting below the old answer
+        const messagesWithoutLastReply = currentChat.messages.slice(0, -1)
+        dispatch(setCurrentChat({ ...currentChat, messages: messagesWithoutLastReply }))
+
+        try {
+            const response = await apiConnector("POST", `${regenerateReply}/${chatId}/regenerate`, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            dispatch(setCurrentChat({
+                ...currentChat,
+                messages: [...messagesWithoutLastReply, { role: 'assistant', content: response.data.reply }]
+            }))
+        } catch (error) {
+            console.error("Error regenerating the reply", error)
+            toast.error(error?.response?.data?.message || "Could not regenerate the reply")
+            // roll back to the original reply sir
             dispatch(setCurrentChat(currentChat))
         } finally {
             dispatch(setReplying(false))

@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { FaPaperPlane, FaTrash, FaComments } from 'react-icons/fa'
+import { FaPaperPlane, FaTrash, FaComments, FaRedo } from 'react-icons/fa'
 import Swal from 'sweetalert2'
-import { GetAllChats, GetSingleChat, SendMessage, DeleteChat } from '../../Services/operations/Chat.js'
+import { GetAllChats, GetSingleChat, SendMessage, RegenerateReply, DeleteChat } from '../../Services/operations/Chat.js'
 import MicButton from '../extra/MicButton.jsx'
 
 const Chat = () => {
@@ -37,6 +37,11 @@ const Chat = () => {
         if (!message.trim() || !chatId) return
         dispatch(SendMessage(chatId, message.trim(), token, currentChat))
         setMessage('')
+    }
+
+    const handleRegenerate = () => {
+        if (!chatId || replying) return
+        dispatch(RegenerateReply(chatId, token, currentChat))
     }
 
     const handleDelete = async (id) => {
@@ -111,18 +116,30 @@ const Chat = () => {
                     ) : (
                         <>
                             <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
-                                {currentChat?.messages?.map((m, i) => (
-                                    <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div
-                                            className={`max-w-[70%] rounded-lg px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${m.role === 'user'
-                                                ? 'bg-yellow-50 text-richblack-900'
-                                                : 'bg-surface border border-border-soft text-richblack-100'
-                                                }`}
-                                        >
-                                            {m.content}
+                                {currentChat?.messages?.map((m, i) => {
+                                    const isLastAssistantReply = m.role === 'assistant' && i === currentChat.messages.length - 1
+                                    return (
+                                        <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                            <div
+                                                className={`max-w-[70%] rounded-lg px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${m.role === 'user'
+                                                    ? 'bg-yellow-50 text-richblack-900'
+                                                    : 'bg-surface border border-border-soft text-richblack-100'
+                                                    }`}
+                                            >
+                                                {m.content}
+                                            </div>
+                                            {isLastAssistantReply && !replying && (
+                                                <button
+                                                    onClick={handleRegenerate}
+                                                    title="Regenerate this reply"
+                                                    className="flex items-center gap-1.5 text-richblack-500 hover:text-richblack-200 text-xs mt-1.5 cursor-pointer transition-colors"
+                                                >
+                                                    <FaRedo size={10} /> Regenerate
+                                                </button>
+                                            )}
                                         </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                                 {replying && (
                                     <div className="flex justify-start">
                                         <div className="bg-surface border border-border-soft text-richblack-400 rounded-lg px-4 py-2.5 text-sm flex items-center gap-1.5">

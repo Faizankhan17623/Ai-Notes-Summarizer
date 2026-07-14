@@ -67,6 +67,7 @@ exports.setRoleRules = [param('userId').isMongoId(), body('role').isIn(['User', 
 
 exports.createChatRules = [body('noteId').isMongoId()]
 exports.sendMessageRules = [param('chatId').isMongoId(), body('message').trim().notEmpty().isLength({ max: 4000 })]
+exports.regenerateReplyRules = [param('chatId').isMongoId()]
 
 exports.reviewFlashcardRules = [param('id').isMongoId(), body('rating').isIn(['again', 'hard', 'good', 'easy'])]
 exports.attemptQuizRules = [param('id').isMongoId(), body('answers').isArray({ min: 1 })]

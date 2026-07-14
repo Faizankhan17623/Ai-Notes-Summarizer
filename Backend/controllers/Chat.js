@@ -169,6 +169,106 @@ exports.sendMessage = async (req, res) => {
     }
 }
 
+// POST /chat/:chatId/regenerate — re-ask the same last user message, replacing the
+// last assistant reply in place rather than appending a duplicate exchange sir
+exports.regenerateReply = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { chatId } = req.params
+
+        if (!mongoose.isValidObjectId(chatId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid chat id',
+            })
+        }
+
+        const chat = await Chat.findOne({ _id: chatId, user: id })
+        if (!chat) {
+            return res.status(404).json({
+                success: false,
+                message: 'Chat not found',
+            })
+        }
+
+        const last = chat.messages[chat.messages.length - 1]
+        if (!last || last.role !== 'assistant') {
+            return res.status(400).json({
+                success: false,
+                message: 'There is no reply to regenerate yet',
+            })
+        }
+
+        const note = await Note.findById(chat.note)
+        if (!note) {
+            return res.status(404).json({
+                success: false,
+                message: 'The note behind this chat no longer exists',
+            })
+        }
+
+        // drop the reply being replaced sir — everything up to and including the last
+        // user message stays as the prompt history, same as a normal sendMessage call
+        const historyWithoutLastReply = chat.messages.slice(0, -1)
+
+        const plan = await getUserPlan(id)
+        const contextWindow = plan?.contextWindow || CONTEXT_WINDOW
+        const Messages = [
+            {
+                role: 'system',
+                content: buildChatSystemPrompt(plan?.key, note.rawText)
+            },
+            ...historyWithoutLastReply.slice(-contextWindow).map((m) => ({
+                role: m.role,
+                content: m.content
+            })),
+        ]
+
+        const t0 = Date.now()
+        let Invoking
+        try {
+            Invoking = await groq.chat.completions.create({
+                messages: Messages,
+                model: MODEL,
+                temperature: 0.5,
+            })
+            logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: MODEL, usage: Invoking.usage, latencyMs: Date.now() - t0, success: true })
+        } catch (aiErr) {
+            logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: MODEL, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
+            throw aiErr
+        }
+
+        let raw = Invoking?.choices?.[0]?.message?.content
+        if (!raw) {
+            return res.status(502).json({
+                success: false,
+                message: 'The AI returned an empty response, please try again',
+            })
+        }
+
+        if (raw.includes('</think>')) {
+            raw = raw.split('</think>').pop()
+        }
+        raw = raw.trim()
+
+        chat.messages = historyWithoutLastReply
+        chat.messages.push({ role: 'assistant', content: raw })
+        await chat.save()
+
+        return res.status(200).json({
+            success: true,
+            reply: raw
+        })
+    } catch (error) {
+        console.log(error)
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while regenerating the reply',
+        })
+    }
+}
+
 // GET /chat — the user's chat list for the sidebar sir
 exports.getChats = async (req, res) => {
     try {
