@@ -151,7 +151,7 @@ export const SUMMARIZER_EXPLAINERS = {
             { title: 'AI Analyzes the Video Content', body: "Our AI processes the video's transcript, identifies key topics, important discussions, and extracts the most relevant information automatically." },
             { title: 'Get Your Summary Instantly', body: 'Within seconds, receive a clean, easy-to-read summary covering all the major points and essential takeaways from the video.' },
         ],
-        useCasesTitle: 'AI YouTube Video',
+        useCasesTitle: 'AI YouTube Video Summarizer',
         useCases: [
             { icon: 'lecture', title: 'Educational Lectures', body: 'Summarize university lectures and academic talks to capture key concepts with the AI YouTube video summarizer.' },
             { icon: 'mic', title: 'Tutorials and How-To Videos', body: 'Get essential steps and instructions from tutorial videos using the AI YouTube video summarizer.' },
@@ -160,7 +160,7 @@ export const SUMMARIZER_EXPLAINERS = {
             { icon: 'news', title: 'News and Analysis Videos', body: 'Get key facts and takeaways from news and current affairs videos with the AI YouTube video summarizer.' },
             { icon: 'review', title: 'Product Reviews and Comparisons', body: 'Extract key pros, cons, and recommendations from review videos using the AI YouTube video summarizer.' },
         ],
-        whyTitle: 'AI Youtube Summarizer',
+        whyTitle: 'AI YouTube Video Summarizer',
         whyBenefits: [
             { icon: 'youtube', title: 'Summarize Any YouTube Video', body: 'Our AI YouTube video summarizer works with any publicly available YouTube video — tutorials, lectures, podcasts, interviews, reviews, webinars, and more — regardless of length or topic.' },
             { icon: 'time', title: 'Save Hours of Watching Time', body: 'Not every video requires your full attention. Our AI YouTube video summarizer lets you quickly scan the key points before deciding whether to watch the full video.' },

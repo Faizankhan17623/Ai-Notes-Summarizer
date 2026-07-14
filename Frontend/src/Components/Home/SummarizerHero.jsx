@@ -30,6 +30,13 @@ const ComingSoon = ({ label }) => (
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024
 
+// the backend requires a protocol (isURL({ require_protocol: true })) sir, but users
+// naturally type "example.com/article" without one — assume https rather than 400ing them
+const normalizeArticleUrl = (raw) => {
+    const trimmed = raw.trim()
+    return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+}
+
 const SummarizerHero = ({ tab, setTab }) => {
     const [text, setText] = useState('')
     const [file, setFile] = useState(null)
@@ -57,7 +64,7 @@ const SummarizerHero = ({ tab, setTab }) => {
 
         if (tab === 'article') {
             if (!articleUrl.trim()) return
-            dispatch(SummarizeNotes({ url: articleUrl.trim() }, token, navigate))
+            dispatch(SummarizeNotes({ url: normalizeArticleUrl(articleUrl) }, token, navigate))
             return
         }
 

@@ -21,6 +21,13 @@ const TABS = [
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024
 
+// the backend requires a protocol (isURL({ require_protocol: true })) sir, but users
+// naturally type "example.com/article" without one — assume https rather than 400ing them
+const normalizeArticleUrl = (raw) => {
+    const trimmed = raw.trim()
+    return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+}
+
 const ComingSoon = ({ label }) => (
     <div className="flex flex-col items-center justify-center text-center py-16 px-8 min-h-[300px]">
         <FaTools className="text-richblack-400 text-3xl mb-4" />
@@ -72,7 +79,7 @@ const NewSummary = () => {
 
         if (tab === 'article') {
             if (!articleUrl.trim()) return
-            dispatch(SummarizeNotes({ url: articleUrl.trim() }, token, navigate))
+            dispatch(SummarizeNotes({ url: normalizeArticleUrl(articleUrl) }, token, navigate))
             return
         }
 

@@ -38,6 +38,11 @@ const Navbar = ({ showMegaMenu = false }) => {
 
                 {token ? (
                     <>
+                        {!showMegaMenu && (
+                            <Link to="/Pricing" className="text-richblack-100 hover:text-richblack-25 text-sm">
+                                Pricing
+                            </Link>
+                        )}
                         <Link to="/Dashboard" className="text-richblack-100 hover:text-richblack-25 text-sm">
                             Dashboard
                         </Link>
