@@ -11,4 +11,5 @@ export const NotesData = {
     disableShare: BASE_URL + "/notes",    // + /:noteId/share
     sharedNote: BASE_URL + "/shared",     // + /:shareId
     exportNote: BASE_URL + "/notes",      // + /:noteId/export/:format
+    relatedNotes: BASE_URL + "/notes",    // + /:noteId/related
 }

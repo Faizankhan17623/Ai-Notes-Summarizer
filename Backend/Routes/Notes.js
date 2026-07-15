@@ -15,6 +15,7 @@ const {
     enableShare,
     disableShare,
     getSharedNote,
+    getRelatedNotes,
 } = require('../controllers/Notes.js')
 const { exportNote } = require('../controllers/Export.js')
 
@@ -29,6 +30,7 @@ route.get('/notes', Auth, getNotes)
 // must come before /notes/:noteId sir — same reason as above, "tags" would otherwise be read as a noteId
 route.get('/notes/tags', Auth, getTags)
 route.get('/notes/:noteId', Auth, getNote)
+route.get('/notes/:noteId/related', Auth, getRelatedNotes)
 route.delete('/notes/:noteId', doubleCsrfProtection, Auth, deleteNote)
 route.patch('/notes/:noteId/organize', doubleCsrfProtection, organizeNoteRules, validate, Auth, organizeNote)
 route.post('/notes/:noteId/share', doubleCsrfProtection, Auth, enableShare)

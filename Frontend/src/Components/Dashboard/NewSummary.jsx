@@ -1,23 +1,27 @@
 import { useState, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import toast from 'react-hot-toast'
 import {
-    FaFileUpload, FaKeyboard, FaLink, FaYoutube, FaVideo, FaHeadphones, FaTools,
+    FaFileUpload, FaKeyboard, FaLink, FaYoutube, FaVideo, FaHeadphones, FaTools, FaLayerGroup,
+    FaCheckCircle, FaTimesCircle,
 } from 'react-icons/fa'
-import { SummarizeNotes } from '../../Services/operations/Notes.js'
+import { SummarizeNotes, BulkSummarizeNotes } from '../../Services/operations/Notes.js'
 import MicButton from '../extra/MicButton.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
 
 const TABS = [
     { key: 'text', label: 'Text', icon: FaKeyboard },
     { key: 'file', label: 'Document', icon: FaFileUpload },
+    { key: 'bulk', label: 'Bulk upload', icon: FaLayerGroup },
     { key: 'article', label: 'Article', icon: FaLink },
     { key: 'youtube', label: 'YouTube', icon: FaYoutube },
     { key: 'video', label: 'Video', icon: FaVideo },
     { key: 'audio', label: 'Audio', icon: FaHeadphones },
 ]
+
+const MAX_BULK_FILES = 20
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024
 
@@ -45,6 +49,8 @@ const NewSummary = () => {
     const [dictated, setDictated] = useState(false)
     const [articleUrl, setArticleUrl] = useState('')
     const [audioFile, setAudioFile] = useState(null)
+    const [bulkFiles, setBulkFiles] = useState([])
+    const [bulkResults, setBulkResults] = useState(null)
 
     const dispatch = useDispatch()
     const navigate = useNavigate()
@@ -66,8 +72,30 @@ const NewSummary = () => {
         setAudioFile(selected)
     }
 
+    const handleBulkSelect = (fileList) => {
+        const selected = Array.from(fileList || [])
+        if (!selected.length) return
+        if (selected.length > MAX_BULK_FILES) {
+            toast.error(`You can summarize up to ${MAX_BULK_FILES} files at once`)
+            return
+        }
+        setBulkResults(null)
+        setBulkFiles(selected)
+    }
+
     const handleSubmit = (e) => {
         e.preventDefault()
+
+        if (tab === 'bulk') {
+            if (!bulkFiles.length) return
+            const formData = new FormData()
+            bulkFiles.forEach((f) => formData.append('notes', f))
+            dispatch(BulkSummarizeNotes(formData, token, (results) => {
+                setBulkResults(results)
+                setBulkFiles([])
+            }))
+            return
+        }
 
         if (tab === 'file') {
             if (!file) return
@@ -97,15 +125,17 @@ const NewSummary = () => {
         dispatch(SummarizeNotes({ notes: text, sourceType: dictated ? 'voice' : 'text' }, token, navigate))
     }
 
-    const canSubmit = tab === 'file'
-        ? !!file
-        : tab === 'article'
-            ? articleUrl.trim().length > 0
-            : tab === 'audio'
-                ? !!audioFile
-                : tab === 'youtube' || tab === 'video'
-                    ? false
-                    : text.trim().length > 0
+    const canSubmit = tab === 'bulk'
+        ? bulkFiles.length > 0
+        : tab === 'file'
+            ? !!file
+            : tab === 'article'
+                ? articleUrl.trim().length > 0
+                : tab === 'audio'
+                    ? !!audioFile
+                    : tab === 'youtube' || tab === 'video'
+                        ? false
+                        : text.trim().length > 0
 
     return (
         <div className="px-6 md:px-10 py-10">
@@ -118,7 +148,7 @@ const NewSummary = () => {
                         <button
                             key={key}
                             type="button"
-                            onClick={() => setTab(key)}
+                            onClick={() => { setTab(key); setBulkResults(null) }}
                             className={`flex items-center gap-2 px-3.5 py-1.5 rounded text-sm font-medium cursor-pointer transition-all
                                 ${tab === key ? "bg-yellow-50 text-richblack-900" : "text-richblack-300 hover:text-richblack-5"}`}
                         >
@@ -167,6 +197,68 @@ const NewSummary = () => {
                         </div>
                     )}
 
+                    {tab === 'bulk' && (
+                        <div>
+                            <label className="text-sm text-richblack-100 block mb-3">
+                                Upload up to {MAX_BULK_FILES} PDF, Word (.docx), or TXT files — each becomes its own summary and uses one credit
+                            </label>
+                            <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-border-soft rounded-lg py-12 cursor-pointer hover:border-yellow-50 transition-all">
+                                <FaLayerGroup className="text-richblack-300 text-3xl" />
+                                <span className="text-richblack-300 text-sm">
+                                    {bulkFiles.length ? `${bulkFiles.length} file${bulkFiles.length === 1 ? '' : 's'} selected` : "Click to choose files"}
+                                </span>
+                                <input
+                                    type="file"
+                                    multiple
+                                    accept=".pdf,.docx,.txt"
+                                    className="hidden"
+                                    onChange={(e) => handleBulkSelect(e.target.files)}
+                                />
+                            </label>
+
+                            {bulkFiles.length > 0 && (
+                                <ul className="mt-4 space-y-1.5 max-h-48 overflow-y-auto">
+                                    {bulkFiles.map((f, i) => (
+                                        <li key={`${f.name}-${i}`} className="flex items-center justify-between text-sm text-richblack-200 bg-surface-hover rounded px-3 py-1.5">
+                                            <span className="truncate">{f.name}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setBulkFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                                                className="text-richblack-400 hover:text-pink-200 shrink-0 ml-2 cursor-pointer"
+                                            >
+                                                <FaTimesCircle size={14} />
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+
+                            {bulkResults && (
+                                <div className="mt-4 border-t border-border-soft pt-4 space-y-1.5 max-h-56 overflow-y-auto">
+                                    {bulkResults.map((r, i) => (
+                                        <div key={i} className="flex items-start gap-2 text-sm">
+                                            {r.ok ? (
+                                                <FaCheckCircle className="text-caribbeangreen-100 mt-0.5 shrink-0" size={13} />
+                                            ) : (
+                                                <FaTimesCircle className="text-pink-200 mt-0.5 shrink-0" size={13} />
+                                            )}
+                                            <div className="min-w-0">
+                                                <p className="text-richblack-200 truncate">{r.fileName}</p>
+                                                {r.ok ? (
+                                                    <Link to={`/Dashboard/Note/${r.noteId}`} className="text-yellow-50 text-xs hover:underline">
+                                                        {r.title}
+                                                    </Link>
+                                                ) : (
+                                                    <p className="text-richblack-500 text-xs">{r.message}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {tab === 'article' && (
                         <div>
                             <label className="text-sm text-richblack-100 block mb-3">Paste an article or webpage link</label>
@@ -208,7 +300,7 @@ const NewSummary = () => {
                     {tab !== 'youtube' && tab !== 'video' && (
                         <div className="mt-5">
                             <IconBtn
-                                text={loading ? "Summarizing..." : "Summarize"}
+                                text={loading ? "Summarizing..." : tab === 'bulk' ? `Summarize ${bulkFiles.length || ''} file${bulkFiles.length === 1 ? '' : 's'}`.trim() : "Summarize"}
                                 type="submit"
                                 disabled={loading || !canSubmit}
                             />

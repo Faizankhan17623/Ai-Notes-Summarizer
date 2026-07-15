@@ -1,9 +1,9 @@
 import toast from "react-hot-toast"
 import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { NotesData } from "../Apis/NotesApi.js"
-import { setAllNotes, setCurrentNote, setTagsAndFolders, setLoading } from "../../Slices/notesSlice.js"
+import { setAllNotes, setCurrentNote, setTagsAndFolders, setRelatedNotes, setLoading } from "../../Slices/notesSlice.js"
 
-const { summarize, allNotes, tags, singleNote, deleteNote, organizeNote, enableShare, disableShare, sharedNote, exportNote } = NotesData
+const { summarize, allNotes, tags, singleNote, deleteNote, organizeNote, enableShare, disableShare, sharedNote, exportNote, relatedNotes } = NotesData
 
 // summarize sir — pass either { notes: text, sourceType } or a FormData with a `notes` file field
 export function SummarizeNotes(payload, token, navigate) {
@@ -27,6 +27,46 @@ export function SummarizeNotes(payload, token, navigate) {
         } catch (error) {
             console.error("Error summarizing notes", error)
             toast.error(error?.response?.data?.message || "Could not summarize your notes")
+        } finally {
+            dispatch(setLoading(false))
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+// bulk sir — pass a FormData with multiple `notes` file fields appended. Backend always
+// replies 200 with a per-file { fileName, ok, noteId/title or message } array so partial
+// success (some files summarized, some failed) isn't treated as a hard error
+export function BulkSummarizeNotes(formData, token, onDone) {
+    return async (dispatch) => {
+        dispatch(setLoading(true))
+        const toastId = toast.loading("Summarizing your files...")
+        try {
+            const response = await apiConnector("POST", summarize, formData, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            const results = response.data.results || []
+            const succeeded = results.filter((r) => r.ok).length
+            const failed = results.length - succeeded
+
+            if (succeeded && !failed) {
+                toast.success(`Summarized all ${succeeded} files`)
+            } else if (succeeded) {
+                toast.success(`Summarized ${succeeded} of ${results.length} files`)
+            } else {
+                toast.error("Could not summarize any of those files")
+            }
+
+            dispatch(GetAllNotes(token))
+            if (onDone) onDone(results)
+        } catch (error) {
+            console.error("Error bulk summarizing notes", error)
+            toast.error(error?.response?.data?.message || "Could not summarize those files")
         } finally {
             dispatch(setLoading(false))
             toast.dismiss(toastId)
@@ -197,6 +237,26 @@ export function GetSharedNote(shareId) {
             console.error("Error fetching shared note", error)
         } finally {
             dispatch(setLoading(false))
+        }
+    }
+}
+
+// tag-overlap "related notes" for the Report page sidebar sir — quiet failure, this is a
+// nice-to-have widget, not worth a toast if it doesn't load
+export function GetRelatedNotes(noteId, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", `${relatedNotes}/${noteId}/related`, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            dispatch(setRelatedNotes(response.data.notes))
+        } catch (error) {
+            console.error("Error fetching related notes", error)
         }
     }
 }

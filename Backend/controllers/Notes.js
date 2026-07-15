@@ -201,6 +201,51 @@ exports.getNote = async (req, res) => {
     }
 }
 
+// GET /notes/:noteId/related — other notes by this user sharing at least one tag sir,
+// ranked by overlap count then recency. No AI call — pure tag overlap, keeps this free
+exports.getRelatedNotes = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId } = req.params
+
+        if (!mongoose.isValidObjectId(noteId)) {
+            return res.status(400).json({ success: false, message: 'Invalid note id' })
+        }
+
+        const note = await Note.findOne({ _id: noteId, user: id }).select('tags')
+        if (!note) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        if (!note.tags.length) {
+            return res.status(200).json({ success: true, notes: [] })
+        }
+
+        const related = await Note.aggregate([
+            {
+                $match: {
+                    user: new mongoose.Types.ObjectId(id),
+                    _id: { $ne: note._id },
+                    tags: { $in: note.tags },
+                },
+            },
+            {
+                $addFields: {
+                    overlap: { $size: { $setIntersection: ['$tags', note.tags] } },
+                },
+            },
+            { $sort: { overlap: -1, createdAt: -1 } },
+            { $limit: 5 },
+            { $project: { title: 1, tags: 1, plan: 1, createdAt: 1, overlap: 1 } },
+        ])
+
+        return res.status(200).json({ success: true, notes: related })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to load related notes' })
+    }
+}
+
 // DELETE /notes/:noteId — remove a note and any chats grounded in it sir
 exports.deleteNote = async (req, res) => {
     try {

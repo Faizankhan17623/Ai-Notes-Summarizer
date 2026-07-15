@@ -4,7 +4,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { FaComments, FaTrash, FaClipboardList, FaLayerGroup } from 'react-icons/fa'
 import Swal from 'sweetalert2'
-import { GetSingleNote, DeleteNote } from '../../Services/operations/Notes.js'
+import { GetSingleNote, DeleteNote, GetRelatedNotes } from '../../Services/operations/Notes.js'
+import { setRelatedNotes } from '../../Slices/notesSlice.js'
 import { CreateChat } from '../../Services/operations/Chat.js'
 import { GenerateFlashcards, GetFlashcardsForNote, GenerateQuiz, GetQuizzesForNote } from '../../Services/operations/StudyKit.js'
 import Loading from '../extra/Loading.jsx'
@@ -14,21 +15,24 @@ import FlashcardDeck from './FlashcardDeck.jsx'
 import QuizPlayer from './QuizPlayer.jsx'
 import NoteOrganizer from './NoteOrganizer.jsx'
 import ShareExport from './ShareExport.jsx'
+import RelatedNotes from './RelatedNotes.jsx'
 
 const Report = () => {
     const { noteId } = useParams()
     const dispatch = useDispatch()
     const navigate = useNavigate()
     const { token, user } = useSelector((state) => state.auth)
-    const { currentNote } = useSelector((state) => state.notes)
+    const { currentNote, relatedNotes } = useSelector((state) => state.notes)
     const { flashcards, quizzes, activeQuiz } = useSelector((state) => state.studyKit)
 
     const isPaidPlan = user?.SubType && user.SubType !== 'Basic'
 
     useEffect(() => {
+        dispatch(setRelatedNotes([]))
         dispatch(GetSingleNote(noteId, token))
         dispatch(GetFlashcardsForNote(noteId, token))
         dispatch(GetQuizzesForNote(noteId, token))
+        dispatch(GetRelatedNotes(noteId, token))
     }, [dispatch, noteId, token])
 
     // only gate on !currentNote sir — `loading` is a flag shared across every notes
@@ -186,6 +190,7 @@ const Report = () => {
                             <p className="text-xs uppercase tracking-wide text-richblack-400 font-semibold mb-4">Share &amp; export</p>
                             <ShareExport note={currentNote} />
                         </div>
+                        <RelatedNotes notes={relatedNotes} />
                     </aside>
                 </div>
             </div>
