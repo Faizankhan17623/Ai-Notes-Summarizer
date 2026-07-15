@@ -7,6 +7,15 @@ import Swal from 'sweetalert2'
 import { GetAllChats, GetSingleChat, SendMessage, RegenerateReply, DeleteChat } from '../../Services/operations/Chat.js'
 import MicButton from '../extra/MicButton.jsx'
 
+// the model sometimes answers in markdown (### headings, **bold**, `code`) sir — the chat
+// bubble is plain text, not a markdown renderer, so strip the syntax rather than show it raw
+const stripMarkdown = (text) =>
+    text
+        .replace(/^#{1,6}\s+/gm, '')      // ### Heading -> Heading
+        .replace(/\*\*(.+?)\*\*/g, '$1')  // **bold** -> bold
+        .replace(/\*(.+?)\*/g, '$1')      // *italic* -> italic
+        .replace(/`(.+?)`/g, '$1')        // `code` -> code
+
 const Chat = () => {
     const { chatId } = useParams()
     const dispatch = useDispatch()
@@ -126,7 +135,7 @@ const Chat = () => {
                                                     : 'bg-surface border border-border-soft text-richblack-100'
                                                     }`}
                                             >
-                                                {m.content}
+                                                {m.role === 'assistant' ? stripMarkdown(m.content) : m.content}
                                             </div>
                                             {isLastAssistantReply && !replying && (
                                                 <button
