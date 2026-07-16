@@ -97,6 +97,14 @@ app.get('/', (req, res) => {
     })
 })
 
+app.get('/api/v1', (req, res) => {
+    return res.json({
+        success: true,
+        message: 'it is running fine sir ',
+    })
+})
+
+
 // catches invalidCsrfTokenError (and anything else that reaches here) sir — without this,
 // Express's default HTML error page would leak a stack trace and break the frontend's JSON parsing
 app.use((err, req, res, next) => {
