@@ -53,6 +53,21 @@ const UserSchema = new mongoose.Schema(
             type: Number,
             default: 0
         },
+        // per-feature monthly counters sir — separate from `count` above, gated by
+        // PLANS[...].featureLimits in utils/Plans.js (consumeFeatureUsage), reset alongside
+        // `count`/`bonusCredits` at the same creditCycleStart boundary
+        docSummaryCount: {
+            type: Number,
+            default: 0
+        },
+        bulkSummaryCount: {
+            type: Number,
+            default: 0
+        },
+        audioSummaryCount: {
+            type: Number,
+            default: 0
+        },
         Verified: {
             type: Boolean,
             default: false,

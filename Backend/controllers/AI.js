@@ -2,7 +2,7 @@ const Groq = require('groq-sdk')
 
 const Note = require('../Models/Note')
 const User = require('../Models/User')
-const { consumeCredit } = require('../utils/Plans')
+const { consumeCredit, consumeFeatureUsage } = require('../utils/Plans')
 const { buildSummarySystemPrompt } = require('../utils/Prompts')
 const { logAi } = require('../utils/AdminLog')
 const { extractText, extractFromUrl, extractFromAudio } = require('../utils/Parsers')
@@ -12,11 +12,23 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
 const MODEL = 'qwen/qwen3-32b'
 
+// which per-feature monthly gate applies for a given sourceType sir — document files
+// (pdf/docx/txt) and audio have their own separate 10/80/150-per-month caps (see
+// utils/Plans.js PLANS[...].featureLimits); text/article/voice-dictation stay on the
+// original shared credit pool (consumeCredit) untouched
+const DOC_SOURCE_TYPES = new Set(['pdf', 'docx', 'txt'])
+
 // shared by both the single-file/text path and the bulk-upload path below sir — runs the
 // credit check + Groq call + Note.create for one already-extracted block of text, throws
-// on any failure so each caller can decide how to report it (500 vs per-item bulk result)
-const summarizeExtractedText = async (userId, text, sourceType) => {
-    const spend = await consumeCredit(userId)
+// on any failure so each caller can decide how to report it (500 vs per-item bulk result).
+// `feature` overrides which gate to spend against: 'bulkSummary' when called per-file from
+// bulkSummarize below, otherwise inferred from sourceType (docSummary/audioSummary/shared pool)
+const summarizeExtractedText = async (userId, text, sourceType, feature = null) => {
+    const resolvedFeature = feature || (DOC_SOURCE_TYPES.has(sourceType) ? 'docSummary' : sourceType === 'audio' ? 'audioSummary' : null)
+
+    const spend = resolvedFeature
+        ? await consumeFeatureUsage(userId, resolvedFeature)
+        : await consumeCredit(userId)
     if (!spend.ok) {
         const err = new Error(spend.message)
         err.status = 403
@@ -215,7 +227,7 @@ exports.bulkSummarize = async (req, res) => {
                     continue
                 }
 
-                const { note, summary } = await summarizeExtractedText(id, extracted.text, extracted.sourceType)
+                const { note, summary } = await summarizeExtractedText(id, extracted.text, extracted.sourceType, 'bulkSummary')
                 results.push({ fileName, ok: true, noteId: note._id, title: summary.title })
             } catch (fileErr) {
                 console.log(`Bulk summarize failed for ${fileName}:`, fileErr.message)

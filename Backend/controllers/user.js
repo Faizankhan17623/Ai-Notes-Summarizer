@@ -568,6 +568,17 @@ exports.updatePassword = async (req, res) => {
             })
         }
 
+        // new password must actually be new sir — a same-as-old "change" is almost always a
+        // mistake (autofill, muscle memory), and every major app rejects it at this point
+        const sameAsOld = await bcrypt.compare(newPassword, existingUser.password)
+        if (sameAsOld) {
+            return res.status(400).json({
+                success: false,
+                field: 'newPassword',
+                message: 'New password must be different from your old password',
+            })
+        }
+
         const saltRounds = 10
         const hashing = await bcrypt.hash(newPassword, saltRounds)
 
@@ -679,6 +690,15 @@ exports.resetPassword = async (req, res) => {
             return res.status(403).json({
                 success: false,
                 message: 'Token is expired, please request a new one',
+            })
+        }
+
+        // same rule as the logged-in Change Password flow sir — see updatePassword above
+        const sameAsOld = await bcrypt.compare(newPassword, userDetails.password)
+        if (sameAsOld) {
+            return res.status(400).json({
+                success: false,
+                message: 'New password must be different from your old password',
             })
         }
 
@@ -824,7 +844,7 @@ exports.getProfile = async (req, res) => {
         const id = req.User.id
 
         const user = await User.findById(id)
-            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits receiveDigest currentStreak longestStreak dailyGoal createdAt Buffer BufferTiming')
+            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount receiveDigest currentStreak longestStreak dailyGoal createdAt Buffer BufferTiming')
 
         if (!user) {
             return res.status(404).json({
@@ -863,6 +883,13 @@ exports.getProfile = async (req, res) => {
                 bonusCredits: user.bonusCredits,
                 maxMessagesPerChat: plan.maxMessagesPerChat,
                 expiresAt: plan.key === 'Basic' ? null : user.SubscriptionExpires,
+                // per-feature monthly usage sir — mirrors utils/Plans.js PLANS[...].featureLimits,
+                // null limit means unlimited, same convention as creditsLimit above
+                features: {
+                    docSummary: { used: user.docSummaryCount, limit: plan.featureLimits.docSummary },
+                    bulkSummary: { used: user.bulkSummaryCount, limit: plan.featureLimits.bulkSummary },
+                    audioSummary: { used: user.audioSummaryCount, limit: plan.featureLimits.audioSummary },
+                },
             },
             activity: {
                 noteCount,

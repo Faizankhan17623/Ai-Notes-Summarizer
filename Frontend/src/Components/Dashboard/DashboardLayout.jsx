@@ -41,20 +41,44 @@ const DashboardLayout = () => {
                     </nav>
 
                     {plan && (
-                        <div className="mt-auto border border-border-soft rounded-lg p-3 bg-surface">
-                            <div className="flex justify-between text-xs text-richblack-400 mb-1.5">
-                                <span>Credits</span>
-                                <span className="font-mono">{plan.creditsLimit === null ? 'Unlimited' : `${plan.creditsUsed} / ${plan.creditsLimit}`}</span>
-                            </div>
-                            {plan.creditsLimit !== null && (
-                                <div className="h-1.5 rounded-full bg-border-soft overflow-hidden">
-                                    <div
-                                        className="h-full bg-yellow-50 rounded-full"
-                                        style={{ width: `${Math.min((plan.creditsUsed / plan.creditsLimit) * 100, 100)}%` }}
-                                    />
+                        <div className="mt-auto border border-border-soft rounded-lg p-3 bg-surface space-y-3">
+                            <div>
+                                <div className="flex justify-between text-xs text-richblack-400 mb-1.5">
+                                    <span>Credits</span>
+                                    <span className="font-mono">{plan.creditsLimit === null ? 'Unlimited' : `${plan.creditsUsed} / ${plan.creditsLimit}`}</span>
                                 </div>
-                            )}
-                            <p className="text-xs text-richblack-400 mt-2">{plan.name} plan</p>
+                                {plan.creditsLimit !== null && (
+                                    <div className="h-1.5 rounded-full bg-border-soft overflow-hidden">
+                                        <div
+                                            className="h-full bg-yellow-50 rounded-full"
+                                            style={{ width: `${Math.min((plan.creditsUsed / plan.creditsLimit) * 100, 100)}%` }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            {plan.features && [
+                                ['Document summaries', plan.features.docSummary],
+                                ['Bulk uploads', plan.features.bulkSummary],
+                                ['Audio summaries', plan.features.audioSummary],
+                            ].map(([label, usage]) => usage && (
+                                <div key={label}>
+                                    <div className="flex justify-between text-xs text-richblack-400 mb-1.5">
+                                        <span>{label}</span>
+                                        <span className="font-mono">{usage.limit === null ? 'Unlimited' : `${usage.used} / ${usage.limit}`}</span>
+                                    </div>
+                                    {usage.limit !== null && (
+                                        <div className="h-1.5 rounded-full bg-border-soft overflow-hidden">
+                                            <div
+                                                className="h-full bg-yellow-50 rounded-full"
+                                                style={{ width: `${Math.min((usage.used / usage.limit) * 100, 100)}%` }}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+
+                            <p className="text-xs text-richblack-400">{plan.name} plan</p>
                         </div>
                     )}
                 </aside>

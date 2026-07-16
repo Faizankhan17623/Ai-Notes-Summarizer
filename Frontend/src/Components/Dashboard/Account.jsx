@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { FaExclamationTriangle } from 'react-icons/fa'
 import Swal from 'sweetalert2'
+import toast from 'react-hot-toast'
 import {
     GetProfile, UpdateFirstName, UpdateLastName, UpdateDigestPreference, UpdateDailyGoal, UpdatePassword,
     DeleteAccount, RecoverAccount, LogoutUser
@@ -11,7 +12,9 @@ import {
 import { GetPlans, StartCreditPackCheckout } from '../../Services/operations/Payment.js'
 import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
-import ApiKeySection from './ApiKeySection.jsx'
+import Input from '../extra/Input.jsx'
+// API access temporarily hidden from the Account page sir — component kept intact, just not rendered
+// import ApiKeySection from './ApiKeySection.jsx'
 
 const SectionCard = ({ title, children }) => (
     <div className="border border-border-soft bg-surface rounded-lg p-6 space-y-4">
@@ -26,7 +29,8 @@ const Account = () => {
     const { token, user } = useSelector((state) => state.auth)
     const { profile, plan, activity, loading } = useSelector((state) => state.profile)
     const { creditPacks, paymentsLive } = useSelector((state) => state.payment)
-    const isPaidPlan = user?.SubType && user.SubType !== 'Basic'
+    // only used by the (currently hidden) API access section below
+    // const isPaidPlan = user?.SubType && user.SubType !== 'Basic'
 
     const [firstName, setFirstName] = useState('')
     const [lastName, setLastName] = useState('')
@@ -111,6 +115,22 @@ const Account = () => {
                                 + {plan.bonusCredits} top-up credits available this cycle
                             </p>
                         )}
+                        {plan.features && (
+                            <div className="grid grid-cols-3 gap-4 mt-3 pt-3 border-t border-border-soft">
+                                {[
+                                    ['Document summaries', plan.features.docSummary],
+                                    ['Bulk uploads', plan.features.bulkSummary],
+                                    ['Audio summaries', plan.features.audioSummary],
+                                ].map(([label, usage]) => usage && (
+                                    <div key={label}>
+                                        <p className="text-xs uppercase tracking-wide text-richblack-400 mb-1">{label}</p>
+                                        <p className="font-mono text-sm text-richblack-5">
+                                            {usage.limit === null ? '∞' : `${usage.used}/${usage.limit}`}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -188,20 +208,28 @@ const Account = () => {
                     </SectionCard>
 
                     <SectionCard title="Change password">
-                        <input type="password" placeholder="Old password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} className="w-full bg-surface-hover border border-border-soft text-richblack-5 rounded-md px-3 py-2 outline-none focus:border-yellow-50 transition-colors" />
-                        <input type="password" placeholder="New password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full bg-surface-hover border border-border-soft text-richblack-5 rounded-md px-3 py-2 outline-none focus:border-yellow-50 transition-colors" />
-                        <input type="password" placeholder="Confirm new password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} className="w-full bg-surface-hover border border-border-soft text-richblack-5 rounded-md px-3 py-2 outline-none focus:border-yellow-50 transition-colors" />
+                        <Input type="password" placeholder="Old password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} />
+                        <Input type="password" placeholder="New password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                        <Input type="password" placeholder="Confirm new password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} />
                         <IconBtn
                             text="Update password"
                             outline
                             onclick={() => {
+                                if (newPassword && oldPassword && newPassword === oldPassword) {
+                                    toast.error("New password must be different from your old password")
+                                    return
+                                }
+                                if (newPassword !== confirmNewPassword) {
+                                    toast.error("New password and confirm password do not match")
+                                    return
+                                }
                                 dispatch(UpdatePassword(oldPassword, newPassword, confirmNewPassword, token))
                                 setOldPassword(''); setNewPassword(''); setConfirmNewPassword('')
                             }}
                         />
                     </SectionCard>
 
-                    <ApiKeySection isPaidPlan={isPaidPlan} />
+                    {/* API access temporarily hidden from the Account page sir — <ApiKeySection isPaidPlan={isPaidPlan} /> */}
 
                     {!profile.Buffer && (
                         <div className="border border-danger-soft/40 rounded-lg p-6">

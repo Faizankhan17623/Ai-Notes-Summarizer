@@ -1,8 +1,20 @@
 import { Link } from 'react-router-dom'
-import { FaBolt } from 'react-icons/fa'
+import { FaBolt, FaSun, FaMoon } from 'react-icons/fa'
+import useTheme from '../../Hooks/useTheme.js'
 
-const AuthLayout = ({ title, subtitle, children, footer }) => (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-richblack-900">
+const AuthLayout = ({ title, subtitle, children, footer }) => {
+    const { theme, toggleTheme } = useTheme()
+
+    return (
+    <div className="min-h-screen grid lg:grid-cols-2 bg-richblack-900 relative">
+        <button
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="absolute top-4 right-4 z-10 text-richblack-100 hover:text-richblack-25 cursor-pointer p-1.5 rounded-md hover:bg-surface-hover transition-colors"
+        >
+            {theme === 'dark' ? <FaSun size={14} /> : <FaMoon size={14} />}
+        </button>
+
         <div className="hidden lg:flex flex-col justify-between border-r border-border-soft bg-surface/40 px-12 py-12">
             <Link to="/" className="font-display text-xl font-semibold text-yellow-50">
                 Notewise
@@ -36,6 +48,7 @@ const AuthLayout = ({ title, subtitle, children, footer }) => (
             </div>
         </div>
     </div>
-)
+    )
+}
 
 export default AuthLayout

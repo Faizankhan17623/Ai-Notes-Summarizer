@@ -200,7 +200,7 @@ const NewSummary = () => {
                     {tab === 'bulk' && (
                         <div>
                             <label className="text-sm text-richblack-100 block mb-3">
-                                Upload up to {MAX_BULK_FILES} PDF, Word (.docx), or TXT files — each becomes its own summary and uses one credit
+                                Upload up to {MAX_BULK_FILES} PDF, Word (.docx), or TXT files — each becomes its own summary and counts against your monthly bulk upload limit
                             </label>
                             <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-border-soft rounded-lg py-12 cursor-pointer hover:border-yellow-50 transition-all">
                                 <FaLayerGroup className="text-richblack-300 text-3xl" />

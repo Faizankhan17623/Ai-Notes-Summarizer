@@ -8,8 +8,8 @@ import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
 import MarketingLayout from './MarketingLayout.jsx'
 
-// mirrors Backend/utils/Plans.js and Prompts.js sir — every row here reflects a real
-// gate in the code, not aspirational copy. Update this alongside those files.
+// mirrors Backend/utils/Plans.js (PLANS + featureLimits) and Prompts.js sir — every row
+// here reflects a real gate in the code, not aspirational copy. Update this alongside those files.
 const COMPARISON_ROWS = [
     { section: 'Summarizing' },
     { label: 'Text, document & article summaries', basic: true, pro: true, proMax: true },
@@ -30,6 +30,9 @@ const COMPARISON_ROWS = [
     { label: 'Multi-day study plans in chat', basic: false, pro: false, proMax: true },
     { section: 'Usage' },
     { label: 'Summaries per month', basic: '5', pro: '100', proMax: 'Unlimited' },
+    { label: 'Document summaries per month', basic: '10', pro: '80', proMax: '150' },
+    { label: 'Bulk file uploads per month', basic: '10', pro: '80', proMax: '150' },
+    { label: 'Audio summaries per month', basic: '10', pro: '80', proMax: '150' },
     { label: 'Extra credit top-up packs', basic: true, pro: true, proMax: false },
 ]
 
@@ -79,6 +82,9 @@ const Pricing = () => {
                             <ul className="text-richblack-200 text-sm space-y-2 mb-6 flex-1">
                                 <li>{plan.credits === null ? "Unlimited" : plan.credits} summaries / month</li>
                                 <li>{plan.maxMessagesPerChat === null ? "Unlimited" : plan.maxMessagesPerChat} messages per chat</li>
+                                <li>{plan.featureLimits?.docSummary === null ? "Unlimited" : plan.featureLimits?.docSummary} document summaries / month</li>
+                                <li>{plan.featureLimits?.bulkSummary === null ? "Unlimited" : plan.featureLimits?.bulkSummary} bulk uploads / month</li>
+                                <li>{plan.featureLimits?.audioSummary === null ? "Unlimited" : plan.featureLimits?.audioSummary} audio summaries / month</li>
                                 <li>{plan.key === 'Basic' ? "Key points + action items" : plan.key === 'Pro' ? "+ Sections & key terms" : "+ Quiz & flashcards"}</li>
                             </ul>
                             <IconBtn

@@ -167,8 +167,12 @@ exports.verifyPayment = async (req, res) => {
             // credit cycle realigns to the fresh subscription sir — SubscriptionExpires is already
             // bumped unconditionally on every payment, the credit cycle shouldn't lag behind it.
             // bonusCredits is intentionally untouched — an upgrade shouldn't wipe out top-up
-            // credits already paid for separately, only the lazy cycle rollover clears those
+            // credits already paid for separately, only the lazy cycle rollover clears those.
+            // per-feature counters reset alongside count sir — same fresh-cycle reasoning
             count: 0,
+            docSummaryCount: 0,
+            bulkSummaryCount: 0,
+            audioSummaryCount: 0,
             creditCycleStart: new Date(),
         })
 

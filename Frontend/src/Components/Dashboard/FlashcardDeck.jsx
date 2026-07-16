@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { FaTrash } from 'react-icons/fa'
+import { FaTrash, FaChevronLeft, FaChevronRight } from 'react-icons/fa'
 import { ReviewFlashcard, DeleteFlashcard } from '../../Services/operations/StudyKit.js'
 
 // flip-card study view sir — used both on the Report page (browse a note's cards) and
@@ -8,35 +8,66 @@ import { ReviewFlashcard, DeleteFlashcard } from '../../Services/operations/Stud
 const FlashcardDeck = ({ cards, noteId, allowDelete = false }) => {
     const dispatch = useDispatch()
     const { token } = useSelector((state) => state.auth)
-    const [index, setIndex] = useState(0)
+    const [rawIndex, setRawIndex] = useState(0)
     const [flipped, setFlipped] = useState(false)
 
     if (!cards || cards.length === 0) {
         return <p className="text-richblack-400 text-sm">No flashcards yet.</p>
     }
 
-    const card = cards[Math.min(index, cards.length - 1)]
+    const index = Math.min(rawIndex, cards.length - 1)
+    const card = cards[index]
 
+    const goPrev = () => {
+        setFlipped(false)
+        setRawIndex((i) => Math.max(i - 1, 0))
+    }
+
+    // wraps sir — used by "Skip for now" and after rating/deleting a card. On the Review
+    // queue, rating/deleting removes the card from `cards` (see StudyKit.js ReviewFlashcard /
+    // DeleteFlashcard), shifting later cards left by one, so staying at the same index already
+    // surfaces the next card — next() is only needed to explicitly move forward
     const next = () => {
         setFlipped(false)
-        setIndex((i) => (i + 1) % cards.length)
+        setRawIndex((i) => (i + 1) % cards.length)
     }
 
     const handleRate = (rating) => {
         dispatch(ReviewFlashcard(card._id, rating, token))
-        next()
+        setFlipped(false)
     }
 
     const handleDelete = () => {
         dispatch(DeleteFlashcard(card._id, noteId, token))
-        next()
+        setFlipped(false)
     }
+
+    // only populated on the due-review queue (StudyKit.js getDueFlashcards .populate('note',
+    // 'title')) sir — the Report page already knows which note it's on, so card.note there is
+    // just an unpopulated id and this silently doesn't render
+    const noteTitle = card.note?.title
 
     return (
         <div>
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={goPrev}
+                        disabled={index === 0}
+                        className="text-richblack-400 hover:text-richblack-25 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer p-1 rounded-md hover:bg-surface-hover transition-colors"
+                        title="Previous card"
+                    >
+                        <FaChevronLeft size={12} />
+                    </button>
                     <p className="text-richblack-400 text-xs font-mono">{index + 1} / {cards.length}</p>
+                    <button
+                        onClick={next}
+                        disabled={cards.length === 1}
+                        className="text-richblack-400 hover:text-richblack-25 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer p-1 rounded-md hover:bg-surface-hover transition-colors"
+                        title="Next card"
+                    >
+                        <FaChevronRight size={12} />
+                    </button>
                     <div className="flex gap-0.5">
                         {cards.map((_, i) => (
                             <span key={i} className={`w-4 h-1 rounded-full ${i === index ? 'bg-yellow-50' : i < index ? 'bg-richblack-600' : 'bg-border-soft'}`} />
@@ -49,6 +80,12 @@ const FlashcardDeck = ({ cards, noteId, allowDelete = false }) => {
                     </button>
                 )}
             </div>
+
+            {noteTitle && (
+                <p className="text-richblack-300 text-xs font-medium mb-2 truncate" title={noteTitle}>
+                    From: {noteTitle}
+                </p>
+            )}
 
             <button
                 type="button"
