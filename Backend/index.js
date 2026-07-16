@@ -39,6 +39,7 @@ app.use(express.json())
 // trailing slashes are stripped sir — an Origin header never has one, and a mismatch silently kills CORS
 const allowedOrigins = [
     'http://localhost:5173',
+    'https://ai-resume-enhancer-v2-silk.vercel.app'
 ]
 if (process.env.FRONTEND_URL) {
     const extra = process.env.FRONTEND_URL.trim().replace(/\/+$/, '')
