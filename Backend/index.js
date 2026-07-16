@@ -97,7 +97,7 @@ app.get('/', (req, res) => {
     })
 })
 
-app.get('/api/v1', (req, res) => {
+app.get('/api/v1/', (req, res) => {
     return res.json({
         success: true,
         message: 'it is running fine sir ',
