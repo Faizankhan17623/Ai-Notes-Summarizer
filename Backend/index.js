@@ -34,26 +34,12 @@ app.use(express.json())
 // credentials:true so the auth cookie flows sir — the frontend must call axios with withCredentials:true
 // NOTE: origin:'*' is not usable here — browsers reject Access-Control-Allow-Origin:* together
 // with Access-Control-Allow-Credentials:true, so a wildcard would silently break the cookie-based
-// login instead of fixing anything. An allowlist is the only way to keep credentials working.
-// allowlist instead of a single origin sir — production AND local dev both work no matter what FRONTEND_URL says
-// trailing slashes are stripped sir — an Origin header never has one, and a mismatch silently kills CORS
-const allowedOrigins = [
-    'http://localhost:5173',
-    'https://ai-resume-enhancer-v2-silk.vercel.app'
-]
-if (process.env.FRONTEND_URL) {
-    const extra = process.env.FRONTEND_URL.trim().replace(/\/+$/, '')
-    if (!allowedOrigins.includes(extra)) allowedOrigins.push(extra)
-}
-// in dev, Vite auto-bumps to 5174/5175/... if 5173 is busy sir — rather than chase the port,
-// allow any localhost/127.0.0.1 origin on any port while developing. Production stays locked
-// to the explicit allowlist above (NODE_ENV must be set to 'production' when you deploy).
-const isDev = process.env.NODE_ENV !== 'production'
-const isLocalhost = (origin) => /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)
-
+// login instead of fixing anything. A plain allowlist is the only way to keep credentials working.
 app.use(cors({
-    // requests with no Origin header (curl, health checks, server-to-server) pass through sir
-    origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin) || (isDev && isLocalhost(origin))),
+    origin: [
+        'http://localhost:5173',
+        'https://ai-notes-summarizer-beta.vercel.app'
+    ],
     credentials: true
 }))
 app.use(cookieParser())
@@ -94,13 +80,6 @@ app.get('/', (req, res) => {
     return res.json({
         success: true,
         message: 'Your server is up and running ...',
-    })
-})
-
-app.get('/api/v1/', (req, res) => {
-    return res.json({
-        success: true,
-        message: 'it is running fine sir ',
     })
 })
 
