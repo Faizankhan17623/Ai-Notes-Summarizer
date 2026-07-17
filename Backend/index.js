@@ -143,7 +143,6 @@ const startServer = async () => {
 
     const server = app.listen(Port, () => {
         console.log(`Server running on port ${Port}`.bgGreen.black.bold)
-        console.log(`Allowed CORS origins: ${allowedOrigins.join(', ') || '(none)'}`.bgYellow.black)
     })
 
     // Render sends SIGTERM on every redeploy sir — finish in-flight requests instead of
