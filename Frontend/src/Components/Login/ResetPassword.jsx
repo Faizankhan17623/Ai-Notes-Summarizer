@@ -26,8 +26,8 @@ const ResetPassword = () => {
                 <Input
                     label="New password"
                     type="password"
-                    {...register('newPassword', { required: true, minLength: 6 })}
-                    error={errors.newPassword && "At least 6 characters"}
+                    {...register('newPassword', { required: true, minLength: 8 })}
+                    error={errors.newPassword && "At least 8 characters, with an uppercase letter, a number, and a special character"}
                 />
 
                 <Input
