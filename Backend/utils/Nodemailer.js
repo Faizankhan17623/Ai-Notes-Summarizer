@@ -17,6 +17,11 @@ const mailSender = async (email, title, body) => {
                 user: process.env.MAIL_USER,
                 pass: process.env.MAIL_PASS,
             },
+            // without these, a network-level failure to reach MAIL_HOST (blocked port,
+            // wrong host, dead SMTP server) hangs the request forever instead of erroring sir
+            connectionTimeout: 10000,
+            greetingTimeout: 10000,
+            socketTimeout: 10000,
         })
 
         const info = await transporter.sendMail({
