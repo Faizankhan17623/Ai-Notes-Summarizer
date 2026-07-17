@@ -35,12 +35,34 @@ app.use(express.json())
 // NOTE: origin:'*' is not usable here — browsers reject Access-Control-Allow-Origin:* together
 // with Access-Control-Allow-Credentials:true, so a wildcard would silently break the cookie-based
 // login instead of fixing anything. A plain allowlist is the only way to keep credentials working.
+//
+// The allowlist comes from env sir — CORS_ORIGINS is a comma-separated list, so a fresh
+// deployment only needs a Render env var updated, never a code change + redeploy:
+//   CORS_ORIGINS=https://my-app.vercel.app,https://www.myapp.com
+// FRONTEND_URL is included automatically as a safety net, and localhost is added
+// outside production so local dev always works with zero setup.
+const allowedOrigins = [...new Set(
+    [
+        ...(process.env.CORS_ORIGINS || '').split(','),
+        process.env.FRONTEND_URL,
+        ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://localhost:3000'] : []),
+    ]
+        .map((origin) => origin && origin.trim().replace(/\/+$/, '')) // trailing-slash paste is the #1 CORS-mismatch bug sir
+        .filter(Boolean)
+)]
+
 app.use(cors({
-    origin: [
-        'http://localhost:5173',
-        'https://ai-notes-summarizer-five.vercel.app'
-    ],
-    credentials: true
+    origin(origin, callback) {
+        // no Origin header = same-origin, curl, health checks, server-to-server sir — always allow
+        if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true)
+        }
+        // unknown origin: deny WITHOUT throwing sir — callback(new Error) would turn every
+        // blocked preflight into a 500 in the logs; this way the browser just blocks it cleanly
+        console.log(`CORS blocked origin: ${origin}`)
+        return callback(null, false)
+    },
+    credentials: true,
 }))
 app.use(cookieParser())
 app.use(fileUpload({
@@ -70,17 +92,17 @@ app.use('/api/v1', payment)
 app.use('/api/v1', analytics)
 app.use('/api/v1', admin)
 
-connectDB()
-
-// weekly summary email sir — in-process cron, no separate infra needed since the
-// web service process stays alive on Render
-scheduleWeeklyDigest()
-
 app.get('/', (req, res) => {
     return res.json({
         success: true,
         message: 'Your server is up and running ...',
     })
+})
+
+// health-check endpoint sir — point Render's "Health Check Path" at /health so a bad
+// deploy is detected and rolled back instead of serving errors
+app.get('/health', (req, res) => {
+    return res.status(200).json({ success: true, uptime: process.uptime() })
 })
 
 
@@ -100,6 +122,26 @@ app.use((err, req, res, next) => {
     })
 })
 
-app.listen(Port, () => {
-    console.log(`Server running on port ${Port}`.bgGreen.black.bold)
-})
+// production startup order sir — connect the DB FIRST, only then accept traffic; otherwise the
+// first requests after a deploy race the connection and fail with buffering timeouts
+const startServer = async () => {
+    await connectDB()
+
+    // weekly summary email sir — in-process cron, no separate infra needed since the
+    // web service process stays alive on Render
+    scheduleWeeklyDigest()
+
+    const server = app.listen(Port, () => {
+        console.log(`Server running on port ${Port}`.bgGreen.black.bold)
+        console.log(`Allowed CORS origins: ${allowedOrigins.join(', ') || '(none)'}`.bgYellow.black)
+    })
+
+    // Render sends SIGTERM on every redeploy sir — finish in-flight requests instead of
+    // dropping them mid-response, then exit so the new instance takes over
+    process.on('SIGTERM', () => {
+        console.log('SIGTERM received — shutting down gracefully'.bgRed.white.bold)
+        server.close(() => process.exit(0))
+    })
+}
+
+startServer()
