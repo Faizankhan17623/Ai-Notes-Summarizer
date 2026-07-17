@@ -41,8 +41,18 @@ app.use(express.json())
 //   CORS_ORIGINS=https://my-app.vercel.app,https://www.myapp.com
 // FRONTEND_URL is included automatically as a safety net, and localhost is added
 // outside production so local dev always works with zero setup.
+//
+// Known production frontends are baked in below sir — so a fresh Render deploy works
+// IMMEDIATELY, before any env vars are configured. If the Vercel URL ever changes,
+// either add it here or set CORS_ORIGINS on Render (no redeploy needed for the latter).
+const knownProdOrigins = [
+    'https://ai-notes-summarizer-five.vercel.app',
+    'https://ai-notes-summarizer-green.vercel.app',
+]
+
 const allowedOrigins = [...new Set(
     [
+        ...knownProdOrigins,
         ...(process.env.CORS_ORIGINS || '').split(','),
         process.env.FRONTEND_URL,
         ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://localhost:3000'] : []),
