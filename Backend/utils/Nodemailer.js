@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer')
+const dns = require('dns')
 
 // sends one email sir — used by OTP, password reset, and account deletion notices
 const mailSender = async (email, title, body) => {
@@ -9,17 +10,22 @@ const mailSender = async (email, title, body) => {
             return null
         }
 
+        // Render has no outbound IPv6 route sir — the `family: 4` transport option doesn't
+        // reliably stop Nodemailer's socket layer from picking an IPv6 result, so resolve to
+        // an IPv4 address ourselves and connect to that directly instead
+        const { address: ipv4Host } = await dns.promises.lookup(process.env.MAIL_HOST, { family: 4 })
+
         const transporter = nodemailer.createTransport({
-            host: process.env.MAIL_HOST,
+            host: ipv4Host,
             port: 465,
             secure: true,
+            tls: {
+                servername: process.env.MAIL_HOST, // keep TLS cert validation matching the real hostname
+            },
             auth: {
                 user: process.env.MAIL_USER,
                 pass: process.env.MAIL_PASS,
             },
-            // Render has no outbound IPv6 route sir — without this, Node resolves Gmail's SMTP
-            // host to an IPv6 address and the connection dies with ENETUNREACH
-            family: 4,
             // without these, a network-level failure to reach MAIL_HOST (blocked port,
             // wrong host, dead SMTP server) hangs the request forever instead of erroring sir
             connectionTimeout: 10000,
