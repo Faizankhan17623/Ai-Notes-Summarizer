@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion } from 'motion/react'
 import {
     FaKeyboard, FaFileAlt, FaLink, FaYoutube, FaVideo, FaHeadphones,
     FaFileUpload, FaClipboard, FaTools,
@@ -126,7 +127,15 @@ const SummarizerHero = ({ tab, setTab }) => {
                 ))}
             </div>
 
-            <div className="border border-border-soft rounded-xl bg-surface text-left">
+            <div className="border border-border-soft rounded-xl bg-surface text-left overflow-hidden">
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={tab}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                >
                 {tab === 'text' && (
                     <div className="p-6">
                         <textarea
@@ -216,6 +225,8 @@ const SummarizerHero = ({ tab, setTab }) => {
 
                 {tab === 'youtube' && <ComingSoon label="YouTube" />}
                 {tab === 'video' && <ComingSoon label="Video" />}
+                </motion.div>
+            </AnimatePresence>
             </div>
         </div>
     )

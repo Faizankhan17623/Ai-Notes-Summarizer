@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import { motion } from 'motion/react'
 import {
     FaFilePdf, FaMicrophone, FaComments, FaLayerGroup, FaQuestionCircle,
     FaSearch, FaBolt,
 } from 'react-icons/fa'
+import { fadeUp, staggerContainer, viewportFadeUp } from '../extra/motionVariants.js'
 import SummarizerHero from './SummarizerHero.jsx'
 import SummarizerExplainer from './SummarizerExplainer.jsx'
 import SummarizerHowItWorks from './SummarizerHowItWorks.jsx'
@@ -29,21 +31,29 @@ const Banner = () => {
     return (
         <div>
             <div className="max-w-6xl mx-auto px-6 py-20">
-                <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-14 items-center">
+                <motion.div
+                    className="grid lg:grid-cols-[1.1fr_0.9fr] gap-14 items-center"
+                    initial="hidden"
+                    animate="show"
+                    variants={staggerContainer(0.12)}
+                >
                     <div>
-                        <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-yellow-50 bg-yellow-50/10 px-3 py-1 rounded-full mb-6">
+                        <motion.span
+                            variants={fadeUp}
+                            className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-yellow-50 bg-yellow-50/10 px-3 py-1 rounded-full mb-6"
+                        >
                             <FaBolt size={10} /> Powered by AI
-                        </span>
-                        <h1 className="font-display text-4xl md:text-5xl font-light leading-tight text-richblack-5 mb-6">
+                        </motion.span>
+                        <motion.h1 variants={fadeUp} className="font-display text-4xl md:text-5xl font-light leading-tight text-richblack-5 mb-6">
                             Messy notes in.<br />A clear <span className="font-semibold text-yellow-50">summary</span> out.
-                        </h1>
-                        <p className="text-richblack-200 text-lg mb-8 max-w-xl">
+                        </motion.h1>
+                        <motion.p variants={fadeUp} className="text-richblack-200 text-lg mb-8 max-w-xl">
                             Paste text, upload a PDF/Word/TXT file, or just talk — our AI reads your meeting notes,
                             lecture notes or freeform thoughts and gives you a structured summary, key points, and a chat
                             partner who knows exactly what's in them.
-                        </p>
+                        </motion.p>
 
-                        <div className="flex flex-wrap items-center gap-4">
+                        <motion.div variants={fadeUp} className="flex flex-wrap items-center gap-4">
                             <Link
                                 to={token ? "/Dashboard/New-Summary" : "/Signup"}
                                 className="inline-block bg-yellow-50 text-richblack-900 px-8 py-3 rounded-md font-semibold hover:scale-95 transition-all"
@@ -56,10 +66,10 @@ const Banner = () => {
                             >
                                 See pricing
                             </Link>
-                        </div>
+                        </motion.div>
                     </div>
 
-                    <div className="border border-border-soft rounded-xl bg-surface-raised p-1.5">
+                    <motion.div variants={fadeUp} className="border border-border-soft rounded-xl bg-surface-raised p-1.5">
                         <div className="rounded-lg bg-surface p-5">
                             <div className="flex gap-1.5 mb-4">
                                 <span className="w-2 h-2 rounded-full bg-border-soft" />
@@ -76,30 +86,41 @@ const Banner = () => {
                                 </p>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </motion.div>
+                </motion.div>
             </div>
 
             {/* Features */}
             <div className="border-t border-border-soft bg-surface/40">
                 <div className="max-w-6xl mx-auto px-6 py-20">
-                    <div className="text-center max-w-2xl mx-auto mb-12">
+                    <motion.div {...viewportFadeUp} className="text-center max-w-2xl mx-auto mb-12">
                         <h2 className="font-display text-3xl font-semibold text-richblack-5 mb-3">
                             Everything you need to actually remember what you read
                         </h2>
                         <p className="text-richblack-300">
                             Not just a summarizer — a full study companion for your notes.
                         </p>
-                    </div>
-                    <div className="grid md:grid-cols-3 gap-4 text-left">
+                    </motion.div>
+                    <motion.div
+                        className="grid md:grid-cols-3 gap-4 text-left"
+                        initial="hidden"
+                        whileInView="show"
+                        viewport={{ once: true, amount: 0.2 }}
+                        variants={staggerContainer(0.1)}
+                    >
                         {FEATURES.map(({ icon: Icon, title, body }, i) => (
-                            <div key={title} className={`border border-border-soft rounded-lg p-6 bg-surface transition-colors ${i % 2 === 0 ? "hover:border-yellow-50/40" : "hover:border-violet-400/40"}`}>
+                            <motion.div
+                                key={title}
+                                variants={fadeUp}
+                                whileHover={{ y: -4 }}
+                                className={`border border-border-soft rounded-lg p-6 bg-surface transition-colors ${i % 2 === 0 ? "hover:border-yellow-50/40" : "hover:border-violet-400/40"}`}
+                            >
                                 <Icon className={`text-2xl mb-3 ${i % 2 === 0 ? "text-yellow-50" : "text-violet-400"}`} />
                                 <h3 className="text-richblack-5 font-semibold mb-2">{title}</h3>
                                 <p className="text-richblack-300 text-sm">{body}</p>
-                            </div>
+                            </motion.div>
                         ))}
-                    </div>
+                    </motion.div>
                 </div>
             </div>
 

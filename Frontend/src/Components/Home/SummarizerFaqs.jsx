@@ -1,19 +1,9 @@
-import { useState, useEffect, useRef, useLayoutEffect } from 'react'
+import { useState, useEffect } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { FaPlus } from 'react-icons/fa'
 import { SUMMARIZER_EXPLAINERS } from './summarizerExplainerData.js'
 
 const FaqItem = ({ q, a, isOpen, onToggle }) => {
-    const contentRef = useRef(null)
-    const [maxHeight, setMaxHeight] = useState(0)
-
-    // measured after the answer text is in the DOM sir, so the very first expand animates
-    // from a real height instead of guessing — re-measures on every open in case content wraps differently
-    useLayoutEffect(() => {
-        if (isOpen && contentRef.current) {
-            setMaxHeight(contentRef.current.scrollHeight)
-        }
-    }, [isOpen, a])
-
     return (
         <div className={`border-b border-neutral-200 transition-colors ${isOpen ? 'bg-violet-50/40' : 'hover:bg-neutral-50'}`}>
             <button
@@ -23,19 +13,27 @@ const FaqItem = ({ q, a, isOpen, onToggle }) => {
                 className="w-full flex items-center justify-between gap-4 py-6 px-4 text-left cursor-pointer"
             >
                 <span className={`font-semibold transition-colors ${isOpen ? 'text-violet-600' : 'text-neutral-900'}`}>{q}</span>
-                <span
-                    className={`shrink-0 w-8 h-8 rounded-full border flex items-center justify-center transition-all duration-300
-                        ${isOpen ? 'bg-violet-600 border-violet-600 rotate-45' : 'bg-white border-neutral-300'}`}
+                <motion.span
+                    animate={{ rotate: isOpen ? 45 : 0 }}
+                    transition={{ duration: 0.25 }}
+                    className={`shrink-0 w-8 h-8 rounded-full border flex items-center justify-center ${isOpen ? 'bg-violet-600 border-violet-600' : 'bg-white border-neutral-300'}`}
                 >
                     <FaPlus size={12} className={isOpen ? 'text-white' : 'text-neutral-500'} />
-                </span>
+                </motion.span>
             </button>
-            <div
-                style={{ maxHeight: isOpen ? maxHeight : 0 }}
-                className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
-            >
-                <p ref={contentRef} className="text-neutral-500 text-sm leading-relaxed px-4 pb-6 pr-10">{a}</p>
-            </div>
+            <AnimatePresence initial={false}>
+                {isOpen && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                        className="overflow-hidden"
+                    >
+                        <p className="text-neutral-500 text-sm leading-relaxed px-4 pb-6 pr-10">{a}</p>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }

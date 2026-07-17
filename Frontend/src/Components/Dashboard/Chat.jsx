@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import { AnimatePresence, motion } from 'motion/react'
 import { FaPaperPlane, FaTrash, FaComments, FaRedo } from 'react-icons/fa'
 import Swal from 'sweetalert2'
 import { GetAllChats, GetSingleChat, SendMessage, RegenerateReply, DeleteChat } from '../../Services/operations/Chat.js'
@@ -125,39 +126,53 @@ const Chat = () => {
                     ) : (
                         <>
                             <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
-                                {currentChat?.messages?.map((m, i) => {
-                                    const isLastAssistantReply = m.role === 'assistant' && i === currentChat.messages.length - 1
-                                    return (
-                                        <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                            <div
-                                                className={`max-w-[70%] rounded-lg px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${m.role === 'user'
-                                                    ? 'bg-yellow-50 text-richblack-900'
-                                                    : 'bg-surface border border-border-soft text-richblack-100'
-                                                    }`}
+                                <AnimatePresence initial={false}>
+                                    {currentChat?.messages?.map((m, i) => {
+                                        const isLastAssistantReply = m.role === 'assistant' && i === currentChat.messages.length - 1
+                                        return (
+                                            <motion.div
+                                                key={i}
+                                                initial={{ opacity: 0, y: 12 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                                                className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}
                                             >
-                                                {m.role === 'assistant' ? stripMarkdown(m.content) : m.content}
-                                            </div>
-                                            {isLastAssistantReply && !replying && (
-                                                <button
-                                                    onClick={handleRegenerate}
-                                                    title="Regenerate this reply"
-                                                    className="flex items-center gap-1.5 text-richblack-500 hover:text-richblack-200 text-xs mt-1.5 cursor-pointer transition-colors"
+                                                <div
+                                                    className={`max-w-[70%] rounded-lg px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${m.role === 'user'
+                                                        ? 'bg-yellow-50 text-richblack-900'
+                                                        : 'bg-surface border border-border-soft text-richblack-100'
+                                                        }`}
                                                 >
-                                                    <FaRedo size={10} /> Regenerate
-                                                </button>
-                                            )}
-                                        </div>
-                                    )
-                                })}
-                                {replying && (
-                                    <div className="flex justify-start">
-                                        <div className="bg-surface border border-border-soft text-richblack-400 rounded-lg px-4 py-2.5 text-sm flex items-center gap-1.5">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse" />
-                                            <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse [animation-delay:150ms]" />
-                                            <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse [animation-delay:300ms]" />
-                                        </div>
-                                    </div>
-                                )}
+                                                    {m.role === 'assistant' ? stripMarkdown(m.content) : m.content}
+                                                </div>
+                                                {isLastAssistantReply && !replying && (
+                                                    <button
+                                                        onClick={handleRegenerate}
+                                                        title="Regenerate this reply"
+                                                        className="flex items-center gap-1.5 text-richblack-500 hover:text-richblack-200 text-xs mt-1.5 cursor-pointer transition-colors"
+                                                    >
+                                                        <FaRedo size={10} /> Regenerate
+                                                    </button>
+                                                )}
+                                            </motion.div>
+                                        )
+                                    })}
+                                    {replying && (
+                                        <motion.div
+                                            key="typing-indicator"
+                                            initial={{ opacity: 0, y: 12 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0 }}
+                                            className="flex justify-start"
+                                        >
+                                            <div className="bg-surface border border-border-soft text-richblack-400 rounded-lg px-4 py-2.5 text-sm flex items-center gap-1.5">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse" />
+                                                <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse [animation-delay:150ms]" />
+                                                <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse [animation-delay:300ms]" />
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                                 <div ref={bottomRef} />
                             </div>
 
@@ -169,13 +184,14 @@ const Chat = () => {
                                     className="flex-1 bg-surface border border-border-soft text-richblack-5 rounded-md px-4 py-2.5 outline-none focus:border-yellow-50 transition-colors"
                                 />
                                 <MicButton onTranscript={handleTranscript} />
-                                <button
+                                <motion.button
                                     type="submit"
+                                    whileTap={{ scale: 0.9 }}
                                     disabled={replying || !message.trim()}
                                     className="bg-yellow-50 text-richblack-900 rounded-md p-2.5 disabled:opacity-50 cursor-pointer hover:scale-95 transition-all"
                                 >
                                     <FaPaperPlane />
-                                </button>
+                                </motion.button>
                             </form>
                         </>
                     )}

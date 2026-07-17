@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { useDispatch } from 'react-redux'
-import { Routes, Route, Navigate } from "react-router-dom"
+import { Routes, Route, Navigate, useLocation } from "react-router-dom"
 import { Helmet } from 'react-helmet-async'
+import { AnimatePresence, motion } from 'motion/react'
 import Navbar from './Components/Home/Navbar'
 import Banner from './Components/Home/Banner'
 import Footer from './Components/Home/Footer'
@@ -10,6 +11,7 @@ import PrivateRoute from './Hooks/PrivateRoute'
 import AdminRoute from './Hooks/AdminRoute'
 import ScrollToTop from './Components/extra/ScrollToTop'
 import AnnouncementBanner from './Components/extra/AnnouncementBanner'
+import { pageTransition } from './Components/extra/motionVariants.js'
 import { FetchCsrfToken } from './Services/operations/Auth.js'
 
 // Lazy-loaded route components sir — split into separate chunks for faster initial load
@@ -51,6 +53,14 @@ const PageLoader = () => (
   </div>
 )
 
+// Fades/slides each route in on mount sir — keyed by pathname below so AnimatePresence
+// treats every navigation as an exit+enter pair instead of a silent swap.
+const PageFade = ({ children }) => (
+  <motion.div initial="initial" animate="animate" exit="exit" variants={pageTransition}>
+    {children}
+  </motion.div>
+)
+
 const Homelayout = () => {
   return (
     <div className="bg-richblack-900 min-h-screen flex flex-col">
@@ -68,6 +78,7 @@ const Homelayout = () => {
 
 function App() {
   const dispatch = useDispatch()
+  const location = useLocation()
 
   useEffect(() => {
     dispatch(FetchCsrfToken())
@@ -78,55 +89,57 @@ function App() {
       <AnnouncementBanner />
       <ScrollToTop />
       <Suspense fallback={<PageLoader />}>
-        <Routes>
-          {/* Public sir */}
-          <Route path="/" element={<Homelayout />} />
-          <Route path="/Pricing" element={<Pricing />} />
-          <Route path="/Features" element={<Features />} />
-          <Route path="/Solutions" element={<Solutions />} />
-          <Route path="/Resources" element={<Resources />} />
-          <Route path="/HelpCenter" element={<HelpCenter />} />
-          <Route path="/PrivacyPolicy" element={<PrivacyPolicy />} />
-          <Route path="/TermsOfService" element={<TermsOfService />} />
-          <Route path="/Features/Chat" element={<NoteGroundedChat />} />
-          <Route path="/Features/FlashcardsAndQuizzes" element={<FlashcardsAndQuizzes />} />
-          <Route path="/Features/SpacedRepetition" element={<SpacedRepetitionFeature />} />
-          <Route path="/shared/:shareId" element={<SharedNote />} />
+        <AnimatePresence mode="wait" initial={false}>
+          <Routes location={location} key={location.pathname}>
+            {/* Public sir */}
+            <Route path="/" element={<Homelayout />} />
+            <Route path="/Pricing" element={<PageFade><Pricing /></PageFade>} />
+            <Route path="/Features" element={<PageFade><Features /></PageFade>} />
+            <Route path="/Solutions" element={<PageFade><Solutions /></PageFade>} />
+            <Route path="/Resources" element={<PageFade><Resources /></PageFade>} />
+            <Route path="/HelpCenter" element={<PageFade><HelpCenter /></PageFade>} />
+            <Route path="/PrivacyPolicy" element={<PageFade><PrivacyPolicy /></PageFade>} />
+            <Route path="/TermsOfService" element={<PageFade><TermsOfService /></PageFade>} />
+            <Route path="/Features/Chat" element={<PageFade><NoteGroundedChat /></PageFade>} />
+            <Route path="/Features/FlashcardsAndQuizzes" element={<PageFade><FlashcardsAndQuizzes /></PageFade>} />
+            <Route path="/Features/SpacedRepetition" element={<PageFade><SpacedRepetitionFeature /></PageFade>} />
+            <Route path="/shared/:shareId" element={<PageFade><SharedNote /></PageFade>} />
 
-          {/* Only for the logged-OUT sir */}
-          <Route path="/Signup" element={<OpenRoute><Join /></OpenRoute>} />
-          <Route path="/Verify-Otp" element={<OpenRoute><OTP /></OpenRoute>} />
-          <Route path="/Login" element={<OpenRoute><Login /></OpenRoute>} />
-          <Route path="/forgot-password" element={<OpenRoute><ForgotPassword /></OpenRoute>} />
-          <Route path="/reset-password/:token" element={<OpenRoute><ResetPassword /></OpenRoute>} />
+            {/* Only for the logged-OUT sir */}
+            <Route path="/Signup" element={<OpenRoute><PageFade><Join /></PageFade></OpenRoute>} />
+            <Route path="/Verify-Otp" element={<OpenRoute><PageFade><OTP /></PageFade></OpenRoute>} />
+            <Route path="/Login" element={<OpenRoute><PageFade><Login /></PageFade></OpenRoute>} />
+            <Route path="/forgot-password" element={<OpenRoute><PageFade><ForgotPassword /></PageFade></OpenRoute>} />
+            <Route path="/reset-password/:token" element={<OpenRoute><PageFade><ResetPassword /></PageFade></OpenRoute>} />
 
-          {/* Only for the logged-IN sir — one shared sidebar shell via Outlet instead of every
-              page rendering its own Navbar */}
-          <Route element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
-            <Route path="/Dashboard" element={<DashboardHome />} />
-            <Route path="/Dashboard/New-Summary" element={<NewSummary />} />
-            <Route path="/Dashboard/Note/:noteId" element={<Report />} />
-            <Route path="/Dashboard/Review" element={<Review />} />
-            <Route path="/Dashboard/History" element={<History />} />
-            <Route path="/Dashboard/Chats" element={<Chat />} />
-            <Route path="/Dashboard/Chat/:chatId" element={<Chat />} />
-            <Route path="/Dashboard/Account" element={<Account />} />
-          </Route>
+            {/* Only for the logged-IN sir — one shared sidebar shell via Outlet instead of every
+                page rendering its own Navbar */}
+            <Route element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
+              <Route path="/Dashboard" element={<PageFade><DashboardHome /></PageFade>} />
+              <Route path="/Dashboard/New-Summary" element={<PageFade><NewSummary /></PageFade>} />
+              <Route path="/Dashboard/Note/:noteId" element={<PageFade><Report /></PageFade>} />
+              <Route path="/Dashboard/Review" element={<PageFade><Review /></PageFade>} />
+              <Route path="/Dashboard/History" element={<PageFade><History /></PageFade>} />
+              <Route path="/Dashboard/Chats" element={<PageFade><Chat /></PageFade>} />
+              <Route path="/Dashboard/Chat/:chatId" element={<PageFade><Chat /></PageFade>} />
+              <Route path="/Dashboard/Account" element={<PageFade><Account /></PageFade>} />
+            </Route>
 
-          {/* Admin and Support only sir — the backend re-checks the role on every call anyway.
-              One shared sidebar shell via Outlet instead of every page rendering its own Navbar+AdminNav */}
-          <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
-            <Route path="/Admin" element={<AdminOverview />} />
-            <Route path="/Admin/Analytics" element={<AdminAnalytics />} />
-            <Route path="/Admin/Users" element={<AdminUsers />} />
-            <Route path="/Admin/Payments" element={<AdminPayments />} />
-            <Route path="/Admin/Audit" element={<AdminAudit />} />
-            <Route path="/Admin/Announcements" element={<AdminAnnouncements />} />
-          </Route>
+            {/* Admin and Support only sir — the backend re-checks the role on every call anyway.
+                One shared sidebar shell via Outlet instead of every page rendering its own Navbar+AdminNav */}
+            <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
+              <Route path="/Admin" element={<PageFade><AdminOverview /></PageFade>} />
+              <Route path="/Admin/Analytics" element={<PageFade><AdminAnalytics /></PageFade>} />
+              <Route path="/Admin/Users" element={<PageFade><AdminUsers /></PageFade>} />
+              <Route path="/Admin/Payments" element={<PageFade><AdminPayments /></PageFade>} />
+              <Route path="/Admin/Audit" element={<PageFade><AdminAudit /></PageFade>} />
+              <Route path="/Admin/Announcements" element={<PageFade><AdminAnnouncements /></PageFade>} />
+            </Route>
 
-          {/* anything unknown goes home sir */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
+            {/* anything unknown goes home sir */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </AnimatePresence>
       </Suspense>
     </>
   )
