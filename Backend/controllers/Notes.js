@@ -85,7 +85,7 @@ exports.organizeNote = async (req, res) => {
         if (pinned !== undefined) update.pinned = Boolean(pinned)
         if (favorite !== undefined) update.favorite = Boolean(favorite)
 
-        const note = await Note.findOneAndUpdate({ _id: noteId, user: id }, update, { new: true })
+        const note = await Note.findOneAndUpdate({ _id: noteId, user: id }, update, { returnDocument: 'after' })
         if (!note) {
             return res.status(404).json({ success: false, message: 'Note not found' })
         }
@@ -136,7 +136,7 @@ exports.disableShare = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid note id' })
         }
 
-        const note = await Note.findOneAndUpdate({ _id: noteId, user: id }, { shareEnabled: false }, { new: true })
+        const note = await Note.findOneAndUpdate({ _id: noteId, user: id }, { shareEnabled: false }, { returnDocument: 'after' })
         if (!note) {
             return res.status(404).json({ success: false, message: 'Note not found' })
         }

@@ -401,7 +401,7 @@ exports.updateFirstName = async (req, res) => {
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { firstName },
-            { new: true }
+            { returnDocument: 'after' }
         ).select('-password')
 
         return res.status(200).json({
@@ -437,7 +437,7 @@ exports.updateDigestPreference = async (req, res) => {
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { receiveDigest },
-            { new: true }
+            { returnDocument: 'after' }
         ).select('-password')
 
         return res.status(200).json({
@@ -473,7 +473,7 @@ exports.updateDailyGoal = async (req, res) => {
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { dailyGoal },
-            { new: true }
+            { returnDocument: 'after' }
         ).select('-password')
 
         return res.status(200).json({
@@ -509,7 +509,7 @@ exports.updateLastName = async (req, res) => {
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { lastName },
-            { new: true }
+            { returnDocument: 'after' }
         ).select('-password')
 
         return res.status(200).json({
@@ -625,7 +625,7 @@ exports.forgotPassword = async (req, res) => {
                 resetPasswordToken: token,
                 resetPasswordExpires: Date.now() + 3600000,
             },
-            { new: true }
+            { returnDocument: 'after' }
         )
 
         if (!user) {

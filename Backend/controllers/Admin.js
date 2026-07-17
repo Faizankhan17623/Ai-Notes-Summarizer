@@ -173,7 +173,7 @@ exports.banUser = async (req, res) => {
         const { userId } = req.params
         const { banReason } = req.body
 
-        const user = await User.findByIdAndUpdate(userId, { isBanned: true, banReason: banReason || '' }, { new: true }).select('-password')
+        const user = await User.findByIdAndUpdate(userId, { isBanned: true, banReason: banReason || '' }, { returnDocument: 'after' }).select('-password')
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' })
         }
@@ -192,7 +192,7 @@ exports.unbanUser = async (req, res) => {
     try {
         const { userId } = req.params
 
-        const user = await User.findByIdAndUpdate(userId, { isBanned: false, banReason: '' }, { new: true }).select('-password')
+        const user = await User.findByIdAndUpdate(userId, { isBanned: false, banReason: '' }, { returnDocument: 'after' }).select('-password')
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' })
         }
@@ -216,7 +216,7 @@ exports.setRole = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid role' })
         }
 
-        const user = await User.findByIdAndUpdate(userId, { role }, { new: true }).select('-password')
+        const user = await User.findByIdAndUpdate(userId, { role }, { returnDocument: 'after' }).select('-password')
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' })
         }

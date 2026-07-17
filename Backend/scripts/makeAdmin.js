@@ -12,7 +12,7 @@ if (!email) {
 
 mongoose.connect(process.env.MONGO_DB_URL)
     .then(async () => {
-        const user = await User.findOneAndUpdate({ email }, { role: 'Admin' }, { new: true })
+        const user = await User.findOneAndUpdate({ email }, { role: 'Admin' }, { returnDocument: 'after' })
         if (!user) {
             console.log(`No user found with email ${email}`)
         } else {

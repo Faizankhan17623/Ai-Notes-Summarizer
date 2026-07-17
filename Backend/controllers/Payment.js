@@ -147,7 +147,7 @@ exports.verifyPayment = async (req, res) => {
             const updated = await User.findByIdAndUpdate(
                 req.User.id,
                 { $inc: { bonusCredits: payment.creditsGranted } },
-                { new: true }
+                { returnDocument: 'after' }
             ).select('bonusCredits')
 
             return res.status(200).json({
