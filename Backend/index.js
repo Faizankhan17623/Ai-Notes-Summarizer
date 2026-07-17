@@ -46,8 +46,7 @@ app.use(express.json())
 // IMMEDIATELY, before any env vars are configured. If the Vercel URL ever changes,
 // either add it here or set CORS_ORIGINS on Render (no redeploy needed for the latter).
 const knownProdOrigins = [
-    'https://ai-notes-summarizer-five.vercel.app',
-    'https://ai-notes-summarizer-green.vercel.app',
+    'https://ai-notes-summarizer-phi.vercel.app',
 ]
 
 const allowedOrigins = [...new Set(
