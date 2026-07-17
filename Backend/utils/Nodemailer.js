@@ -17,6 +17,9 @@ const mailSender = async (email, title, body) => {
                 user: process.env.MAIL_USER,
                 pass: process.env.MAIL_PASS,
             },
+            // Render has no outbound IPv6 route sir — without this, Node resolves Gmail's SMTP
+            // host to an IPv6 address and the connection dies with ENETUNREACH
+            family: 4,
             // without these, a network-level failure to reach MAIL_HOST (blocked port,
             // wrong host, dead SMTP server) hangs the request forever instead of erroring sir
             connectionTimeout: 10000,

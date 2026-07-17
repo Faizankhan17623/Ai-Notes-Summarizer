@@ -653,7 +653,6 @@ exports.forgotPassword = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Failed to send reset email',
-            debug: error.message, // TEMP sir — remove once the 500 cause is confirmed
         })
     }
 }
