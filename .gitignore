@@ -1,0 +1,5 @@
+# local Claude Code settings — machine-specific, never needed in prod
+.claude/
+
+# safety net in case an env file lands at the repo root
+.env
