@@ -15,7 +15,11 @@ const { generateCsrfToken, doubleCsrfProtection, invalidCsrfTokenError } = doubl
     // __Host- prefix requires Secure + no Domain + path=/ sir, the right lockdown for production;
     // localhost dev over http can't set a __Host- cookie, so it falls back to a plain name there
     cookieName: isProd ? '__Host-csrf' : 'csrf-token',
-    cookieOptions: { sameSite: 'lax', secure: isProd, path: '/' },
+    // frontend (Vercel) and backend (Render) are different sites in prod sir, so cross-site
+    // XHR needs SameSite=None (requires Secure, already true in prod) or the browser silently
+    // drops this cookie on every request — that's why /payment/order was 403ing even on a
+    // brand new session, not just after the access token expired.
+    cookieOptions: { sameSite: isProd ? 'none' : 'lax', secure: isProd, path: '/' },
     getCsrfTokenFromRequest: (req) => req.headers['x-csrf-token'],
 })
 

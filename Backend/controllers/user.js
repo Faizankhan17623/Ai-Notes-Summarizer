@@ -20,6 +20,11 @@ const { isStrongPassword } = require('../utils/PasswordPolicy.js')
 const { hashToken, signAccessToken, issueRefreshToken, REFRESH_TOKEN_TTL_MS } = require('../utils/RefreshToken.js')
 
 const isProd = process.env.NODE_ENV === 'production'
+// frontend (Vercel) and backend (Render) are different sites in prod sir, so cross-site XHR
+// needs SameSite=None (which requires Secure) or the browser silently drops the cookie on
+// every request. Local dev is same-origin (localhost:5173 -> localhost:4000), where Lax is
+// fine and None would needlessly require https.
+const cookieSameSite = isProd ? 'none' : 'lax'
 
 // ============================================================
 // SEND OTP
@@ -247,14 +252,14 @@ exports.loginUser = async (req, res) => {
         const accessCookie = cookie.serialize('token', accessToken, {
             httpOnly: true,
             secure: isProd,
-            sameSite: 'lax',
+            sameSite: cookieSameSite,
             maxAge: 60 * 60,
             path: '/',
         })
         const refreshCookie = cookie.serialize('refreshToken', rawRefreshToken, {
             httpOnly: true,
             secure: isProd,
-            sameSite: 'lax',
+            sameSite: cookieSameSite,
             maxAge: 7 * 24 * 60 * 60,
             path: '/api/v1',
         })
@@ -324,7 +329,7 @@ exports.refreshToken = async (req, res) => {
         const accessCookie = cookie.serialize('token', accessToken, {
             httpOnly: true,
             secure: isProd,
-            sameSite: 'lax',
+            sameSite: cookieSameSite,
             maxAge: 60 * 60,
             path: '/',
         })
@@ -356,14 +361,14 @@ exports.logoutUser = async (req, res) => {
         const clearAccess = cookie.serialize('token', '', {
             httpOnly: true,
             secure: isProd,
-            sameSite: 'lax',
+            sameSite: cookieSameSite,
             maxAge: 0,
             path: '/',
         })
         const clearRefresh = cookie.serialize('refreshToken', '', {
             httpOnly: true,
             secure: isProd,
-            sameSite: 'lax',
+            sameSite: cookieSameSite,
             maxAge: 0,
             path: '/api/v1',
         })
