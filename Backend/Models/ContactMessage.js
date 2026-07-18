@@ -49,6 +49,26 @@ const contactMessageSchema = new mongoose.Schema(
         repliedAt: {
             type: Date,
         },
+        // private handoff notes sir — visible to Support/Admin only (never sent to the
+        // submitter, never exposed on any public endpoint), for context like "called them,
+        // waiting on a screenshot" between support agents working the same ticket
+        internalNotes: [{
+            text: {
+                type: String,
+                required: true,
+                trim: true,
+                maxlength: 1000,
+            },
+            author: {
+                type: mongoose.Schema.ObjectId,
+                ref: 'User',
+                required: true,
+            },
+            createdAt: {
+                type: Date,
+                default: Date.now,
+            },
+        }],
     },
     { timestamps: true }
 )

@@ -2,12 +2,12 @@ import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { FaComments, FaTrash, FaClipboardList, FaLayerGroup } from 'react-icons/fa'
+import { FaComments, FaTrash, FaClipboardList, FaLayerGroup, FaDownload } from 'react-icons/fa'
 import Swal from 'sweetalert2'
 import { GetSingleNote, DeleteNote, GetRelatedNotes } from '../../Services/operations/Notes.js'
 import { setRelatedNotes } from '../../Slices/notesSlice.js'
 import { CreateChat } from '../../Services/operations/Chat.js'
-import { GenerateFlashcards, GetFlashcardsForNote, GenerateQuiz, GetQuizzesForNote } from '../../Services/operations/StudyKit.js'
+import { GenerateFlashcards, GetFlashcardsForNote, GenerateQuiz, GetQuizzesForNote, ExportFlashcardDeck, ExportQuiz } from '../../Services/operations/StudyKit.js'
 import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
 import ActionItemsCard from './ActionItemsCard.jsx'
@@ -151,11 +151,22 @@ const Report = () => {
                                         <h2 className="text-richblack-5 font-semibold flex items-center gap-2">
                                             <FaLayerGroup className="text-yellow-50" size={14} /> Flashcards
                                         </h2>
-                                        {isPaidPlan ? (
-                                            <IconBtn text="Generate more" outline onclick={() => dispatch(GenerateFlashcards(noteId, 10, token))} />
-                                        ) : (
-                                            <Link to="/Pricing" className="text-yellow-50 text-xs">Upgrade to generate flashcards</Link>
-                                        )}
+                                        <div className="flex items-center gap-2">
+                                            {flashcards.length > 0 && (
+                                                <button
+                                                    onClick={() => dispatch(ExportFlashcardDeck(noteId, summary.title, token))}
+                                                    title="Download deck as PDF"
+                                                    className="text-richblack-400 hover:text-yellow-50 p-1.5 cursor-pointer rounded-md hover:bg-surface-hover transition-colors"
+                                                >
+                                                    <FaDownload size={12} />
+                                                </button>
+                                            )}
+                                            {isPaidPlan ? (
+                                                <IconBtn text="Generate more" outline onclick={() => dispatch(GenerateFlashcards(noteId, 10, token))} />
+                                            ) : (
+                                                <Link to="/Pricing" className="text-yellow-50 text-xs">Upgrade to generate flashcards</Link>
+                                            )}
+                                        </div>
                                     </div>
                                     <FlashcardDeck cards={flashcards} noteId={noteId} allowDelete />
                                 </div>
@@ -165,11 +176,22 @@ const Report = () => {
                                         <h2 className="text-richblack-5 font-semibold flex items-center gap-2">
                                             <FaClipboardList className="text-yellow-50" size={14} /> Quiz
                                         </h2>
-                                        {isPaidPlan ? (
-                                            <IconBtn text="Generate new quiz" outline onclick={() => dispatch(GenerateQuiz(noteId, 8, token))} />
-                                        ) : (
-                                            <Link to="/Pricing" className="text-yellow-50 text-xs">Upgrade to generate quizzes</Link>
-                                        )}
+                                        <div className="flex items-center gap-2">
+                                            {latestQuiz && (
+                                                <button
+                                                    onClick={() => dispatch(ExportQuiz(latestQuiz._id, summary.title, token))}
+                                                    title="Download quiz as PDF"
+                                                    className="text-richblack-400 hover:text-yellow-50 p-1.5 cursor-pointer rounded-md hover:bg-surface-hover transition-colors"
+                                                >
+                                                    <FaDownload size={12} />
+                                                </button>
+                                            )}
+                                            {isPaidPlan ? (
+                                                <IconBtn text="Generate new quiz" outline onclick={() => dispatch(GenerateQuiz(noteId, 8, token))} />
+                                            ) : (
+                                                <Link to="/Pricing" className="text-yellow-50 text-xs">Upgrade to generate quizzes</Link>
+                                            )}
+                                        </div>
                                     </div>
                                     {latestQuiz ? <QuizPlayer key={latestQuiz._id} quiz={latestQuiz} /> : (
                                         <p className="text-richblack-400 text-sm">No quiz yet — generate one above.</p>

@@ -11,6 +11,7 @@ export const AdminData = {
     refundPayment: BASE_URL + "/admin/payments",   // + /:paymentId/refund
     contactMessages: BASE_URL + "/admin/contact-messages",
     replyToContactMessage: BASE_URL + "/admin/contact-messages",  // + /:messageId/reply
+    addInternalNote: BASE_URL + "/admin/contact-messages",  // + /:messageId/notes
     audit: BASE_URL + "/admin/audit",
     aiLogs: BASE_URL + "/admin/ai-logs",
     activeAnnouncement: BASE_URL + "/announcements/active",

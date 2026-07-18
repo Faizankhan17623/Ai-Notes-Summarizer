@@ -5,7 +5,7 @@ import { setOverview, setAnalytics, setUsers, setPayments, setAuditLogs, setAiLo
 
 const {
     overview, analytics, users, banUser, unbanUser, setRole, payments, refundPayment, contactMessages,
-    replyToContactMessage, audit, aiLogs, activeAnnouncement, announcements, deactivateAnnouncement
+    replyToContactMessage, addInternalNote, audit, aiLogs, activeAnnouncement, announcements, deactivateAnnouncement
 } = AdminData
 
 export function GetOverview(token) {
@@ -158,6 +158,24 @@ export function ReplyToContactMessage(messageId, replyMessage, token) {
             return true
         } catch (error) {
             toast.error(error?.response?.data?.message || "Could not send reply")
+            return false
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+// private handoff note sir — Support/Admin only, never emailed or shown to the submitter
+export function AddInternalNote(messageId, text, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Adding note...")
+        try {
+            const response = await apiConnector("POST", `${addInternalNote}/${messageId}/notes`, { text }, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(GetContactMessages(token))
+            return true
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not add the note")
             return false
         } finally {
             toast.dismiss(toastId)

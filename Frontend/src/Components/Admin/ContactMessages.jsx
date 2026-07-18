@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
-import { FaEnvelopeOpenText, FaReply } from 'react-icons/fa'
-import { GetContactMessages, ReplyToContactMessage } from '../../Services/operations/Admin.js'
+import { FaEnvelopeOpenText, FaReply, FaLock } from 'react-icons/fa'
+import { GetContactMessages, ReplyToContactMessage, AddInternalNote } from '../../Services/operations/Admin.js'
 import StatusBadge from './StatusBadge.jsx'
 
 const STATUS_TONE = { open: 'neutral', resolved: 'good' }
@@ -13,6 +13,9 @@ const MessageCard = ({ message, token, dispatch }) => {
     const [expanded, setExpanded] = useState(false)
     const [reply, setReply] = useState('')
     const [sending, setSending] = useState(false)
+    const [noteText, setNoteText] = useState('')
+    const [notesOpen, setNotesOpen] = useState(false)
+    const [addingNote, setAddingNote] = useState(false)
 
     const handleReply = async (e) => {
         e.preventDefault()
@@ -21,6 +24,15 @@ const MessageCard = ({ message, token, dispatch }) => {
         const ok = await dispatch(ReplyToContactMessage(message._id, reply.trim(), token))
         setSending(false)
         if (ok) setExpanded(false)
+    }
+
+    const handleAddNote = async (e) => {
+        e.preventDefault()
+        if (!noteText.trim()) return
+        setAddingNote(true)
+        const ok = await dispatch(AddInternalNote(message._id, noteText.trim(), token))
+        setAddingNote(false)
+        if (ok) setNoteText('')
     }
 
     return (
@@ -34,14 +46,22 @@ const MessageCard = ({ message, token, dispatch }) => {
                         <StatusBadge tone={STATUS_TONE[message.status]}>{message.status}</StatusBadge>
                     </div>
                 </div>
-                {message.status === 'open' && (
+                <div className="flex items-center gap-3 shrink-0">
                     <button
-                        onClick={() => setExpanded((v) => !v)}
-                        className="flex items-center gap-1.5 text-xs font-medium text-yellow-50 cursor-pointer hover:underline shrink-0"
+                        onClick={() => setNotesOpen((v) => !v)}
+                        className="flex items-center gap-1.5 text-xs font-medium text-richblack-300 cursor-pointer hover:underline"
                     >
-                        <FaReply size={10} /> Reply
+                        <FaLock size={9} /> Notes{message.internalNotes?.length ? ` (${message.internalNotes.length})` : ''}
                     </button>
-                )}
+                    {message.status === 'open' && (
+                        <button
+                            onClick={() => setExpanded((v) => !v)}
+                            className="flex items-center gap-1.5 text-xs font-medium text-yellow-50 cursor-pointer hover:underline"
+                        >
+                            <FaReply size={10} /> Reply
+                        </button>
+                    )}
+                </div>
             </div>
 
             {message.status === 'resolved' && message.replyMessage && (
@@ -50,6 +70,41 @@ const MessageCard = ({ message, token, dispatch }) => {
                         Replied by {message.repliedBy?.firstName} {message.repliedBy?.lastName} · {new Date(message.repliedAt).toLocaleString()}
                     </p>
                     <p className="text-richblack-200 text-sm whitespace-pre-wrap">{message.replyMessage}</p>
+                </div>
+            )}
+
+            {notesOpen && (
+                <div className="mt-3 pt-3 border-t border-dashed border-border-soft space-y-2.5">
+                    <p className="text-richblack-500 text-xs flex items-center gap-1.5">
+                        <FaLock size={9} /> Private — only Support/Admin can see this, never sent to the submitter
+                    </p>
+                    {message.internalNotes?.length > 0 && (
+                        <div className="space-y-2">
+                            {message.internalNotes.map((n, i) => (
+                                <div key={i} className="bg-surface-hover rounded-md px-3 py-2">
+                                    <p className="text-richblack-200 text-sm whitespace-pre-wrap">{n.text}</p>
+                                    <p className="text-richblack-500 text-xs mt-1">
+                                        {n.author?.firstName} {n.author?.lastName} · {new Date(n.createdAt).toLocaleString()}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    <form onSubmit={handleAddNote} className="flex gap-2">
+                        <input
+                            value={noteText}
+                            onChange={(e) => setNoteText(e.target.value)}
+                            placeholder="Add a note for other agents..."
+                            className="flex-1 bg-surface-hover border border-border-soft text-richblack-5 text-sm rounded-md px-3 py-1.5 outline-none focus:border-yellow-50 transition-colors"
+                        />
+                        <button
+                            type="submit"
+                            disabled={!noteText.trim() || addingNote}
+                            className="bg-surface-hover border border-border-soft text-richblack-200 text-xs font-semibold rounded-md px-3 py-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:border-yellow-50 shrink-0"
+                        >
+                            {addingNote ? "Adding..." : "Add"}
+                        </button>
+                    </form>
                 </div>
             )}
 

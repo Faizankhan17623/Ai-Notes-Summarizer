@@ -9,19 +9,20 @@ Turn any notes into a clear, structured summary — paste text, upload a PDF/Wor
 
 ## Features
 
-- **Summarize notes** from pasted/typed text, PDF, DOCX, TXT, or voice dictation (browser Web Speech API — no extra API key needed)
+- **Summarize notes** from pasted/typed text, uploaded files (PDF/DOCX/TXT), a pasted article URL, or voice/audio (browser dictation or an uploaded audio file transcribed via Groq) — single or bulk (up to 20 files at once)
 - **Chat with your notes** — ask follow-up questions grounded strictly in the note you're viewing
-- **Plan-tiered summaries** — Basic (key points + structured action items: tasks/key dates/decisions), Pro (+ sections & key terms), Pro Max (+ an initial quiz & flashcard set) — with real credit gating enforced per plan
-- **On-demand flashcards** (Pro/Pro Max) — generate more flashcards from any note at any time, independent of the initial summary
-- **Spaced-repetition review** — flashcards are scheduled with an SM-2-based algorithm (again/hard/good/easy ratings); a dedicated Review page shows every card due across all your notes
-- **On-demand quizzes** (Pro/Pro Max) — generate fresh multiple-choice quizzes from any note, take them, and see a scored result with explanations
+- **Plan-tiered summaries** — Basic (key points + structured action items: tasks/key dates/decisions), Pro (+ sections & key terms), Pro Max (+ an initial quiz & flashcard set) — with real credit gating enforced per plan, and AI-suggested tags applied automatically at creation time
+- **On-demand flashcards & quizzes** (Pro/Pro Max) — generate more of either from any note at any time; flashcards use SM-2 spaced repetition (again/hard/good/easy) with a dedicated Review page for everything due across all notes; export a full deck or quiz (with answer key) as a printable PDF
+- **Organize & find notes** — tags, folders, pin/favorite, full-text search, and a "related notes" panel based on tag overlap
+- **Pick your model** (Pro/Pro Max) — choose which Groq model powers your summaries/chat/study tools instead of the plan default
 - **Auth** — signup with OTP email verification, JWT (httpOnly cookie + bearer), forgot/reset password, 2-day account delete/recover buffer
-- **Admin dashboard** — user management (ban/roles), AI usage/cost monitor, payments, audit log, site-wide announcements
-- **Payments** — Razorpay integration, currently in "coming soon" stub mode until live keys are added
+- **In-app notifications** — polled updates for things like low credits, plan expiry, and support replies
+- **Role-based Admin & Support dashboards** — Support gets a read-only/reply view (users, payments, AI logs, contact tickets — with private handoff notes on each ticket); Admin adds ban/role changes, refunds (including credit-pack refunds), audit log, and site-wide announcements
+- **Payments** — Razorpay integration with plan purchases and one-time credit top-up packs
 
 ## Tech stack
 
-**Backend:** Node.js, Express, MongoDB (Mongoose), JWT, Groq SDK, `pdf-parse`, `mammoth` (docx), Nodemailer, `express-rate-limit`, Helmet
+**Backend:** Node.js, Express, MongoDB (Mongoose), JWT, Groq SDK, `pdf-parse`, `mammoth` (docx), `pdfkit`/`docx` (export), Nodemailer (+ Brevo HTTP API fallback), `node-cron`, `express-rate-limit`, Helmet, `csrf-csrf`
 
 **Frontend:** React 19, Vite, Redux Toolkit, Tailwind CSS v4, Axios, React Router, react-hook-form, react-hot-toast
 
@@ -120,13 +121,14 @@ STUDY KIT - FLASHCARDS
 - SM-2 spaced repetition (ease factor, interval, review count, due date; again/hard/good/easy ratings)
 - Review queue page: every card due now across ALL notes, flip-card UI
 - Daily review streak tracking
-- Export review queue as PDF study sheet
+- Export the due review queue OR one note's full deck (regardless of due date) as a printable PDF
 - Per-note flashcard browsing/deletion on Report page
 
 STUDY KIT - QUIZZES
 - On-demand MCQ quiz generation per note (Pro/ProMax only, 1 credit), avoids repeating prior questions
 - One-question-at-a-time player, submit all at once, scored with per-question correct/incorrect + explanations
 - Retake overwrites lastAttempt; quiz deletable
+- Export a quiz as a printable PDF (questions + options, answer key on a separate page)
 
 PLANS, CREDITS & PAYMENTS
 - Three tiers: Basic (free, 5 credits/mo), Pro (Rs499/mo, 100 credits), Pro Max (Rs1499/mo, unlimited)
@@ -150,14 +152,20 @@ ANALYTICS (USER-FACING)
 - Personal activity dashboard: notes/day (30-day area chart), total notes/chats/flashcards, cards reviewed,
   quizzes attempted + average score, plan credit limit — embedded on Dashboard home
 
-ADMIN PANEL (isAdmin gated, shared AdminLayout sidebar)
+ADMIN & SUPPORT PANELS (RBAC-gated, shared AdminLayout sidebar)
+- Support (isSupport — Support role AND Admin both pass): Overview, Users (read-only), Payments
+  (read-only), AI usage/cost log (read-only), Contact/ticket inbox with reply-and-resolve
+- Support ticket workflow (ContactMessage model doubles as a lightweight ticket system):
+  public contact form -> saved + emailed to site owner -> Support/Admin replies (emails the
+  submitter, marks resolved) -> private internal notes thread per ticket (text/author/timestamp,
+  Support/Admin only, never emailed or exposed publicly) for handoff context between agents
+- Admin only (isAdmin, everything above plus): ban/unban (with reason)/role change, payment
+  refunds (including credit-pack refunds, restores credits), audit log, site-wide announcements
 - Overview: total users/notes/chats, AI calls & failures (24h), plan breakdown
 - Analytics: revenue by day/week/month, signups (30-day bar chart), top 20 users by usage,
   users-at-credit-limit counts, credit top-up revenue/stats
-- Users: paginated/searchable list, ban (with reason)/unban, inline role change
-- Payments: full payment history table
-- Audit: admin action log (ban/unban/set_role/create_announcement/etc.) + AI usage/cost monitor feed
-  (type, plan, model, tokens, latency, success/fail per Groq call)
+- Audit: admin action log (ban/unban/set_role/refund/create_announcement/etc.) + AI usage/cost
+  monitor feed (type, plan, model, tokens, latency, success/fail per Groq call)
 - Announcements: publish site-wide banner (deactivates prior), history, deactivate;
   consumed publicly by AnnouncementBanner on every page (no login required)
 
@@ -181,15 +189,17 @@ BACKGROUND JOBS
   summarizes notes created/chats had/flashcards due/quizzes taken; skips empty weeks; sequential sends
 
 DATA MODELS (MongoDB / Mongoose)
-- User, Note, Flashcard, Quiz, Chat, Payment, AiLog, AuditLog, Announcement, OTP
+- User, Note, Flashcard, Quiz, Chat, Payment, AiLog, AuditLog, Announcement, Notification,
+  ContactMessage (incl. internalNotes subdocs), OTP
   (see Backend/Models/*.js for full field lists)
 
 FULL FRONTEND ROUTES
-- Public: /, /Pricing, /shared/:shareId
+- Public: /, /Pricing, /Contact, /shared/:shareId
 - Logged-out only: /Signup, /Verify-Otp, /Login, /forgot-password, /reset-password/:token
 - Dashboard: /Dashboard, /Dashboard/New-Summary, /Dashboard/Note/:noteId, /Dashboard/Review,
   /Dashboard/History, /Dashboard/Chats, /Dashboard/Chat/:chatId, /Dashboard/Account
-- Admin/Support: /Admin, /Admin/Analytics, /Admin/Users, /Admin/Payments, /Admin/Audit, /Admin/Announcements
+- Admin/Support: /Admin, /Admin/Analytics, /Admin/Users, /Admin/Payments, /Admin/Audit,
+  /Admin/Announcements, /Admin/Contact-Messages
 
 FULL BACKEND API MAP (/api/v1)
 - Auth: POST /Send-otp, POST /Createuser, POST /Login, POST /forgot-password, POST /reset-password,
@@ -199,14 +209,19 @@ FULL BACKEND API MAP (/api/v1)
 - Notes: POST /summarize, GET /shared/:shareId, GET /notes, GET /notes/tags, GET /notes/:noteId,
   DELETE /notes/:noteId, PATCH /notes/:noteId/organize, POST/DELETE /notes/:noteId/share,
   GET /notes/:noteId/export/:format
-- Study Kit: POST/GET /notes/:noteId/flashcards, GET /flashcards/due, GET /flashcards/review/export,
-  POST /flashcards/:id/review, DELETE /flashcards/:id, POST/GET /notes/:noteId/quiz(zes),
+- Study Kit: POST/GET /notes/:noteId/flashcards, GET /notes/:noteId/flashcards/export,
+  GET /flashcards/due, GET /flashcards/review/export, POST /flashcards/:id/review,
+  DELETE /flashcards/:id, POST/GET /notes/:noteId/quiz(zes), GET /quizzes/:quizId/export,
   POST /quizzes/:id/attempt, DELETE /quizzes/:id
 - Chat: POST /chat, POST /chat/:chatId/message, GET /chat, GET /chat/:chatId, DELETE /chat/:chatId
 - Payment: GET /payment/plans, POST /payment/order, POST /payment/verify
 - Analytics: GET /analytics/me
+- Notifications: GET /notifications, PATCH /notifications/:id/read, PATCH /notifications/read-all
+- Contact: POST /contact (public)
 - Admin: GET /announcements/active (public), GET /admin/overview, GET /admin/analytics, GET /admin/users,
-  PATCH /admin/users/:id/ban|unban|role, GET /admin/payments, GET /admin/audit, GET /admin/ai-logs,
+  PATCH /admin/users/:id/ban|unban|role, GET /admin/payments, PATCH /admin/payments/:id/refund,
+  GET /admin/audit, GET /admin/ai-logs, GET /admin/contact-messages,
+  POST /admin/contact-messages/:id/reply, POST /admin/contact-messages/:id/notes,
   GET/POST /admin/announcements, PATCH /admin/announcements/:id/deactivate
 - External: POST /external/summarize (API-key auth)
 - Misc: GET /csrf-token

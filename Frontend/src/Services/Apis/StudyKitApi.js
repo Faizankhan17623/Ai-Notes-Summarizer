@@ -7,9 +7,11 @@ export const StudyKitData = {
     reviewFlashcard: BASE_URL + "/flashcards",   // + /:id/review
     deleteFlashcard: BASE_URL + "/flashcards",   // + /:id
     exportReviewQueue: BASE_URL + "/flashcards/review/export",
+    exportFlashcardDeck: BASE_URL + "/notes",    // + /:noteId/flashcards/export
 
     generateQuiz: BASE_URL + "/notes",           // + /:noteId/quiz
     quizzesForNote: BASE_URL + "/notes",         // + /:noteId/quizzes
     attemptQuiz: BASE_URL + "/quizzes",          // + /:id/attempt
     deleteQuiz: BASE_URL + "/quizzes",           // + /:id
+    exportQuiz: BASE_URL + "/quizzes",           // + /:quizId/export
 }

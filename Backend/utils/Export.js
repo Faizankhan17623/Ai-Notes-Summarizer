@@ -133,4 +133,74 @@ const toReviewQueuePdf = (flashcards) => {
     })
 }
 
-module.exports = { toMarkdown, toPdf, toDocx, toReviewQueuePdf }
+// ---------- Flashcard deck PDF ----------
+// exports every flashcard for ONE note as a printable deck sir — unlike toReviewQueuePdf
+// (which is cross-note and due-date-only), this is the full deck for a single note regardless
+// of due date, so a user can print/study a note's whole set offline
+
+const toFlashcardDeckPdf = (note, flashcards) => {
+    return new Promise((resolve, reject) => {
+        const doc = new PDFDocument({ margin: 50 })
+        const chunks = []
+
+        doc.on('data', (chunk) => chunks.push(chunk))
+        doc.on('end', () => resolve(Buffer.concat(chunks)))
+        doc.on('error', reject)
+
+        doc.fontSize(20).text(note.summary?.title || note.title, { underline: true })
+        doc.moveDown(0.3)
+        doc.fontSize(11).fillColor('gray').text(`${flashcards.length} card${flashcards.length === 1 ? '' : 's'} — generated ${new Date().toLocaleDateString()}`)
+        doc.moveDown(1.5)
+
+        flashcards.forEach((card, i) => {
+            doc.fillColor('black').fontSize(13).text(`${i + 1}. ${card.front}`)
+            doc.fontSize(11).fillColor('gray').text(`   ${card.back}`)
+            doc.moveDown(0.8)
+        })
+
+        doc.end()
+    })
+}
+
+// ---------- Quiz PDF ----------
+// exports one quiz as a printable answer sheet sir — questions + options first, then an
+// answer key at the end so it can be studied "quiz yourself first" style
+
+const toQuizPdf = (note, quiz) => {
+    return new Promise((resolve, reject) => {
+        const doc = new PDFDocument({ margin: 50 })
+        const chunks = []
+
+        doc.on('data', (chunk) => chunks.push(chunk))
+        doc.on('end', () => resolve(Buffer.concat(chunks)))
+        doc.on('error', reject)
+
+        doc.fontSize(20).text(note.summary?.title || note.title, { underline: true })
+        doc.moveDown(0.3)
+        doc.fontSize(11).fillColor('gray').text(`${quiz.questions.length} question${quiz.questions.length === 1 ? '' : 's'} — generated ${new Date().toLocaleDateString()}`)
+        doc.moveDown(1.5)
+
+        const letters = ['A', 'B', 'C', 'D', 'E', 'F']
+        quiz.questions.forEach((q, i) => {
+            doc.fillColor('black').fontSize(13).text(`${i + 1}. ${q.question}`)
+            doc.moveDown(0.2)
+            q.options.forEach((opt, j) => {
+                doc.fontSize(11).text(`   ${letters[j] || j + 1}. ${opt}`)
+            })
+            doc.moveDown(0.8)
+        })
+
+        doc.addPage()
+        doc.fontSize(16).text('Answer Key', { underline: true })
+        doc.moveDown()
+        quiz.questions.forEach((q, i) => {
+            const correctLetter = letters[q.correctIndex] || q.correctIndex + 1
+            doc.fontSize(11).fillColor('black').text(`${i + 1}. ${correctLetter}${q.explanation ? ` — ${q.explanation}` : ''}`)
+            doc.moveDown(0.3)
+        })
+
+        doc.end()
+    })
+}
+
+module.exports = { toMarkdown, toPdf, toDocx, toReviewQueuePdf, toFlashcardDeckPdf, toQuizPdf }

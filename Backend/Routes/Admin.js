@@ -20,7 +20,7 @@ const {
     createAnnouncement,
     deactivateAnnouncement,
 } = require('../controllers/Admin.js')
-const { getContactMessages, replyToContactMessage } = require('../controllers/Contact.js')
+const { getContactMessages, replyToContactMessage, addInternalNote } = require('../controllers/Contact.js')
 
 // public sir — the frontend banner reads this on every page, no login required
 route.get('/announcements/active', getActiveAnnouncement)
@@ -35,6 +35,9 @@ route.get('/admin/contact-messages', Auth, isSupport, getContactMessages)
 // replying/resolving a ticket is exactly the "help" action Support exists for sir — no
 // destructive/site-wide effect, so this stays isSupport too, not isAdmin
 route.post('/admin/contact-messages/:messageId/reply', doubleCsrfProtection, Auth, isSupport, replyToContactMessage)
+// private handoff notes sir — same isSupport gate as reply above, never visible to the
+// submitter, only ever read back through this same Support/Admin-gated list endpoint
+route.post('/admin/contact-messages/:messageId/notes', doubleCsrfProtection, Auth, isSupport, addInternalNote)
 
 // everything below is Admin only sir — either destructive (ban/unban/role change), a
 // site-wide write (announcements), or oversight OF admins themselves (audit log/analytics)

@@ -5,7 +5,7 @@ import { setFlashcards, setDueFlashcards, setQuizzes, setActiveQuiz, setLoading 
 
 const {
     generateFlashcards, flashcardsForNote, dueFlashcards, reviewFlashcard, deleteFlashcard,
-    generateQuiz, quizzesForNote, attemptQuiz, deleteQuiz, exportReviewQueue
+    generateQuiz, quizzesForNote, attemptQuiz, deleteQuiz, exportReviewQueue, exportFlashcardDeck, exportQuiz
 } = StudyKitData
 
 // ---------- Flashcards ----------
@@ -151,6 +151,38 @@ export function ExportReviewQueue(token) {
     }
 }
 
+// downloads every flashcard for ONE note as a printable deck PDF sir — same blob/object-URL
+// pattern as ExportReviewQueue above, but scoped to a single note regardless of due date
+export function ExportFlashcardDeck(noteId, title, token) {
+    return async () => {
+        const toastId = toast.loading("Preparing your flashcard deck PDF...")
+        try {
+            const response = await axiosinstance({
+                method: 'GET',
+                url: `${exportFlashcardDeck}/${noteId}/flashcards/export`,
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: 'blob',
+            })
+
+            const url = window.URL.createObjectURL(new Blob([response.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', `${title || 'deck'}-flashcards.pdf`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+
+            toast.success('Export ready')
+        } catch (error) {
+            console.error("Error exporting the flashcard deck", error)
+            toast.error(error?.response?.data?.message || "Could not export the flashcard deck")
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
 // ---------- Quiz ----------
 
 export function GenerateQuiz(noteId, count, token) {
@@ -214,6 +246,38 @@ export function AttemptQuiz(quizId, answers, token) {
             console.error("Error submitting quiz attempt", error)
             toast.error(error?.response?.data?.message || "Could not submit your answers")
             return null
+        }
+    }
+}
+
+// downloads one quiz as a printable question sheet + answer key PDF sir — same blob/object-URL
+// pattern as ExportReviewQueue/ExportFlashcardDeck above
+export function ExportQuiz(quizId, title, token) {
+    return async () => {
+        const toastId = toast.loading("Preparing your quiz PDF...")
+        try {
+            const response = await axiosinstance({
+                method: 'GET',
+                url: `${exportQuiz}/${quizId}/export`,
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: 'blob',
+            })
+
+            const url = window.URL.createObjectURL(new Blob([response.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', `${title || 'quiz'}-quiz.pdf`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+
+            toast.success('Export ready')
+        } catch (error) {
+            console.error("Error exporting the quiz", error)
+            toast.error(error?.response?.data?.message || "Could not export the quiz")
+        } finally {
+            toast.dismiss(toastId)
         }
     }
 }

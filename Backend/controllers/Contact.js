@@ -43,11 +43,46 @@ exports.submitContactMessage = async (req, res) => {
 // GET /admin/contact-messages sir — lets Support/Admin actually review what came in
 exports.getContactMessages = async (req, res) => {
     try {
-        const messages = await ContactMessage.find().populate('repliedBy', 'firstName lastName').sort({ createdAt: -1 }).limit(200)
+        const messages = await ContactMessage.find()
+            .populate('repliedBy', 'firstName lastName')
+            .populate('internalNotes.author', 'firstName lastName')
+            .sort({ createdAt: -1 })
+            .limit(200)
         return res.status(200).json({ success: true, messages })
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to load contact messages' })
+    }
+}
+
+// POST /admin/contact-messages/:messageId/notes sir — Support/Admin-only handoff note,
+// never emailed to the submitter and never returned by any public endpoint (getSharedNote-
+// style leakage isn't possible here since ContactMessage has no public GET at all)
+exports.addInternalNote = async (req, res) => {
+    try {
+        const { messageId } = req.params
+        const { text } = req.body
+
+        if (!text || !text.trim()) {
+            return res.status(400).json({ success: false, message: 'Note text is required' })
+        }
+
+        const contactMessage = await ContactMessage.findById(messageId)
+        if (!contactMessage) {
+            return res.status(404).json({ success: false, message: 'Contact message not found' })
+        }
+
+        contactMessage.internalNotes.push({ text: text.trim(), author: req.User.id })
+        await contactMessage.save()
+        await contactMessage.populate('internalNotes.author', 'firstName lastName')
+
+        return res.status(201).json({
+            success: true,
+            internalNotes: contactMessage.internalNotes,
+        })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to add the note' })
     }
 }
 
