@@ -8,9 +8,13 @@ import StatusBadge from './StatusBadge.jsx'
 
 const Users = () => {
     const dispatch = useDispatch()
-    const { token } = useSelector((state) => state.auth)
+    const { token, user } = useSelector((state) => state.auth)
     const { users, loading } = useSelector((state) => state.admin)
     const [search, setSearch] = useState('')
+    // ban/unban and role changes are Admin-only sir — Support can look users up to help them,
+    // but the backend 403s these calls for Support too, so hide the controls rather than let
+    // them click something that just fails
+    const isAdmin = user?.role === 'Admin'
 
     useEffect(() => {
         dispatch(GetUsers(token, 1, search))
@@ -70,22 +74,26 @@ const Users = () => {
                                         <td className="py-3 px-4 text-richblack-5">{u.firstName} {u.lastName}</td>
                                         <td className="py-3 px-4">{u.email}</td>
                                         <td className="py-3 px-4">
-                                            <select
-                                                value={u.role}
-                                                onChange={(e) => dispatch(SetRole(u._id, e.target.value, token))}
-                                                className="bg-surface-hover border border-border-soft rounded px-2 py-1 text-richblack-200 outline-none focus:border-yellow-50"
-                                            >
-                                                <option value="User">User</option>
-                                                <option value="Support">Support</option>
-                                                <option value="Admin">Admin</option>
-                                            </select>
+                                            {isAdmin ? (
+                                                <select
+                                                    value={u.role}
+                                                    onChange={(e) => dispatch(SetRole(u._id, e.target.value, token))}
+                                                    className="bg-surface-hover border border-border-soft rounded px-2 py-1 text-richblack-200 outline-none focus:border-yellow-50"
+                                                >
+                                                    <option value="User">User</option>
+                                                    <option value="Support">Support</option>
+                                                    <option value="Admin">Admin</option>
+                                                </select>
+                                            ) : (
+                                                <span className="text-richblack-300">{u.role}</span>
+                                            )}
                                         </td>
                                         <td className="py-3 px-4 font-mono text-xs">{u.SubType}</td>
                                         <td className="py-3 px-4">
                                             {u.isBanned ? <StatusBadge tone="danger">Banned</StatusBadge> : <StatusBadge tone="good">Active</StatusBadge>}
                                         </td>
                                         <td className="py-3 px-4">
-                                            {u.isBanned ? (
+                                            {!isAdmin ? null : u.isBanned ? (
                                                 <button onClick={() => dispatch(UnbanUser(u._id, token))} className="text-good text-xs font-medium cursor-pointer hover:underline">Unban</button>
                                             ) : (
                                                 <button onClick={() => handleBan(u._id)} className="text-danger-soft text-xs font-medium cursor-pointer hover:underline">Ban</button>

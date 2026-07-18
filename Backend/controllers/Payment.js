@@ -14,6 +14,15 @@ const PRICE_INR = {
 // accepts EITHER { plan } (existing subscription upgrade flow) OR { packKey } (one-time credit top-up)
 exports.createOrder = async (req, res) => {
     try {
+        // Admin accounts are internal/staff accounts sir — they shouldn't be spending real
+        // money through the app, so purchases are blocked at the point of order creation
+        if (req.User.role === 'Admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Admin accounts cannot make purchases',
+            })
+        }
+
         const { plan, packKey } = req.body
 
         let amount, paymentDoc

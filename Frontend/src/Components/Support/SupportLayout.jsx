@@ -1,22 +1,19 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { FaChartLine, FaChartBar, FaUsers, FaCreditCard, FaClipboardList, FaBullhorn } from 'react-icons/fa'
+import { FaChartLine, FaUsers, FaCreditCard } from 'react-icons/fa'
 import Navbar from '../Home/Navbar.jsx'
 
-// Admin-only sir — Support has its own separate dashboard (SupportLayout) with its own,
-// smaller nav, so this list never needs to be filtered by role
+// Support's own dashboard sir — separate from AdminLayout entirely, not a filtered copy of it.
+// Only the 3 "view/help" pages the backend actually lets Support call (see isSupport in
+// Routes/Admin.js): Overview, Users (read + search, no ban/role controls), Payments (read-only)
 const navItems = [
-    { to: '/Admin', label: 'Overview', icon: FaChartLine, end: true },
-    { to: '/Admin/Analytics', label: 'Analytics', icon: FaChartBar },
-    { to: '/Admin/Users', label: 'Users', icon: FaUsers },
-    { to: '/Admin/Payments', label: 'Payments', icon: FaCreditCard },
-    { to: '/Admin/Audit', label: 'Audit log', icon: FaClipboardList },
-    { to: '/Admin/Announcements', label: 'Announcements', icon: FaBullhorn },
+    { to: '/Support', label: 'Overview', icon: FaChartLine, end: true },
+    { to: '/Support/Users', label: 'Users', icon: FaUsers },
+    { to: '/Support/Payments', label: 'Payments', icon: FaCreditCard },
 ]
 
-// persistent sidebar shell for every admin page sir — same pattern as Dashboard/DashboardLayout.jsx,
-// wraps the admin routes via an Outlet (see App.jsx) so Navbar + nav render exactly once
-// instead of every page re-rendering its own copy
-const AdminLayout = () => {
+// same shell pattern as AdminLayout.jsx / Dashboard/DashboardLayout.jsx sir — one persistent
+// sidebar via Outlet instead of every page rendering its own Navbar+nav
+const SupportLayout = () => {
     return (
         <div className="min-h-screen bg-richblack-900">
             <Navbar />
@@ -48,4 +45,4 @@ const AdminLayout = () => {
     )
 }
 
-export default AdminLayout
+export default SupportLayout

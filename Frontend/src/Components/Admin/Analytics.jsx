@@ -1,6 +1,10 @@
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
+import {
+    ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
+    CartesianGrid, Tooltip,
+} from 'recharts'
 import { GetAnalytics } from '../../Services/operations/Admin.js'
 
 const StatCard = ({ label, value }) => (
@@ -10,33 +14,90 @@ const StatCard = ({ label, value }) => (
     </div>
 )
 
-// simple dependency-free bar chart sir — one hue for a single magnitude series,
-// thin bars with rounded data-ends, a shared baseline, direct axis labels only at
-// the min/max ticks to avoid clutter
-const BarChart = ({ data, valueKey, formatValue = (v) => v }) => {
+// shared tooltip sir — one dark/light-aware card instead of recharts' default (which
+// ignores the app's theme tokens entirely)
+const ChartTooltip = ({ active, payload, label, formatValue = (v) => v }) => {
+    if (!active || !payload?.length) return null
+    return (
+        <div className="bg-surface-raised border border-border-soft rounded-md px-3 py-2 text-xs shadow-lg">
+            <p className="text-richblack-400 mb-1">{label}</p>
+            {payload.map((p) => (
+                <p key={p.dataKey} className="text-richblack-5 font-mono font-semibold">
+                    {formatValue(p.value)}
+                </p>
+            ))}
+        </div>
+    )
+}
+
+// revenue over time sir — a single magnitude series, so a filled area (not a categorical
+// palette) reads best; thin 2px line, gridlines recessive, direct axis labels only at the
+// ticks recharts already chooses (no per-point label clutter)
+const RevenueChart = ({ data }) => {
+    if (!data || data.length === 0) {
+        return <p className="text-richblack-400 text-sm">No revenue in this window yet.</p>
+    }
+    return (
+        <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                    <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity={0} />
+                    </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-soft)" vertical={false} />
+                <XAxis
+                    dataKey="_id"
+                    tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={{ stroke: 'var(--color-border-soft)' }}
+                    minTickGap={24}
+                />
+                <YAxis
+                    tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v) => `₹${v}`}
+                    width={56}
+                />
+                <Tooltip content={<ChartTooltip formatValue={(v) => `₹${v}`} />} cursor={{ stroke: 'var(--color-border-soft)' }} />
+                <Area
+                    type="monotone"
+                    dataKey="total"
+                    stroke="var(--color-chart-1)"
+                    strokeWidth={2}
+                    fill="url(#revenueFill)"
+                    dot={false}
+                    activeDot={{ r: 4, fill: 'var(--color-chart-1)', stroke: 'var(--color-surface)', strokeWidth: 2 }}
+                />
+            </AreaChart>
+        </ResponsiveContainer>
+    )
+}
+
+// discrete daily counts sir — bars fit better than a line for signups/top-ups, same
+// thin-mark + recessive-grid treatment, rounded data-ends via radius
+const CountBarChart = ({ data, valueKey, color, formatValue = (v) => v }) => {
     if (!data || data.length === 0) {
         return <p className="text-richblack-400 text-sm">No data in this window yet.</p>
     }
-
-    const max = Math.max(...data.map((d) => d[valueKey]), 1)
-
     return (
-        <div className="flex items-end gap-1 h-40 overflow-x-auto">
-            {data.map((d) => {
-                const heightPct = Math.max((d[valueKey] / max) * 100, 2)
-                return (
-                    <div key={d._id} className="flex flex-col items-center justify-end h-full min-w-[10px] flex-1 group relative">
-                        <div className="text-[10px] text-richblack-400 mb-1 opacity-0 group-hover:opacity-100 whitespace-nowrap absolute -top-5 bg-surface-raised border border-border-soft px-1.5 py-0.5 rounded">
-                            {d._id}: {formatValue(d[valueKey])}
-                        </div>
-                        <div
-                            className="w-full bg-yellow-50 rounded-t-sm"
-                            style={{ height: `${heightPct}%` }}
-                        />
-                    </div>
-                )
-            })}
-        </div>
+        <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-soft)" vertical={false} />
+                <XAxis
+                    dataKey="_id"
+                    tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={{ stroke: 'var(--color-border-soft)' }}
+                    minTickGap={24}
+                />
+                <YAxis tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }} tickLine={false} axisLine={false} width={40} />
+                <Tooltip content={<ChartTooltip formatValue={formatValue} />} cursor={{ fill: 'var(--color-surface-hover)' }} />
+                <Bar dataKey={valueKey} fill={color} radius={[3, 3, 0, 0]} maxBarSize={28} />
+            </BarChart>
+        </ResponsiveContainer>
     )
 }
 
@@ -62,12 +123,12 @@ const Analytics = () => {
                 <>
                     <div className="border border-border-soft bg-surface rounded-lg p-6">
                         <h2 className="text-richblack-5 font-semibold mb-4">Revenue — last 30 days</h2>
-                        <BarChart data={analytics.revenue.byDay} valueKey="total" formatValue={(v) => `₹${v}`} />
+                        <RevenueChart data={analytics.revenue.byDay} />
                     </div>
 
                     <div className="border border-border-soft bg-surface rounded-lg p-6">
                         <h2 className="text-richblack-5 font-semibold mb-4">New signups — last 30 days</h2>
-                        <BarChart data={analytics.signups.byDay} valueKey="count" />
+                        <CountBarChart data={analytics.signups.byDay} valueKey="count" color="var(--color-chart-2)" />
                     </div>
 
                     <div className="border border-border-soft bg-surface rounded-lg p-6">
@@ -115,7 +176,7 @@ const Analytics = () => {
                             <StatCard label="Top-up credits granted (all time)" value={analytics.creditStats.topUps.totals.totalCreditsGranted} />
                         </div>
                         <h3 className="text-richblack-200 text-sm font-semibold mb-2">Top-up purchases — last 30 days</h3>
-                        <BarChart data={analytics.creditStats.topUps.byDay} valueKey="count" />
+                        <CountBarChart data={analytics.creditStats.topUps.byDay} valueKey="count" color="var(--color-chart-3)" />
                     </div>
                 </>
             )}

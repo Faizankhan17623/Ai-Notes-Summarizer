@@ -91,7 +91,11 @@ export function LoginUser(email, password, navigate) {
             localStorage.setItem("user", JSON.stringify(response.data.user))
             // the CSRF secret cookie is freshly (re)set on login sir — refresh the in-memory token to match
             dispatch(FetchCsrfToken())
-            if (navigate) navigate("/Dashboard")
+            // each role lands on its own separate dashboard sir, never another role's
+            // (PrivateRoute/AdminRoute/SupportRoute enforce this too, this just skips the redirect flash)
+            const role = response.data.user?.role
+            const landingPath = role === 'Admin' ? '/Admin' : role === 'Support' ? '/Support' : '/Dashboard'
+            if (navigate) navigate(landingPath)
         } catch (error) {
             console.error("Error logging in", error)
             toast.error(error?.response?.data?.message || "Could not log in")

@@ -9,6 +9,7 @@ import Footer from './Components/Home/Footer'
 import OpenRoute from './Hooks/OpenRoute'
 import PrivateRoute from './Hooks/PrivateRoute'
 import AdminRoute from './Hooks/AdminRoute'
+import SupportRoute from './Hooks/SupportRoute'
 import ScrollToTop from './Components/extra/ScrollToTop'
 import AnnouncementBanner from './Components/extra/AnnouncementBanner'
 import { pageTransition } from './Components/extra/motionVariants.js'
@@ -46,6 +47,7 @@ const AdminUsers = lazy(() => import('./Components/Admin/Users'))
 const AdminPayments = lazy(() => import('./Components/Admin/Payments'))
 const AdminAudit = lazy(() => import('./Components/Admin/Audit'))
 const AdminAnnouncements = lazy(() => import('./Components/Admin/Announcements'))
+const SupportLayout = lazy(() => import('./Components/Support/SupportLayout'))
 
 const PageLoader = () => (
   <div className="min-h-screen bg-richblack-900 flex items-center justify-center">
@@ -125,8 +127,8 @@ function App() {
               <Route path="/Dashboard/Account" element={<PageFade><Account /></PageFade>} />
             </Route>
 
-            {/* Admin and Support only sir — the backend re-checks the role on every call anyway.
-                One shared sidebar shell via Outlet instead of every page rendering its own Navbar+AdminNav */}
+            {/* Admin only sir — Support has its own completely separate dashboard below, not a
+                filtered view of this one. The backend re-checks the role on every call anyway. */}
             <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
               <Route path="/Admin" element={<PageFade><AdminOverview /></PageFade>} />
               <Route path="/Admin/Analytics" element={<PageFade><AdminAnalytics /></PageFade>} />
@@ -134,6 +136,16 @@ function App() {
               <Route path="/Admin/Payments" element={<PageFade><AdminPayments /></PageFade>} />
               <Route path="/Admin/Audit" element={<PageFade><AdminAudit /></PageFade>} />
               <Route path="/Admin/Announcements" element={<PageFade><AdminAnnouncements /></PageFade>} />
+            </Route>
+
+            {/* Support only sir — its own dashboard at /Support, reusing the same Overview/Users/
+                Payments components (they're role-agnostic, read from the same Redux state and
+                hit the same endpoints Support is allowed to call) but never AdminLayout's shell
+                or its Admin-only tabs */}
+            <Route element={<SupportRoute><SupportLayout /></SupportRoute>}>
+              <Route path="/Support" element={<PageFade><AdminOverview /></PageFade>} />
+              <Route path="/Support/Users" element={<PageFade><AdminUsers /></PageFade>} />
+              <Route path="/Support/Payments" element={<PageFade><AdminPayments /></PageFade>} />
             </Route>
 
             {/* anything unknown goes home sir */}

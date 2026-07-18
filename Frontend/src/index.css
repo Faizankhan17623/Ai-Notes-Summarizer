@@ -45,6 +45,14 @@
   --color-warn: #ffb454;
   --color-danger-soft: #ff8fa3;
 
+  /* chart series colors sir — the brand accents (yellow/violet/green above) are tuned bright
+     for buttons/badges and fail the chart-series lightness band, so Admin/Analytics charts use
+     these instead: validated via the dataviz skill's validate_palette.js against this exact
+     dark surface (#12151f), one hue per single-series chart (revenue/signups/topups) */
+  --color-chart-1: #3987e5;
+  --color-chart-2: #008300;
+  --color-chart-3: #9085e9;
+
   /* --font-sans used to reference 'Inter', which was never actually loaded anywhere (no
      link tag, no @font-face) sir — it was silently falling back to system-ui this whole
      time. Making that fallback the honest default instead of a broken promise. Fraunces is
@@ -109,6 +117,12 @@
   --color-good: #1f8f68;
   --color-warn: #b8720a;
   --color-danger-soft: #c2415a;
+
+  /* same chart series tokens, re-stepped for the light surface (#ffffff) sir — validated
+     via the dataviz skill's validate_palette.js */
+  --color-chart-1: #2a78d6;
+  --color-chart-2: #008300;
+  --color-chart-3: #4a3aa7;
 }
 
 body {

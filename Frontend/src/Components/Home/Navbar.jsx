@@ -43,16 +43,26 @@ const Navbar = ({ showMegaMenu = false }) => {
                                 Pricing
                             </Link>
                         )}
-                        <Link to="/Dashboard" className="text-richblack-100 hover:text-richblack-25 text-sm">
-                            Dashboard
-                        </Link>
-                        <Link to="/Dashboard/Review" className="text-richblack-100 hover:text-richblack-25 text-sm">
-                            Review
-                        </Link>
-                        {['Admin', 'Support'].includes(user?.role) && (
+                        {/* Admin and Support each have their own separate dashboard sir — the normal
+                            user Dashboard/Review links would just bounce them via PrivateRoute, so
+                            show only the link to whichever dashboard this role actually owns */}
+                        {user?.role === 'Admin' ? (
                             <Link to="/Admin" className="text-richblack-100 hover:text-richblack-25 text-sm">
                                 Admin
                             </Link>
+                        ) : user?.role === 'Support' ? (
+                            <Link to="/Support" className="text-richblack-100 hover:text-richblack-25 text-sm">
+                                Support
+                            </Link>
+                        ) : (
+                            <>
+                                <Link to="/Dashboard" className="text-richblack-100 hover:text-richblack-25 text-sm">
+                                    Dashboard
+                                </Link>
+                                <Link to="/Dashboard/Review" className="text-richblack-100 hover:text-richblack-25 text-sm">
+                                    Review
+                                </Link>
+                            </>
                         )}
                         <button
                             onClick={() => dispatch(LogoutUser(navigate))}

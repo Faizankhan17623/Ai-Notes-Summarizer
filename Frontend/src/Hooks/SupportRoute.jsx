@@ -1,10 +1,9 @@
 import { useSelector } from "react-redux"
 import { Navigate } from "react-router-dom"
 
-// the normal user dashboard sir — Admin and Support each have their own separate dashboard
-// (/Admin, /Support) and don't belong here, same way a plain User is bounced OUT of those by
-// AdminRoute/SupportRoute
-function PrivateRoute({ children }) {
+// Support-only sir — a separate dashboard from Admin's, never shared. An Admin landing here
+// (e.g. by typing the URL) is bounced to their own /Admin dashboard, not shown Support's view.
+function SupportRoute({ children }) {
     const { token, user } = useSelector((state) => state.auth)
 
     if (token === null) {
@@ -14,9 +13,9 @@ function PrivateRoute({ children }) {
         return <Navigate to="/Admin" />
     }
     if (user?.role === 'Support') {
-        return <Navigate to="/Support" />
+        return children
     }
-    return children
+    return <Navigate to="/" />
 }
 
-export default PrivateRoute
+export default SupportRoute
