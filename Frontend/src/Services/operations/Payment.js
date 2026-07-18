@@ -1,12 +1,12 @@
 import toast from "react-hot-toast"
 import { apiConnector } from "../apiConnector.js"
 import { PaymentData } from "../Apis/PaymentApi.js"
-import { setPlans, setCreditPacks, setPaymentsLive, setLoading } from "../../Slices/paymentSlice.js"
+import { setPlans, setCreditPacks, setPaymentsLive, setLoading, setHistory } from "../../Slices/paymentSlice.js"
 import { setUser } from "../../Slices/authSlice.js"
 import { GetProfile } from "./Auth.js"
 import { loadRazorpayScript } from "../../utils/loadRazorpay.js"
 
-const { plans, createOrder, verifyPayment } = PaymentData
+const { plans, createOrder, verifyPayment, history } = PaymentData
 
 export function GetPlans() {
     return async (dispatch) => {
@@ -25,6 +25,25 @@ export function GetPlans() {
             console.error("Error fetching plans", error)
         } finally {
             dispatch(setLoading(false))
+        }
+    }
+}
+
+// GET /payment/history sir — the account page's purchase history list, paid rows only
+export function GetPurchaseHistory(token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", history, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            dispatch(setHistory(response.data.payments))
+        } catch (error) {
+            console.error("Error fetching purchase history", error)
         }
     }
 }
@@ -115,7 +134,7 @@ export function StartCheckout(plan, token, userInfo) {
                     razorpay_order_id: response.razorpay_order_id,
                     razorpay_payment_id: response.razorpay_payment_id,
                     razorpay_signature: response.razorpay_signature,
-                }, token))
+                }, token)).then(() => dispatch(GetPurchaseHistory(token)))
             },
             prefill: {
                 name: userInfo?.firstName ? `${userInfo.firstName} ${userInfo.lastName || ''}`.trim() : '',
@@ -157,7 +176,10 @@ export function StartCreditPackCheckout(packKey, token, userInfo) {
                     razorpay_order_id: response.razorpay_order_id,
                     razorpay_payment_id: response.razorpay_payment_id,
                     razorpay_signature: response.razorpay_signature,
-                }, token)).then(() => dispatch(GetProfile(token)))
+                }, token)).then(() => {
+                    dispatch(GetProfile(token))
+                    dispatch(GetPurchaseHistory(token))
+                })
             },
             prefill: {
                 name: userInfo?.firstName ? `${userInfo.firstName} ${userInfo.lastName || ''}`.trim() : '',

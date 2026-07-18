@@ -9,7 +9,7 @@ import {
     GetProfile, UpdateFirstName, UpdateLastName, UpdateDigestPreference, UpdateDailyGoal, UpdatePassword,
     DeleteAccount, RecoverAccount, LogoutUser
 } from '../../Services/operations/Auth.js'
-import { GetPlans, StartCreditPackCheckout } from '../../Services/operations/Payment.js'
+import { GetPlans, GetPurchaseHistory, StartCreditPackCheckout } from '../../Services/operations/Payment.js'
 import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
 import Input from '../extra/Input.jsx'
@@ -28,7 +28,7 @@ const Account = () => {
     const navigate = useNavigate()
     const { token, user } = useSelector((state) => state.auth)
     const { profile, plan, activity, loading } = useSelector((state) => state.profile)
-    const { creditPacks, paymentsLive } = useSelector((state) => state.payment)
+    const { creditPacks, paymentsLive, history } = useSelector((state) => state.payment)
     // only used by the (currently hidden) API access section below
     // const isPaidPlan = user?.SubType && user.SubType !== 'Basic'
 
@@ -46,6 +46,10 @@ const Account = () => {
     useEffect(() => {
         dispatch(GetPlans())
     }, [dispatch])
+
+    useEffect(() => {
+        dispatch(GetPurchaseHistory(token))
+    }, [dispatch, token])
 
     useEffect(() => {
         if (profile) {
@@ -151,6 +155,35 @@ const Account = () => {
                                     />
                                 </div>
                             ))}
+                        </div>
+                    </SectionCard>
+                )}
+
+                {history.length > 0 && (
+                    <SectionCard title="Purchase history">
+                        <div className="overflow-x-auto -mx-2">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="text-left text-richblack-400 text-xs uppercase tracking-wide">
+                                        <th className="px-2 pb-2 font-medium">Date</th>
+                                        <th className="px-2 pb-2 font-medium">Item</th>
+                                        <th className="px-2 pb-2 font-medium">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {history.map((p) => (
+                                        <tr key={p._id} className="border-t border-border-soft">
+                                            <td className="px-2 py-2 text-richblack-300">
+                                                {new Date(p.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                                            </td>
+                                            <td className="px-2 py-2 text-richblack-5">
+                                                {p.plan === 'CreditPack' ? `Credit pack (+${p.creditsGranted} credits)` : `${p.plan} plan upgrade`}
+                                            </td>
+                                            <td className="px-2 py-2 text-richblack-5 font-mono">₹{p.amount}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </SectionCard>
                 )}

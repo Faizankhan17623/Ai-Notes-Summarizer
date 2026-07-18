@@ -4,7 +4,8 @@ const initialState = {
     plans: [],
     creditPacks: [],
     paymentsLive: false,
-    loading: false
+    loading: false,
+    history: []
 }
 
 const paymentSlice = createSlice({
@@ -22,9 +23,12 @@ const paymentSlice = createSlice({
         },
         setLoading(state, value) {
             state.loading = value.payload
+        },
+        setHistory(state, value) {
+            state.history = value.payload
         }
     }
 })
 
-export const { setPlans, setCreditPacks, setPaymentsLive, setLoading } = paymentSlice.actions
+export const { setPlans, setCreditPacks, setPaymentsLive, setLoading, setHistory } = paymentSlice.actions
 export default paymentSlice.reducer

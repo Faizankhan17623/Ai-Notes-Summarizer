@@ -192,6 +192,25 @@ exports.verifyPayment = async (req, res) => {
     }
 }
 
+// GET /payment/history — the logged-in user's own purchase history sir, most recent first.
+// only 'paid' rows are shown — 'created'/'failed' rows are checkout attempts the user never
+// actually completed, and would just be confusing clutter in a receipts list
+exports.getPaymentHistory = async (req, res) => {
+    try {
+        const payments = await Payment.find({ user: req.User.id, status: 'paid' })
+            .sort({ createdAt: -1 })
+            .select('plan amount creditsGranted currency status createdAt')
+
+        return res.status(200).json({ success: true, payments })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to load purchase history',
+        })
+    }
+}
+
 // GET /payment/plans — the public plan comparison table sir, always available even in stub mode
 exports.getPlans = async (req, res) => {
     return res.status(200).json({
