@@ -22,6 +22,12 @@ exports.loginRules = [
 exports.sendOtpRules = [body('email').trim().isEmail().normalizeEmail()]
 exports.forgotPasswordRules = [body('email').trim().isEmail().normalizeEmail()]
 
+exports.contactRules = [
+    body('name').trim().notEmpty().isLength({ max: 100 }),
+    body('email').trim().isEmail().normalizeEmail(),
+    body('message').trim().notEmpty().isLength({ min: 10, max: 2000 }),
+]
+
 exports.resetPasswordRules = [
     body('token').trim().notEmpty(),
     body('newPassword').custom(isStrongPassword).withMessage(strongPasswordMessage),

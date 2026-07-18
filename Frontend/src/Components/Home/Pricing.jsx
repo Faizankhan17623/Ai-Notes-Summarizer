@@ -34,6 +34,11 @@ const COMPARISON_ROWS = [
     { label: 'Bulk file uploads per month', basic: '10', pro: '80', proMax: '150' },
     { label: 'Audio summaries per month', basic: '10', pro: '80', proMax: '150' },
     { label: 'Extra credit top-up packs', basic: true, pro: true, proMax: false },
+    { section: 'AI model' },
+    // mirrors Backend/utils/Plans.js MODEL_CATALOG sir — Basic has no choice (empty list there),
+    // update the counts here if the catalog's model list per tier changes
+    { label: 'Choice of AI model', basic: false, pro: true, proMax: true },
+    { label: 'Models to choose from', basic: '1 (fixed)', pro: '2', proMax: '5' },
 ]
 
 const Cell = ({ value }) => {
@@ -73,27 +78,41 @@ const Pricing = () => {
                 </p>
 
                 <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-                    {plans.map((plan) => (
-                        <div key={plan.key} className={`border bg-surface rounded-lg p-6 flex flex-col ${plan.key === user?.SubType ? 'border-yellow-50' : 'border-border-soft'}`}>
-                            <h2 className="text-xl font-bold text-richblack-5 mb-2">{plan.name}</h2>
-                            <p className="text-3xl font-bold text-yellow-50 mb-4">
-                                {plan.priceInr ? `₹${plan.priceInr}/mo` : "Free"}
-                            </p>
-                            <ul className="text-richblack-200 text-sm space-y-2 mb-6 flex-1">
-                                <li>{plan.credits === null ? "Unlimited" : plan.credits} summaries / month</li>
-                                <li>{plan.maxMessagesPerChat === null ? "Unlimited" : plan.maxMessagesPerChat} messages per chat</li>
-                                <li>{plan.featureLimits?.docSummary === null ? "Unlimited" : plan.featureLimits?.docSummary} document summaries / month</li>
-                                <li>{plan.featureLimits?.bulkSummary === null ? "Unlimited" : plan.featureLimits?.bulkSummary} bulk uploads / month</li>
-                                <li>{plan.featureLimits?.audioSummary === null ? "Unlimited" : plan.featureLimits?.audioSummary} audio summaries / month</li>
-                                <li>{plan.key === 'Basic' ? "Key points + action items" : plan.key === 'Pro' ? "+ Sections & key terms" : "+ Quiz & flashcards"}</li>
-                            </ul>
-                            <IconBtn
-                                text={plan.key === user?.SubType ? "Current plan" : plan.key === 'Basic' ? "Included free" : "Upgrade"}
-                                disabled={plan.key === user?.SubType || plan.key === 'Basic'}
-                                onclick={() => handleUpgrade(plan.key)}
-                            />
-                        </div>
-                    ))}
+                    {plans.map((plan) => {
+                        // Pro is the recommended tier sir — best value between the free Basic
+                        // plan and the unlimited-but-priciest ProMax, so it gets the highlight
+                        // border + badge regardless of what the viewer is currently on
+                        const isRecommended = plan.key === 'Pro'
+                        return (
+                            <div key={plan.key} className={`relative border bg-surface rounded-lg p-6 flex flex-col ${isRecommended ? 'border-yellow-50' : 'border-border-soft'}`}>
+                                {isRecommended && (
+                                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-50 text-richblack-900 text-xs font-semibold px-3 py-1 rounded-full">
+                                        Recommended
+                                    </span>
+                                )}
+                                <h2 className="text-xl font-bold text-richblack-5 mb-2">{plan.name}</h2>
+                                <p className="text-3xl font-bold text-yellow-50 mb-4">
+                                    {plan.priceInr ? `₹${plan.priceInr}/mo` : "Free"}
+                                </p>
+                                <ul className="text-richblack-200 text-sm space-y-2 mb-6 flex-1">
+                                    <li>{plan.credits === null ? "Unlimited" : plan.credits} summaries / month</li>
+                                    <li>{plan.maxMessagesPerChat === null ? "Unlimited" : plan.maxMessagesPerChat} messages per chat</li>
+                                    <li>{plan.featureLimits?.docSummary === null ? "Unlimited" : plan.featureLimits?.docSummary} document summaries / month</li>
+                                    <li>{plan.featureLimits?.bulkSummary === null ? "Unlimited" : plan.featureLimits?.bulkSummary} bulk uploads / month</li>
+                                    <li>{plan.featureLimits?.audioSummary === null ? "Unlimited" : plan.featureLimits?.audioSummary} audio summaries / month</li>
+                                    <li>{plan.key === 'Basic' ? "Key points + action items" : plan.key === 'Pro' ? "+ Sections & key terms" : "+ Quiz & flashcards"}</li>
+                                    {plan.models?.length > 0 && (
+                                        <li>Choice of AI model: {plan.models.join(', ')}</li>
+                                    )}
+                                </ul>
+                                <IconBtn
+                                    text={plan.key === user?.SubType ? "Current plan" : plan.key === 'Basic' ? "Included free" : "Upgrade"}
+                                    disabled={plan.key === user?.SubType || plan.key === 'Basic'}
+                                    onclick={() => handleUpgrade(plan.key)}
+                                />
+                            </div>
+                        )
+                    })}
                 </div>
 
                 {/* Full comparison */}

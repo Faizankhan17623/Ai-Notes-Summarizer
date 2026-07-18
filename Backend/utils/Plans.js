@@ -40,15 +40,16 @@ const DEFAULT_MODEL = 'qwen/qwen3-32b'
 // real free-tier model list. Basic has no choice (empty list, always DEFAULT_MODEL); Pro picks
 // from a couple of options; ProMax gets the full menu. Every list should include DEFAULT_MODEL
 // itself so "no preference set" and "explicitly picked the default" both work identically.
+// llama-3.3-70b-versatile was removed sir — deprecated on Groq, do not re-add without
+// confirming it's still an active model ID first
 const MODEL_CATALOG = {
     Basic: [],
     Pro: [
         { id: 'qwen/qwen3-32b', label: 'Qwen 3 32B (default)' },
-        { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B' },
+        { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
     ],
     ProMax: [
         { id: 'qwen/qwen3-32b', label: 'Qwen 3 32B (default)' },
-        { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B' },
         { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
         { id: 'deepseek-r1-distill-llama-70b', label: 'DeepSeek R1 Distill 70B' },
         { id: 'gemma2-9b-it', label: 'Gemma 2 9B' },

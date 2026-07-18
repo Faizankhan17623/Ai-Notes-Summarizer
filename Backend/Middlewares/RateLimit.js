@@ -45,4 +45,13 @@ const aiLimiter = rateLimit({
     message: tooMany('You are sending requests too fast, please wait a minute and try again'),
 })
 
-module.exports = { globalLimiter, authLimiter, otpLimiter, aiLimiter }
+// contact form sends a real email too sir — same abuse profile as otpLimiter, same limit
+const contactLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: tooMany('Too many messages sent, please try again after 15 minutes'),
+})
+
+module.exports = { globalLimiter, authLimiter, otpLimiter, aiLimiter, contactLimiter }

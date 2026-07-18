@@ -45,14 +45,16 @@ const Navbar = ({ showMegaMenu = false }) => {
                         )}
                         {/* Admin and Support each have their own separate dashboard sir — the normal
                             user Dashboard/Review links would just bounce them via PrivateRoute, so
-                            show only the link to whichever dashboard this role actually owns */}
+                            show only the link to whichever dashboard this role actually owns. Label
+                            always reads "Dashboard" (not "Admin"/"Support") so the main site nav
+                            looks the same regardless of role — only the destination differs */}
                         {user?.role === 'Admin' ? (
                             <Link to="/Admin" className="text-richblack-100 hover:text-richblack-25 text-sm">
-                                Admin
+                                Dashboard
                             </Link>
                         ) : user?.role === 'Support' ? (
                             <Link to="/Support" className="text-richblack-100 hover:text-richblack-25 text-sm">
-                                Support
+                                Dashboard
                             </Link>
                         ) : (
                             <>

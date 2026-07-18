@@ -2,7 +2,7 @@ const crypto = require('crypto')
 const { instance, isConfigured } = require('../utils/Razorpay')
 const Payment = require('../Models/Payment')
 const User = require('../Models/User')
-const { PLANS, CREDIT_PACKS } = require('../utils/Plans')
+const { PLANS, CREDIT_PACKS, MODEL_CATALOG } = require('../utils/Plans')
 
 // price table sir — only used once Razorpay keys are actually configured
 const PRICE_INR = {
@@ -227,6 +227,9 @@ exports.getPlans = async (req, res) => {
         plans: Object.values(PLANS).map((p) => ({
             ...p,
             priceInr: PRICE_INR[p.key] || 0,
+            // model NAMES only sir — the Pricing page is public/pre-login, no preferredModel
+            // to resolve here, just "what's on offer" for this tier (see MODEL_CATALOG)
+            models: (MODEL_CATALOG[p.key] || []).map((m) => m.label.replace(' (default)', '')),
         })),
         creditPacks: Object.values(CREDIT_PACKS),
         paymentsLive: isConfigured,

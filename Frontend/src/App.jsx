@@ -28,6 +28,7 @@ const Resources = lazy(() => import('./Components/Home/Resources'))
 const HelpCenter = lazy(() => import('./Components/Home/HelpCenter'))
 const PrivacyPolicy = lazy(() => import('./Components/Home/PrivacyPolicy'))
 const TermsOfService = lazy(() => import('./Components/Home/TermsOfService'))
+const Contact = lazy(() => import('./Components/Home/Contact'))
 const NoteGroundedChat = lazy(() => import('./Components/Home/NoteGroundedChat'))
 const FlashcardsAndQuizzes = lazy(() => import('./Components/Home/FlashcardsAndQuizzes'))
 const SpacedRepetitionFeature = lazy(() => import('./Components/Home/SpacedRepetitionFeature'))
@@ -102,6 +103,7 @@ function App() {
             <Route path="/HelpCenter" element={<PageFade><HelpCenter /></PageFade>} />
             <Route path="/PrivacyPolicy" element={<PageFade><PrivacyPolicy /></PageFade>} />
             <Route path="/TermsOfService" element={<PageFade><TermsOfService /></PageFade>} />
+            <Route path="/Contact" element={<PageFade><Contact /></PageFade>} />
             <Route path="/Features/Chat" element={<PageFade><NoteGroundedChat /></PageFade>} />
             <Route path="/Features/FlashcardsAndQuizzes" element={<PageFade><FlashcardsAndQuizzes /></PageFade>} />
             <Route path="/Features/SpacedRepetition" element={<PageFade><SpacedRepetitionFeature /></PageFade>} />

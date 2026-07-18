@@ -19,6 +19,7 @@ const {
     createAnnouncement,
     deactivateAnnouncement,
 } = require('../controllers/Admin.js')
+const { getContactMessages } = require('../controllers/Contact.js')
 
 // public sir — the frontend banner reads this on every page, no login required
 route.get('/announcements/active', getActiveAnnouncement)
@@ -29,6 +30,7 @@ route.get('/admin/overview', Auth, isSupport, getOverview)
 route.get('/admin/users', Auth, isSupport, getUsers)
 route.get('/admin/payments', Auth, isSupport, getPayments)
 route.get('/admin/ai-logs', Auth, isSupport, getAiLogs)
+route.get('/admin/contact-messages', Auth, isSupport, getContactMessages)
 
 // everything below is Admin only sir — either destructive (ban/unban/role change), a
 // site-wide write (announcements), or oversight OF admins themselves (audit log/analytics)

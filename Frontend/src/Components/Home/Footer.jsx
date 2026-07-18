@@ -4,7 +4,7 @@ import { FaTwitter, FaGithub, FaLinkedin, FaArrowRight } from 'react-icons/fa'
 import { NAV_MENUS } from './navMenuData.js'
 
 const USEFUL_LINKS = [
-    { title: 'Contact Us', href: 'mailto:faizankhan901152@gmail.com' },
+    { title: 'Contact Us', href: '/Contact' },
     { title: 'Privacy Policy', href: '/PrivacyPolicy' },
     { title: 'Terms of Service', href: '/TermsOfService' },
 ]
