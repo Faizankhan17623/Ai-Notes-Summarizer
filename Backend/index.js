@@ -20,6 +20,7 @@ const payment = require('./Routes/Payment.js')
 const analytics = require('./Routes/Analytics.js')
 const admin = require('./Routes/Admin.js')
 const contact = require('./Routes/Contact.js')
+const notification = require('./Routes/Notification.js')
 const { globalLimiter } = require('./Middlewares/RateLimit.js')
 const { generateCsrfToken, invalidCsrfTokenError } = require('./Middlewares/Csrf.js')
 const { scheduleWeeklyDigest } = require('./utils/DigestJob.js')
@@ -102,6 +103,7 @@ app.use('/api/v1', payment)
 app.use('/api/v1', analytics)
 app.use('/api/v1', admin)
 app.use('/api/v1', contact)
+app.use('/api/v1', notification)
 
 app.get('/', (req, res) => {
     return res.json({

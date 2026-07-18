@@ -1,14 +1,16 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { FaChartLine, FaUsers, FaCreditCard } from 'react-icons/fa'
+import { FaChartLine, FaUsers, FaCreditCard, FaEnvelopeOpenText } from 'react-icons/fa'
 import Navbar from '../Home/Navbar.jsx'
 
 // Support's own dashboard sir — separate from AdminLayout entirely, not a filtered copy of it.
-// Only the 3 "view/help" pages the backend actually lets Support call (see isSupport in
-// Routes/Admin.js): Overview, Users (read + search, no ban/role controls), Payments (read-only)
+// Only the "view/help" pages the backend actually lets Support call (see isSupport in
+// Routes/Admin.js): Overview, Users (read + search, no ban/role controls), Payments (read-only,
+// no refund button), and Contact messages (reply/resolve — the one write action Support has)
 const navItems = [
     { to: '/Support', label: 'Overview', icon: FaChartLine, end: true },
     { to: '/Support/Users', label: 'Users', icon: FaUsers },
     { to: '/Support/Payments', label: 'Payments', icon: FaCreditCard },
+    { to: '/Support/Messages', label: 'Contact messages', icon: FaEnvelopeOpenText },
 ]
 
 // same shell pattern as AdminLayout.jsx / Dashboard/DashboardLayout.jsx sir — one persistent

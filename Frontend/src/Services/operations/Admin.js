@@ -1,9 +1,12 @@
 import toast from "react-hot-toast"
 import { apiConnector } from "../apiConnector.js"
 import { AdminData } from "../Apis/AdminApi.js"
-import { setOverview, setAnalytics, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setLoading } from "../../Slices/adminSlice.js"
+import { setOverview, setAnalytics, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setContactMessages, setLoading } from "../../Slices/adminSlice.js"
 
-const { overview, analytics, users, banUser, unbanUser, setRole, payments, audit, aiLogs, activeAnnouncement, announcements, deactivateAnnouncement } = AdminData
+const {
+    overview, analytics, users, banUser, unbanUser, setRole, payments, refundPayment, contactMessages,
+    replyToContactMessage, audit, aiLogs, activeAnnouncement, announcements, deactivateAnnouncement
+} = AdminData
 
 export function GetOverview(token) {
     return async (dispatch) => {
@@ -109,6 +112,55 @@ export function GetPayments(token) {
             console.error("Error fetching payments", error)
         } finally {
             dispatch(setLoading(false))
+        }
+    }
+}
+
+export function RefundPayment(paymentId, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Refunding payment...")
+        try {
+            const response = await apiConnector("PATCH", `${refundPayment}/${paymentId}/refund`, null, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success("Payment refunded")
+            dispatch(GetPayments(token))
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not refund payment")
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+export function GetContactMessages(token) {
+    return async (dispatch) => {
+        dispatch(setLoading(true))
+        try {
+            const response = await apiConnector("GET", contactMessages, null, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setContactMessages(response.data.messages))
+        } catch (error) {
+            console.error("Error fetching contact messages", error)
+        } finally {
+            dispatch(setLoading(false))
+        }
+    }
+}
+
+export function ReplyToContactMessage(messageId, replyMessage, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Sending reply...")
+        try {
+            const response = await apiConnector("POST", `${replyToContactMessage}/${messageId}/reply`, { replyMessage }, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success("Reply sent")
+            dispatch(GetContactMessages(token))
+            return true
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not send reply")
+            return false
+        } finally {
+            toast.dismiss(toastId)
         }
     }
 }

@@ -12,6 +12,7 @@ const {
     unbanUser,
     setRole,
     getPayments,
+    refundPayment,
     getAuditLog,
     getAiLogs,
     getActiveAnnouncement,
@@ -19,7 +20,7 @@ const {
     createAnnouncement,
     deactivateAnnouncement,
 } = require('../controllers/Admin.js')
-const { getContactMessages } = require('../controllers/Contact.js')
+const { getContactMessages, replyToContactMessage } = require('../controllers/Contact.js')
 
 // public sir — the frontend banner reads this on every page, no login required
 route.get('/announcements/active', getActiveAnnouncement)
@@ -31,10 +32,14 @@ route.get('/admin/users', Auth, isSupport, getUsers)
 route.get('/admin/payments', Auth, isSupport, getPayments)
 route.get('/admin/ai-logs', Auth, isSupport, getAiLogs)
 route.get('/admin/contact-messages', Auth, isSupport, getContactMessages)
+// replying/resolving a ticket is exactly the "help" action Support exists for sir — no
+// destructive/site-wide effect, so this stays isSupport too, not isAdmin
+route.post('/admin/contact-messages/:messageId/reply', doubleCsrfProtection, Auth, isSupport, replyToContactMessage)
 
 // everything below is Admin only sir — either destructive (ban/unban/role change), a
 // site-wide write (announcements), or oversight OF admins themselves (audit log/analytics)
 route.get('/admin/analytics', Auth, isAdmin, getAdminAnalytics)
+route.patch('/admin/payments/:paymentId/refund', doubleCsrfProtection, Auth, isAdmin, refundPayment)
 route.patch('/admin/users/:userId/ban', doubleCsrfProtection, banUserRules, validate, Auth, isAdmin, banUser)
 route.patch('/admin/users/:userId/unban', doubleCsrfProtection, Auth, isAdmin, unbanUser)
 route.patch('/admin/users/:userId/role', doubleCsrfProtection, setRoleRules, validate, Auth, isAdmin, setRole)

@@ -8,6 +8,9 @@ export const AdminData = {
     unbanUser: BASE_URL + "/admin/users",       // + /:userId/unban
     setRole: BASE_URL + "/admin/users",         // + /:userId/role
     payments: BASE_URL + "/admin/payments",
+    refundPayment: BASE_URL + "/admin/payments",   // + /:paymentId/refund
+    contactMessages: BASE_URL + "/admin/contact-messages",
+    replyToContactMessage: BASE_URL + "/admin/contact-messages",  // + /:messageId/reply
     audit: BASE_URL + "/admin/audit",
     aiLogs: BASE_URL + "/admin/ai-logs",
     activeAnnouncement: BASE_URL + "/announcements/active",

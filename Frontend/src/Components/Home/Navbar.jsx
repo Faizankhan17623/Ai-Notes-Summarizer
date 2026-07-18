@@ -5,6 +5,7 @@ import { FaSun, FaMoon } from 'react-icons/fa'
 import { LogoutUser } from '../../Services/operations/Auth.js'
 import useTheme from '../../Hooks/useTheme.js'
 import NavMegaMenu from './NavMegaMenu.jsx'
+import NotificationBell from '../extra/NotificationBell.jsx'
 import { NAV_MENUS } from './navMenuData.js'
 
 const Navbar = ({ showMegaMenu = false }) => {
@@ -38,6 +39,7 @@ const Navbar = ({ showMegaMenu = false }) => {
 
                 {token ? (
                     <>
+                        <NotificationBell />
                         {!showMegaMenu && (
                             <Link to="/Pricing" className="text-richblack-100 hover:text-richblack-25 text-sm">
                                 Pricing

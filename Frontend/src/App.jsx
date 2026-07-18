@@ -48,6 +48,7 @@ const AdminUsers = lazy(() => import('./Components/Admin/Users'))
 const AdminPayments = lazy(() => import('./Components/Admin/Payments'))
 const AdminAudit = lazy(() => import('./Components/Admin/Audit'))
 const AdminAnnouncements = lazy(() => import('./Components/Admin/Announcements'))
+const AdminContactMessages = lazy(() => import('./Components/Admin/ContactMessages'))
 const SupportLayout = lazy(() => import('./Components/Support/SupportLayout'))
 
 const PageLoader = () => (
@@ -136,6 +137,7 @@ function App() {
               <Route path="/Admin/Analytics" element={<PageFade><AdminAnalytics /></PageFade>} />
               <Route path="/Admin/Users" element={<PageFade><AdminUsers /></PageFade>} />
               <Route path="/Admin/Payments" element={<PageFade><AdminPayments /></PageFade>} />
+              <Route path="/Admin/Messages" element={<PageFade><AdminContactMessages /></PageFade>} />
               <Route path="/Admin/Audit" element={<PageFade><AdminAudit /></PageFade>} />
               <Route path="/Admin/Announcements" element={<PageFade><AdminAnnouncements /></PageFade>} />
             </Route>
@@ -148,6 +150,7 @@ function App() {
               <Route path="/Support" element={<PageFade><AdminOverview /></PageFade>} />
               <Route path="/Support/Users" element={<PageFade><AdminUsers /></PageFade>} />
               <Route path="/Support/Payments" element={<PageFade><AdminPayments /></PageFade>} />
+              <Route path="/Support/Messages" element={<PageFade><AdminContactMessages /></PageFade>} />
             </Route>
 
             {/* anything unknown goes home sir */}

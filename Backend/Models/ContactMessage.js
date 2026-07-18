@@ -28,6 +28,27 @@ const contactMessageSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        // Support's ticket workflow sir — a submission starts 'open', becomes 'resolved' the
+        // moment someone replies (see controllers/Contact.js replyToContactMessage). No
+        // separate "in progress" state — replying and resolving are the same action here,
+        // keeping this a lightweight ticket system rather than a full helpdesk
+        status: {
+            type: String,
+            enum: ['open', 'resolved'],
+            default: 'open',
+        },
+        replyMessage: {
+            type: String,
+            trim: true,
+            maxlength: 2000,
+        },
+        repliedBy: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'User',
+        },
+        repliedAt: {
+            type: Date,
+        },
     },
     { timestamps: true }
 )

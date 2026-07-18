@@ -6,6 +6,7 @@ const Announcement = require('../Models/Announcement')
 const Note = require('../Models/Note')
 const Chat = require('../Models/Chat')
 const { PLANS } = require('../utils/Plans')
+const { notify } = require('./Notification')
 
 const writeAudit = (actor, action, target, details) => {
     AuditLog.create({ actor, action, target, details }).catch((err) => console.log('AuditLog write failed:', err.message))
@@ -238,6 +239,64 @@ exports.getPayments = async (req, res) => {
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to load payments' })
+    }
+}
+
+// PATCH /admin/payments/:paymentId/refund sir — Admin only, CreditPack purchases only for now.
+// Plan upgrades (Pro/ProMax) are deliberately NOT refundable here: reverting a subscription
+// mid-cycle raises questions this button can't answer on its own (they may have already used
+// higher-tier features for days/weeks) — that needs a real downgrade policy decision first,
+// so those payments show no refund action in the UI and 400 here if attempted directly.
+exports.refundPayment = async (req, res) => {
+    try {
+        const { paymentId } = req.params
+
+        const payment = await Payment.findById(paymentId)
+        if (!payment) {
+            return res.status(404).json({ success: false, message: 'Payment not found' })
+        }
+
+        if (payment.plan !== 'CreditPack') {
+            return res.status(400).json({
+                success: false,
+                message: 'Only credit-pack purchases can be refunded here — plan upgrades need manual handling',
+            })
+        }
+
+        if (payment.status !== 'paid') {
+            return res.status(400).json({
+                success: false,
+                message: `Only a paid payment can be refunded (this one is "${payment.status}")`,
+            })
+        }
+
+        // reverse exactly what was granted sir — never below 0, in case some credits were
+        // already spent since the purchase (that spend isn't undone, only the balance is clamped)
+        const user = await User.findByIdAndUpdate(
+            payment.user,
+            [{ $set: { bonusCredits: { $max: [0, { $subtract: ['$bonusCredits', payment.creditsGranted] }] } } }],
+            { returnDocument: 'after' }
+        ).select('bonusCredits')
+
+        payment.status = 'refunded'
+        await payment.save()
+
+        writeAudit(req.User.id, 'refund_payment', payment.user, `${payment.creditsGranted} credits, ₹${payment.amount}`)
+        notify({
+            user: payment.user,
+            type: 'payment_refunded',
+            message: `Your purchase of ${payment.creditsGranted} credits (₹${payment.amount}) has been refunded.`,
+        })
+
+        return res.status(200).json({
+            success: true,
+            message: 'Payment refunded',
+            payment,
+            bonusCredits: user?.bonusCredits,
+        })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to refund payment' })
     }
 }
 

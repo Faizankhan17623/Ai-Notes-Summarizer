@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
 import { FaRupeeSign, FaCheckCircle, FaTimesCircle, FaReceipt } from 'react-icons/fa'
-import { GetPayments } from '../../Services/operations/Admin.js'
+import Swal from 'sweetalert2'
+import { GetPayments, RefundPayment } from '../../Services/operations/Admin.js'
 import StatusBadge from './StatusBadge.jsx'
 
 const STATUS_TONE = {
@@ -11,6 +12,7 @@ const STATUS_TONE = {
     failed: 'danger',
     pending: 'neutral',
     created: 'neutral',
+    refunded: 'neutral',
 }
 
 const StatCard = ({ label, value, icon: Icon, tone }) => (
@@ -27,14 +29,32 @@ const StatCard = ({ label, value, icon: Icon, tone }) => (
 
 const Payments = () => {
     const dispatch = useDispatch()
-    const { token } = useSelector((state) => state.auth)
+    const { token, user } = useSelector((state) => state.auth)
     const { payments, loading } = useSelector((state) => state.admin)
     const [statusFilter, setStatusFilter] = useState('all')
     const [planFilter, setPlanFilter] = useState('all')
+    // refunds are Admin-only sir — Support can see payments to help/verify, but the backend
+    // 403s a refund attempt from Support too, so hide the button rather than let it just fail
+    const isAdmin = user?.role === 'Admin'
 
     useEffect(() => {
         dispatch(GetPayments(token))
     }, [dispatch, token])
+
+    const handleRefund = async (payment) => {
+        const result = await Swal.fire({
+            title: 'Refund this payment?',
+            text: `${payment.creditsGranted} credits (₹${payment.amount}) will be removed from ${payment.user?.firstName || 'this user'}'s balance and the payment marked refunded.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Refund',
+            background: 'var(--color-surface-raised)',
+            color: 'var(--color-richblack-5)',
+        })
+        if (result.isConfirmed) {
+            dispatch(RefundPayment(payment._id, token))
+        }
+    }
 
     const plans = useMemo(() => ['all', ...new Set(payments.map((p) => p.plan))], [payments])
 
@@ -111,6 +131,7 @@ const Payments = () => {
                                             <th className="py-3 px-4 font-medium">Status</th>
                                             <th className="py-3 px-4 font-medium">Order / Payment ID</th>
                                             <th className="py-3 px-4 font-medium">Date</th>
+                                            {isAdmin && <th className="py-3 px-4 font-medium">Actions</th>}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -129,6 +150,15 @@ const Payments = () => {
                                                     )}
                                                 </td>
                                                 <td className="py-3 px-4 text-richblack-400">{new Date(p.createdAt).toLocaleDateString()}</td>
+                                                {isAdmin && (
+                                                    <td className="py-3 px-4">
+                                                        {p.plan === 'CreditPack' && p.status === 'paid' && (
+                                                            <button onClick={() => handleRefund(p)} className="text-danger-soft text-xs font-medium cursor-pointer hover:underline">
+                                                                Refund
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>

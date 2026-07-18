@@ -8,6 +8,7 @@ import profileReducer from '../Slices/profileSlice'
 import adminReducer from '../Slices/adminSlice'
 import apiKeyReducer from '../Slices/apiKeySlice'
 import analyticsReducer from '../Slices/analyticsSlice'
+import notificationReducer from '../Slices/notificationSlice'
 
 const rootReducers = combineReducers({
     auth: authReducer,
@@ -19,6 +20,7 @@ const rootReducers = combineReducers({
     admin: adminReducer,
     apiKey: apiKeyReducer,
     analytics: analyticsReducer,
+    notification: notificationReducer,
 })
 
 export default rootReducers
