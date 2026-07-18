@@ -46,6 +46,18 @@ axiosinstance.interceptors.response.use(
                 store.dispatch(setToken(newToken))
                 localStorage.setItem("token", JSON.stringify(newToken))
 
+                // refresh-token mints a new access-token cookie, and the CSRF token is signed
+                // against that cookie's value (see Backend/Middlewares/Csrf.js getSessionIdentifier),
+                // so the in-memory csrfToken from before the refresh no longer validates. Re-fetch
+                // it here, otherwise every state-changing request after a silent refresh fails with
+                // "Invalid or missing CSRF token".
+                try {
+                    const csrfRes = await axiosinstance.get(`${import.meta.env.VITE_MAIN_BACKEND_URL}/csrf-token`)
+                    if (csrfRes.data?.success) setCsrfToken(csrfRes.data.csrfToken)
+                } catch (csrfErr) {
+                    // non-fatal sir — worst case the next state-changing request 403s and surfaces its own error
+                }
+
                 if (original.headers) original.headers.Authorization = `Bearer ${newToken}`
                 return axiosinstance(original)
             } catch (refreshErr) {
