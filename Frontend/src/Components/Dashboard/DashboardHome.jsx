@@ -8,6 +8,7 @@ import { GetAllNotes } from '../../Services/operations/Notes.js'
 import { GetProfile } from '../../Services/operations/Auth.js'
 import { fadeUp, staggerContainer } from '../extra/motionVariants.js'
 import AnalyticsWidget from './AnalyticsWidget.jsx'
+import OnboardingChecklist from './OnboardingChecklist.jsx'
 
 // small icon chip by sourceType sir — same idea as the mockup's ftype chip, using the
 // one icon set already used everywhere else (react-icons/fa)
@@ -23,7 +24,7 @@ const DashboardHome = () => {
     const dispatch = useDispatch()
     const { token, user } = useSelector((state) => state.auth)
     const { allNotes } = useSelector((state) => state.notes)
-    const { plan, activity } = useSelector((state) => state.profile)
+    const { plan, activity, profile } = useSelector((state) => state.profile)
 
     useEffect(() => {
         dispatch(GetAllNotes(token))
@@ -53,6 +54,8 @@ const DashboardHome = () => {
                     <FaPlus /> New summary
                 </Link>
             </div>
+
+            {profile && !profile.hasCompletedOnboarding && <OnboardingChecklist noteCount={allNotes.length} />}
 
             <motion.div
                 className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"

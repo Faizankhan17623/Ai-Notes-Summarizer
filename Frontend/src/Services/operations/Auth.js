@@ -4,7 +4,11 @@ import { UserData } from "../Apis/UserApi.js"
 import { setLoading, setToken, setUser, setLogin, setSignupData } from "../../Slices/authSlice.js"
 import { setProfile, setPlan, setActivity, setModelCatalog } from "../../Slices/profileSlice.js"
 
-const { sendOtp, createUser, login, forgotPassword, resetPassword, profile, updateFirstName, updateLastName, updateDigestPreference, updateDailyGoal, modelCatalog, updateModel, updatePassword, deleteAccount, recoverAccount, logout, csrfToken } = UserData
+const {
+    sendOtp, createUser, login, forgotPassword, resetPassword, profile, updateFirstName, updateLastName,
+    updateDigestPreference, updateDailyGoal, modelCatalog, updateModel, completeOnboarding, updatePassword,
+    deleteAccount, recoverAccount, logout, csrfToken
+} = UserData
 
 // fetched once on app mount and again right after login sir — the CSRF secret cookie may be
 // freshly (re)set at login, so the in-memory token needs to be refreshed to match
@@ -188,6 +192,23 @@ export function GetProfile(token) {
             console.error("Error fetching profile", error)
         } finally {
             dispatch(setLoading(false))
+        }
+    }
+}
+
+// dismisses the onboarding checklist sir — one-way, called either when the user clicks
+// "Dismiss" or automatically once all 3 checklist steps are done
+export function CompleteOnboarding(token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("PATCH", completeOnboarding, null, {
+                Authorization: `Bearer ${token}`
+            })
+            if (response.data.success) {
+                dispatch(setProfile(response.data.user))
+            }
+        } catch (error) {
+            console.error("Error completing onboarding", error)
         }
     }
 }

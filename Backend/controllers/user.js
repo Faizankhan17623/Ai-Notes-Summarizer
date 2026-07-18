@@ -18,6 +18,7 @@ const { getEffectivePlan, resetCycleIfNeeded, MODEL_CATALOG } = require('../util
 const { dayKey } = require('../utils/Streak.js')
 const { isStrongPassword } = require('../utils/PasswordPolicy.js')
 const { hashToken, signAccessToken, issueRefreshToken, REFRESH_TOKEN_TTL_MS } = require('../utils/RefreshToken.js')
+const { sampleNoteFields } = require('../utils/SampleNote.js')
 
 const isProd = process.env.NODE_ENV === 'production'
 // frontend (Vercel) and backend (Render) are different sites in prod sir, so cross-site XHR
@@ -146,6 +147,12 @@ exports.createUser = async (req, res) => {
             password: hashing,
             Verified: true
         })
+
+        // sample note so first login isn't a blank dashboard sir — best-effort, never blocks
+        // account creation if it fails for some reason
+        Note.create({ user: Creation._id, ...sampleNoteFields() }).catch((err) =>
+            console.log('Sample note creation failed:', err.message)
+        )
 
         return res.status(201).json({
             success: true,
@@ -491,6 +498,31 @@ exports.updateDailyGoal = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Failed to update daily goal',
+        })
+    }
+}
+
+// ============================================================
+// COMPLETE ONBOARDING — dismisses the checklist, whether by finishing all 3 steps or
+// clicking "dismiss" manually. One-way sir — never flips back to false.
+// ============================================================
+exports.completeOnboarding = async (req, res) => {
+    try {
+        const updatedUser = await User.findByIdAndUpdate(
+            req.User.id,
+            { hasCompletedOnboarding: true },
+            { returnDocument: 'after' }
+        ).select('-password')
+
+        return res.status(200).json({
+            success: true,
+            user: updatedUser,
+        })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to update onboarding status',
         })
     }
 }
@@ -923,7 +955,7 @@ exports.getProfile = async (req, res) => {
         const id = req.User.id
 
         const user = await User.findById(id)
-            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount receiveDigest currentStreak longestStreak dailyGoal createdAt Buffer BufferTiming')
+            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount receiveDigest currentStreak longestStreak dailyGoal hasCompletedOnboarding createdAt Buffer BufferTiming')
 
         if (!user) {
             return res.status(404).json({

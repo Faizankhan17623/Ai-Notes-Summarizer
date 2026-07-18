@@ -191,6 +191,13 @@ const UserSchema = new mongoose.Schema(
         preferredModel: {
             type: String,
             default: null
+        },
+        // onboarding checklist sir — a new signup gets a sample note (see createUser) and sees
+        // a dismissible 3-step checklist on the dashboard until this flips true, either by
+        // completing all 3 steps or clicking "dismiss" manually
+        hasCompletedOnboarding: {
+            type: Boolean,
+            default: false
         }
     },
     { timestamps: true }
