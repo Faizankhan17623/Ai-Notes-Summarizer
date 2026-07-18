@@ -11,6 +11,8 @@ export const UserData = {
     updateLastName: BASE_URL + "/profile/last-name",
     updateDigestPreference: BASE_URL + "/profile/digest-preference",
     updateDailyGoal: BASE_URL + "/profile/daily-goal",
+    modelCatalog: BASE_URL + "/profile/model-catalog",
+    updateModel: BASE_URL + "/profile/model",
     updatePassword: BASE_URL + "/profile/password",
     deleteAccount: BASE_URL + "/profile",
     recoverAccount: BASE_URL + "/profile/recover",

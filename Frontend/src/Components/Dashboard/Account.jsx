@@ -7,7 +7,7 @@ import Swal from 'sweetalert2'
 import toast from 'react-hot-toast'
 import {
     GetProfile, UpdateFirstName, UpdateLastName, UpdateDigestPreference, UpdateDailyGoal, UpdatePassword,
-    DeleteAccount, RecoverAccount, LogoutUser
+    DeleteAccount, RecoverAccount, LogoutUser, GetModelCatalog, UpdateModelPreference
 } from '../../Services/operations/Auth.js'
 import { GetPlans, GetPurchaseHistory, StartCreditPackCheckout } from '../../Services/operations/Payment.js'
 import Loading from '../extra/Loading.jsx'
@@ -27,7 +27,7 @@ const Account = () => {
     const dispatch = useDispatch()
     const navigate = useNavigate()
     const { token, user } = useSelector((state) => state.auth)
-    const { profile, plan, activity, loading } = useSelector((state) => state.profile)
+    const { profile, plan, activity, loading, models, preferredModel } = useSelector((state) => state.profile)
     const { creditPacks, paymentsLive, history } = useSelector((state) => state.payment)
     // only used by the (currently hidden) API access section below
     // const isPaidPlan = user?.SubType && user.SubType !== 'Basic'
@@ -49,6 +49,10 @@ const Account = () => {
 
     useEffect(() => {
         dispatch(GetPurchaseHistory(token))
+    }, [dispatch, token])
+
+    useEffect(() => {
+        dispatch(GetModelCatalog(token))
     }, [dispatch, token])
 
     useEffect(() => {
@@ -114,6 +118,11 @@ const Account = () => {
                                 )}
                             </div>
                         </div>
+                        {plan.expiresAt && (
+                            <p className="text-richblack-400 text-sm mt-3 pt-3 border-t border-border-soft">
+                                Renews on {new Date(plan.expiresAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                            </p>
+                        )}
                         {plan.creditsLimit !== null && plan.bonusCredits > 0 && (
                             <p className="text-richblack-400 text-sm mt-3 pt-3 border-t border-border-soft">
                                 + {plan.bonusCredits} top-up credits available this cycle
@@ -179,12 +188,29 @@ const Account = () => {
                                             <td className="px-2 py-2 text-richblack-5">
                                                 {p.plan === 'CreditPack' ? `Credit pack (+${p.creditsGranted} credits)` : `${p.plan} plan upgrade`}
                                             </td>
-                                            <td className="px-2 py-2 text-richblack-5 font-mono">₹{p.amount}</td>
+                            <td className="px-2 py-2 text-richblack-5 font-mono">₹{p.amount}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
+                    </SectionCard>
+                )}
+
+                {models.length > 0 && (
+                    <SectionCard title="AI model">
+                        <p className="text-richblack-400 text-sm -mt-2">
+                            Choose which AI model powers your summaries, chats, flashcards, and quizzes.
+                        </p>
+                        <select
+                            value={preferredModel || models[0]?.id || ''}
+                            onChange={(e) => dispatch(UpdateModelPreference(e.target.value, token))}
+                            className="w-full bg-surface-hover border border-border-soft text-richblack-5 rounded-md px-3 py-2 outline-none focus:border-yellow-50 transition-colors"
+                        >
+                            {models.map((m) => (
+                                <option key={m.id} value={m.id}>{m.label}</option>
+                            ))}
+                        </select>
                     </SectionCard>
                 )}
 

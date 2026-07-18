@@ -41,7 +41,7 @@ export function GetUsers(token, page = 1, search = "") {
         try {
             const response = await apiConnector("GET", users, null, { Authorization: `Bearer ${token}` }, { page, search })
             if (!response.data.success) throw new Error(response.data.message)
-            dispatch(setUsers(response.data.users))
+            dispatch(setUsers({ users: response.data.users, total: response.data.total, page: response.data.page, pages: response.data.pages }))
         } catch (error) {
             console.error("Error fetching users", error)
         } finally {

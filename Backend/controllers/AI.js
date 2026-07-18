@@ -2,15 +2,13 @@ const Groq = require('groq-sdk')
 
 const Note = require('../Models/Note')
 const User = require('../Models/User')
-const { consumeCredit, consumeFeatureUsage } = require('../utils/Plans')
+const { consumeCredit, consumeFeatureUsage, DEFAULT_MODEL } = require('../utils/Plans')
 const { buildSummarySystemPrompt } = require('../utils/Prompts')
 const { logAi } = require('../utils/AdminLog')
 const { extractText, extractFromUrl, extractFromAudio } = require('../utils/Parsers')
 const { recordStudyActivity } = require('../utils/Streak')
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-
-const MODEL = 'qwen/qwen3-32b'
 
 // which per-feature monthly gate applies for a given sourceType sir — document files
 // (pdf/docx/txt) and audio have their own separate 10/80/150-per-month caps (see
@@ -40,18 +38,19 @@ const summarizeExtractedText = async (userId, text, sourceType, feature = null) 
         { role: 'user', content: `Summarize the following notes.\n\n=== NOTES ===\n${text}\n\nReturn only the JSON summary.` }
     ]
 
+    const model = spend.model || DEFAULT_MODEL
     const t0 = Date.now()
     let Invoking
     try {
         Invoking = await groq.chat.completions.create({
             messages: Messages,
-            model: MODEL,
+            model,
             temperature: 0,
             response_format: { type: 'json_object' },
         })
-        logAi({ user: userId, type: 'summary', plan: spend.plan, model: MODEL, usage: Invoking.usage, latencyMs: Date.now() - t0, success: true })
+        logAi({ user: userId, type: 'summary', plan: spend.plan, model, usage: Invoking.usage, latencyMs: Date.now() - t0, success: true })
     } catch (aiErr) {
-        logAi({ user: userId, type: 'summary', plan: spend.plan, model: MODEL, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
+        logAi({ user: userId, type: 'summary', plan: spend.plan, model, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
         throw aiErr
     }
 

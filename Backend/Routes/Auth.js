@@ -23,6 +23,8 @@ const {
     updateLastName,
     updateDigestPreference,
     updateDailyGoal,
+    updateModelPreference,
+    getModelCatalog,
     updatePassword,
     forgotPassword,
     resetPassword,
@@ -53,6 +55,8 @@ route.patch('/profile/first-name', doubleCsrfProtection, updateFirstNameRules, v
 route.patch('/profile/last-name', doubleCsrfProtection, updateLastNameRules, validate, Auth, updateLastName)
 route.patch('/profile/digest-preference', doubleCsrfProtection, Auth, updateDigestPreference)
 route.patch('/profile/daily-goal', doubleCsrfProtection, Auth, updateDailyGoal)
+route.get('/profile/model-catalog', Auth, getModelCatalog)
+route.patch('/profile/model', doubleCsrfProtection, Auth, updateModelPreference)
 route.patch('/profile/password', doubleCsrfProtection, updatePasswordRules, validate, Auth, updatePassword)
 route.delete('/profile', doubleCsrfProtection, Auth, deleteAccount)
 route.post('/profile/recover', doubleCsrfProtection, Auth, recoverAccount)

@@ -14,7 +14,7 @@ const mailSender = require('../utils/Nodemailer.js')
 
 const { deleteAccountEmail } = require('../Templates/DeleteAccount.js')
 const { passwordResetTemplate } = require('../Templates/passwordResetTemplate.js')
-const { getEffectivePlan, resetCycleIfNeeded } = require('../utils/Plans.js')
+const { getEffectivePlan, resetCycleIfNeeded, MODEL_CATALOG } = require('../utils/Plans.js')
 const { dayKey } = require('../utils/Streak.js')
 const { isStrongPassword } = require('../utils/PasswordPolicy.js')
 const { hashToken, signAccessToken, issueRefreshToken, REFRESH_TOKEN_TTL_MS } = require('../utils/RefreshToken.js')
@@ -491,6 +491,79 @@ exports.updateDailyGoal = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Failed to update daily goal',
+        })
+    }
+}
+
+// ============================================================
+// UPDATE PREFERRED AI MODEL — Pro/ProMax perk sir, picks which Groq model powers this user's
+// summaries/chats/flashcards/quizzes (see utils/Plans.js resolveModel). Basic has an empty
+// catalog so this always 400s for them; the actual per-request enforcement still lives in
+// resolveModel (so a downgrade after picking a model can't leave a stale privileged choice active)
+// ============================================================
+exports.updateModelPreference = async (req, res) => {
+    try {
+        const { model } = req.body
+        const userId = req.User.id
+
+        const user = await User.findById(userId).select('SubType SubscriptionExpires')
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Account not found' })
+        }
+
+        const plan = getEffectivePlan(user)
+        const allowed = MODEL_CATALOG[plan.key] || []
+
+        // null clears the preference back to the plan default sir — a valid choice, not an error
+        if (model !== null && !allowed.some((m) => m.id === model)) {
+            return res.status(403).json({
+                success: false,
+                message: allowed.length === 0
+                    ? 'Choosing a model requires a Pro or Pro Max plan'
+                    : 'That model is not available on your current plan',
+            })
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { preferredModel: model },
+            { returnDocument: 'after' }
+        ).select('-password')
+
+        return res.status(200).json({
+            success: true,
+            message: model ? 'Preferred model updated' : 'Reset to the default model',
+            user: updatedUser,
+        })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to update preferred model',
+        })
+    }
+}
+
+// GET /profile/model-catalog sir — the list of models this user's CURRENT plan can pick from,
+// so the frontend dropdown never shows an option that would just 403
+exports.getModelCatalog = async (req, res) => {
+    try {
+        const user = await User.findById(req.User.id).select('SubType SubscriptionExpires preferredModel')
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Account not found' })
+        }
+
+        const plan = getEffectivePlan(user)
+        return res.status(200).json({
+            success: true,
+            models: MODEL_CATALOG[plan.key] || [],
+            preferredModel: user.preferredModel,
+        })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to load model catalog',
         })
     }
 }

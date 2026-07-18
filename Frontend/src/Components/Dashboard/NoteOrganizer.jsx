@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { FaThumbtack, FaTimes } from 'react-icons/fa'
+import { FaThumbtack, FaTimes, FaStar } from 'react-icons/fa'
 import { OrganizeNote } from '../../Services/operations/Notes.js'
 
 // tags/folder/pin editing sir — lives in the Report page's right rail
@@ -31,14 +31,26 @@ const NoteOrganizer = ({ note }) => {
         dispatch(OrganizeNote(note._id, { pinned: !note.pinned }, token))
     }
 
+    const toggleFavorite = () => {
+        dispatch(OrganizeNote(note._id, { favorite: !note.favorite }, token))
+    }
+
     return (
         <div className="space-y-4">
-            <button
-                onClick={togglePin}
-                className={`flex items-center justify-center gap-1.5 text-xs rounded-md px-3 py-1.5 cursor-pointer w-full transition-colors ${note.pinned ? "bg-yellow-50 text-richblack-900" : "bg-surface-hover text-richblack-300 border border-border-soft hover:border-yellow-50"}`}
-            >
-                <FaThumbtack size={10} /> {note.pinned ? "Pinned" : "Pin this note"}
-            </button>
+            <div className="flex gap-2">
+                <button
+                    onClick={togglePin}
+                    className={`flex items-center justify-center gap-1.5 text-xs rounded-md px-3 py-1.5 cursor-pointer flex-1 transition-colors ${note.pinned ? "bg-yellow-50 text-richblack-900" : "bg-surface-hover text-richblack-300 border border-border-soft hover:border-yellow-50"}`}
+                >
+                    <FaThumbtack size={10} /> {note.pinned ? "Pinned" : "Pin"}
+                </button>
+                <button
+                    onClick={toggleFavorite}
+                    className={`flex items-center justify-center gap-1.5 text-xs rounded-md px-3 py-1.5 cursor-pointer flex-1 transition-colors ${note.favorite ? "bg-yellow-50 text-richblack-900" : "bg-surface-hover text-richblack-300 border border-border-soft hover:border-yellow-50"}`}
+                >
+                    <FaStar size={10} /> {note.favorite ? "Favorited" : "Favorite"}
+                </button>
+            </div>
 
             <div>
                 <p className="text-xs uppercase tracking-wide text-richblack-400 mb-1.5">Folder</p>

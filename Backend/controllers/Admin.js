@@ -244,7 +244,11 @@ exports.getPayments = async (req, res) => {
 // GET /admin/audit sir
 exports.getAuditLog = async (req, res) => {
     try {
-        const logs = await AuditLog.find().populate('actor', 'firstName lastName email').sort({ createdAt: -1 }).limit(200)
+        const logs = await AuditLog.find()
+            .populate('actor', 'firstName lastName email')
+            .populate('target', 'firstName lastName email')
+            .sort({ createdAt: -1 })
+            .limit(200)
         return res.status(200).json({ success: true, logs })
     } catch (error) {
         console.log(error.message)
@@ -255,7 +259,7 @@ exports.getAuditLog = async (req, res) => {
 // GET /admin/ai-logs sir — the cost/health monitor feed
 exports.getAiLogs = async (req, res) => {
     try {
-        const logs = await AiLog.find().sort({ createdAt: -1 }).limit(200)
+        const logs = await AiLog.find().populate('user', 'firstName lastName email').sort({ createdAt: -1 }).limit(200)
         return res.status(200).json({ success: true, logs })
     } catch (error) {
         console.log(error.message)
@@ -277,7 +281,7 @@ exports.getActiveAnnouncement = async (req, res) => {
 // GET /admin/announcements sir — all of them, for the admin manager screen
 exports.getAnnouncements = async (req, res) => {
     try {
-        const announcements = await Announcement.find().sort({ createdAt: -1 })
+        const announcements = await Announcement.find().populate('createdBy', 'firstName lastName email').sort({ createdAt: -1 })
         return res.status(200).json({ success: true, announcements })
     } catch (error) {
         console.log(error.message)

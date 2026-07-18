@@ -31,6 +31,42 @@ const PLANS = {
     },
 }
 
+// the model each tier is stuck with if they haven't picked (or aren't allowed to pick) sir —
+// same value as the old hardcoded MODEL constant in AI.js/Chat.js/StudyKit.js, kept as the
+// universal fallback so an invalid/cleared preference never breaks a request
+const DEFAULT_MODEL = 'qwen/qwen3-32b'
+
+// which Groq models each plan is allowed to choose from sir — placeholder IDs, swap for the
+// real free-tier model list. Basic has no choice (empty list, always DEFAULT_MODEL); Pro picks
+// from a couple of options; ProMax gets the full menu. Every list should include DEFAULT_MODEL
+// itself so "no preference set" and "explicitly picked the default" both work identically.
+const MODEL_CATALOG = {
+    Basic: [],
+    Pro: [
+        { id: 'qwen/qwen3-32b', label: 'Qwen 3 32B (default)' },
+        { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B' },
+    ],
+    ProMax: [
+        { id: 'qwen/qwen3-32b', label: 'Qwen 3 32B (default)' },
+        { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B' },
+        { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
+        { id: 'deepseek-r1-distill-llama-70b', label: 'DeepSeek R1 Distill 70B' },
+        { id: 'gemma2-9b-it', label: 'Gemma 2 9B' },
+    ],
+}
+
+// the model a given user's request should actually use sir — falls back to DEFAULT_MODEL if
+// preferredModel is unset, OR set to something not in their current plan's catalog (e.g. they
+// downgraded after picking a ProMax-only model). Call this right before every Groq call.
+const resolveModel = (user) => {
+    const plan = getEffectivePlan(user)
+    const allowed = MODEL_CATALOG[plan.key] || []
+    if (user.preferredModel && allowed.some((m) => m.id === user.preferredModel)) {
+        return user.preferredModel
+    }
+    return DEFAULT_MODEL
+}
+
 // maps a feature key to its User counter field + a human label for the block message sir
 const FEATURE_FIELDS = {
     docSummary: { field: 'docSummaryCount', label: 'document summaries' },
@@ -75,14 +111,16 @@ const getEffectivePlan = (user) => {
     return PLANS[user.SubType] || PLANS.Basic
 }
 
-const USER_PLAN_FIELDS = 'SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount createdAt'
+const USER_PLAN_FIELDS = 'SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount preferredModel createdAt'
 
-// fetch the user fresh and resolve their effective plan sir
+// fetch the user fresh and resolve their effective plan sir — the returned object also carries
+// `model` (this user's resolved Groq model, see resolveModel above) alongside the plan's own
+// fields, so callers that only ever read plan.key/plan.contextWindow/etc. are unaffected
 const getUserPlan = async (userId) => {
     const user = await User.findById(userId).select(USER_PLAN_FIELDS)
     if (!user) return null
     await resetCycleIfNeeded(user)
-    return getEffectivePlan(user)
+    return { ...getEffectivePlan(user), model: resolveModel(user) }
 }
 
 // spend one credit sir — call this before every Groq summarize call
@@ -96,21 +134,22 @@ const consumeCredit = async (userId) => {
     await resetCycleIfNeeded(user)
 
     const plan = getEffectivePlan(user)
+    const model = resolveModel(user)
 
     // unlimited plan sir — nothing to check or increment
     if (plan.credits === null) {
-        return { ok: true, plan: plan.key }
+        return { ok: true, plan: plan.key, model }
     }
 
     if (user.count < plan.credits) {
         await User.findByIdAndUpdate(userId, { $inc: { count: 1 } })
-        return { ok: true, plan: plan.key }
+        return { ok: true, plan: plan.key, model }
     }
 
     // plan allowance exhausted sir — fall back to purchased top-up credits before hard-blocking
     if (user.bonusCredits > 0) {
         await User.findByIdAndUpdate(userId, { $inc: { bonusCredits: -1 } })
-        return { ok: true, plan: plan.key, usedBonus: true, bonusRemaining: user.bonusCredits - 1 }
+        return { ok: true, plan: plan.key, model, usedBonus: true, bonusRemaining: user.bonusCredits - 1 }
     }
 
     return {
@@ -137,17 +176,18 @@ const consumeFeatureUsage = async (userId, feature) => {
     await resetCycleIfNeeded(user)
 
     const plan = getEffectivePlan(user)
+    const model = resolveModel(user)
     const limit = plan.featureLimits?.[feature]
 
     // unlimited for this feature on this plan sir — nothing to check or increment
     if (limit === null || limit === undefined) {
-        return { ok: true, plan: plan.key }
+        return { ok: true, plan: plan.key, model }
     }
 
     const used = user[meta.field] || 0
     if (used < limit) {
         await User.findByIdAndUpdate(userId, { $inc: { [meta.field]: 1 } })
-        return { ok: true, plan: plan.key }
+        return { ok: true, plan: plan.key, model }
     }
 
     return {
@@ -156,4 +196,4 @@ const consumeFeatureUsage = async (userId, feature) => {
     }
 }
 
-module.exports = { PLANS, CREDIT_PACKS, getEffectivePlan, getUserPlan, consumeCredit, consumeFeatureUsage, resetCycleIfNeeded }
+module.exports = { PLANS, CREDIT_PACKS, MODEL_CATALOG, DEFAULT_MODEL, resolveModel, getEffectivePlan, getUserPlan, consumeCredit, consumeFeatureUsage, resetCycleIfNeeded }

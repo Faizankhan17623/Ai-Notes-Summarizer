@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { FaTrash, FaThumbtack, FaSearch, FaFilePdf, FaFileWord, FaFileAlt, FaMicrophone, FaFolderOpen } from 'react-icons/fa'
+import { FaTrash, FaThumbtack, FaStar, FaSearch, FaFilePdf, FaFileWord, FaFileAlt, FaMicrophone, FaFolderOpen } from 'react-icons/fa'
 import Swal from 'sweetalert2'
 import { GetAllNotes, GetTagsAndFolders, OrganizeNote, DeleteNote } from '../../Services/operations/Notes.js'
 
@@ -25,6 +25,7 @@ const History = () => {
     const [tag, setTag] = useState('')
     const [folder, setFolder] = useState('')
     const [pinnedOnly, setPinnedOnly] = useState(false)
+    const [favoritesOnly, setFavoritesOnly] = useState(false)
 
     useEffect(() => {
         dispatch(GetTagsAndFolders(token))
@@ -38,10 +39,11 @@ const History = () => {
             if (tag) filters.tag = tag
             if (folder) filters.folder = folder
             if (pinnedOnly) filters.pinned = true
+            if (favoritesOnly) filters.favorite = true
             dispatch(GetAllNotes(token, filters))
         }, 300)
         return () => clearTimeout(handle)
-    }, [dispatch, token, search, tag, folder, pinnedOnly])
+    }, [dispatch, token, search, tag, folder, pinnedOnly, favoritesOnly])
 
     const handleDelete = async (e, noteId) => {
         e.preventDefault()
@@ -65,10 +67,17 @@ const History = () => {
         e.stopPropagation()
         dispatch(OrganizeNote(note._id, { pinned: !note.pinned }, token))
         // optimistic-ish sir — the next GetAllNotes call (on any filter change) will reconcile anyway
-        dispatch(GetAllNotes(token, { search: search.trim() || undefined, tag: tag || undefined, folder: folder || undefined, pinned: pinnedOnly || undefined }))
+        dispatch(GetAllNotes(token, { search: search.trim() || undefined, tag: tag || undefined, folder: folder || undefined, pinned: pinnedOnly || undefined, favorite: favoritesOnly || undefined }))
     }
 
-    const hasFilters = search.trim() || tag || folder || pinnedOnly
+    const toggleFavorite = (e, note) => {
+        e.preventDefault()
+        e.stopPropagation()
+        dispatch(OrganizeNote(note._id, { favorite: !note.favorite }, token))
+        dispatch(GetAllNotes(token, { search: search.trim() || undefined, tag: tag || undefined, folder: folder || undefined, pinned: pinnedOnly || undefined, favorite: favoritesOnly || undefined }))
+    }
+
+    const hasFilters = search.trim() || tag || folder || pinnedOnly || favoritesOnly
 
     return (
         <>
@@ -114,6 +123,12 @@ const History = () => {
                         >
                             <FaThumbtack size={11} /> Pinned only
                         </button>
+                        <button
+                            onClick={() => setFavoritesOnly((f) => !f)}
+                            className={`flex items-center gap-1.5 text-sm rounded-md px-3 py-1.5 cursor-pointer transition-colors ${favoritesOnly ? "bg-yellow-50 text-richblack-900" : "bg-surface-hover text-richblack-200 border border-border-soft hover:border-yellow-50"}`}
+                        >
+                            <FaStar size={11} /> Favorites only
+                        </button>
                     </div>
                 </div>
 
@@ -148,6 +163,7 @@ const History = () => {
                                         <div className="flex items-center gap-2">
                                             <p className="text-richblack-5 font-medium truncate">{note.title}</p>
                                             {note.pinned && <FaThumbtack size={11} className="text-yellow-50 shrink-0" />}
+                                            {note.favorite && <FaStar size={11} className="text-yellow-50 shrink-0" />}
                                         </div>
                                         <p className="text-richblack-400 text-xs mt-1">
                                             {new Date(note.createdAt).toLocaleDateString()} · {note.sourceType} · {note.plan}
@@ -164,6 +180,9 @@ const History = () => {
                                     <div className="flex gap-1 shrink-0">
                                         <button onClick={(e) => togglePin(e, note)} title={note.pinned ? "Unpin" : "Pin"} className={`p-2 cursor-pointer rounded-md hover:bg-surface-hover transition-colors ${note.pinned ? "text-yellow-50" : "text-richblack-400 hover:text-yellow-50"}`}>
                                             <FaThumbtack size={13} />
+                                        </button>
+                                        <button onClick={(e) => toggleFavorite(e, note)} title={note.favorite ? "Remove favorite" : "Favorite"} className={`p-2 cursor-pointer rounded-md hover:bg-surface-hover transition-colors ${note.favorite ? "text-yellow-50" : "text-richblack-400 hover:text-yellow-50"}`}>
+                                            <FaStar size={13} />
                                         </button>
                                         <button onClick={(e) => handleDelete(e, note._id)} className="text-richblack-400 hover:text-danger-soft p-2 cursor-pointer rounded-md hover:bg-surface-hover transition-colors">
                                             <FaTrash size={13} />

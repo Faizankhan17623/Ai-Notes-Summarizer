@@ -53,6 +53,9 @@ const Announcements = () => {
                                 <p className="text-richblack-5">{a.message}</p>
                                 <div className="flex items-center gap-2 mt-1.5">
                                     <span className="text-richblack-400 text-xs">{new Date(a.createdAt).toLocaleString()}</span>
+                                    {a.createdBy && (
+                                        <span className="text-richblack-500 text-xs">· by {a.createdBy.firstName} {a.createdBy.lastName}</span>
+                                    )}
                                     {a.active ? <StatusBadge tone="good">Active</StatusBadge> : <StatusBadge tone="neutral">Inactive</StatusBadge>}
                                 </div>
                             </div>

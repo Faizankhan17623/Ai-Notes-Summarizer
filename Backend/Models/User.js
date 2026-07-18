@@ -183,6 +183,14 @@ const UserSchema = new mongoose.Schema(
         },
         apiKeyLastUsedAt: {
             type: Date
+        },
+        // Pro/ProMax perk sir — lets the user pick which Groq model powers their summaries/
+        // chats/flashcards/quizzes instead of the one fixed default. null means "use the plan's
+        // default model." Validated against utils/Plans.js MODEL_CATALOG at request time, not
+        // here — the allowed list is plan-gated and can change without a migration this way.
+        preferredModel: {
+            type: String,
+            default: null
         }
     },
     { timestamps: true }

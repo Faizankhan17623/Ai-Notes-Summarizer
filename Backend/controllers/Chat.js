@@ -5,13 +5,11 @@ const Note = require('../Models/Note')
 const Chat = require('../Models/Chat')
 const User = require('../Models/User')
 
-const { getUserPlan } = require('../utils/Plans')
+const { getUserPlan, DEFAULT_MODEL } = require('../utils/Plans')
 const { buildChatSystemPrompt } = require('../utils/Prompts')
 const { logAi } = require('../utils/AdminLog')
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-
-const MODEL = 'qwen/qwen3-32b'
 // fallback for how many past messages we replay sir — the real number comes from the user's plan
 const CONTEXT_WINDOW = 10
 
@@ -129,12 +127,12 @@ exports.sendMessage = async (req, res) => {
         try {
             Invoking = await groq.chat.completions.create({
                 messages: Messages,
-                model: MODEL,
+                model: plan?.model || DEFAULT_MODEL,
                 temperature: 0.5,
             })
-            logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: MODEL, usage: Invoking.usage, latencyMs: Date.now() - t0, success: true })
+            logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: plan?.model || DEFAULT_MODEL, usage: Invoking.usage, latencyMs: Date.now() - t0, success: true })
         } catch (aiErr) {
-            logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: MODEL, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
+            logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: plan?.model || DEFAULT_MODEL, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
             throw aiErr
         }
 
@@ -229,12 +227,12 @@ exports.regenerateReply = async (req, res) => {
         try {
             Invoking = await groq.chat.completions.create({
                 messages: Messages,
-                model: MODEL,
+                model: plan?.model || DEFAULT_MODEL,
                 temperature: 0.5,
             })
-            logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: MODEL, usage: Invoking.usage, latencyMs: Date.now() - t0, success: true })
+            logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: plan?.model || DEFAULT_MODEL, usage: Invoking.usage, latencyMs: Date.now() - t0, success: true })
         } catch (aiErr) {
-            logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: MODEL, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
+            logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: plan?.model || DEFAULT_MODEL, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
             throw aiErr
         }
 

@@ -4,6 +4,9 @@ const initialState = {
     overview: null,
     analytics: null,
     users: [],
+    usersTotal: 0,
+    usersPage: 1,
+    usersPages: 1,
     payments: [],
     auditLogs: [],
     aiLogs: [],
@@ -22,7 +25,10 @@ const adminSlice = createSlice({
             state.analytics = value.payload
         },
         setUsers(state, value) {
-            state.users = value.payload
+            state.users = value.payload.users
+            state.usersTotal = value.payload.total
+            state.usersPage = value.payload.page
+            state.usersPages = value.payload.pages
         },
         setPayments(state, value) {
             state.payments = value.payload

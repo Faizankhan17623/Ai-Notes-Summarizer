@@ -6,8 +6,8 @@ const TONES = {
     neutral: 'bg-border-soft text-richblack-300',
 }
 
-const StatusBadge = ({ tone = 'neutral', children }) => (
-    <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${TONES[tone]}`}>
+const StatusBadge = ({ tone = 'neutral', children, title }) => (
+    <span title={title} className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded ${TONES[tone]}`}>
         {children}
     </span>
 )

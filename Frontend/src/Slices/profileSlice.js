@@ -4,7 +4,11 @@ const initialState = {
     profile: null,
     plan: null,
     activity: null,
-    loading: false
+    loading: false,
+    // Pro/ProMax model picker sir — models is [] on Basic (no choice), preferredModel mirrors
+    // User.preferredModel (null means "using the plan default")
+    models: [],
+    preferredModel: null
 }
 
 const profileSlice = createSlice({
@@ -22,9 +26,13 @@ const profileSlice = createSlice({
         },
         setLoading(state, value) {
             state.loading = value.payload
+        },
+        setModelCatalog(state, value) {
+            state.models = value.payload.models
+            state.preferredModel = value.payload.preferredModel
         }
     }
 })
 
-export const { setProfile, setPlan, setActivity, setLoading } = profileSlice.actions
+export const { setProfile, setPlan, setActivity, setLoading, setModelCatalog } = profileSlice.actions
 export default profileSlice.reducer

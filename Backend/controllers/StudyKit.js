@@ -6,14 +6,13 @@ const Flashcard = require('../Models/Flashcard')
 const Quiz = require('../Models/Quiz')
 const User = require('../Models/User')
 
-const { consumeCredit, getUserPlan } = require('../utils/Plans')
+const { consumeCredit, getUserPlan, DEFAULT_MODEL } = require('../utils/Plans')
 const { buildFlashcardPrompt, buildQuizPrompt } = require('../utils/Prompts')
 const { logAi } = require('../utils/AdminLog')
 const { schedule } = require('../utils/SpacedRepetition')
 const { recordStudyActivity } = require('../utils/Streak')
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-const MODEL = 'qwen/qwen3-32b'
 
 // on-demand flashcard/quiz generation is a Pro+ feature sir — same gate as the rest of the study tools
 const requirePaidPlan = async (userId, res) => {
@@ -62,18 +61,19 @@ exports.generateFlashcards = async (req, res) => {
         const existing = await Flashcard.find({ note: note._id }).select('front').limit(50)
         const prompt = buildFlashcardPrompt(note.rawText, count, existing.map((c) => c.front))
 
+        const model = spend.model || DEFAULT_MODEL
         const t0 = Date.now()
         let invoking
         try {
             invoking = await groq.chat.completions.create({
                 messages: [{ role: 'system', content: prompt }, { role: 'user', content: 'Return only the JSON.' }],
-                model: MODEL,
+                model,
                 temperature: 0.4,
                 response_format: { type: 'json_object' },
             })
-            logAi({ user: id, type: 'flashcard', plan: spend.plan, model: MODEL, usage: invoking.usage, latencyMs: Date.now() - t0, success: true })
+            logAi({ user: id, type: 'flashcard', plan: spend.plan, model, usage: invoking.usage, latencyMs: Date.now() - t0, success: true })
         } catch (aiErr) {
-            logAi({ user: id, type: 'flashcard', plan: spend.plan, model: MODEL, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
+            logAi({ user: id, type: 'flashcard', plan: spend.plan, model, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
             throw aiErr
         }
 
@@ -218,18 +218,19 @@ exports.generateQuiz = async (req, res) => {
         const existingQuestions = existingQuizzes.flatMap((q) => q.questions.map((qq) => qq.question))
         const prompt = buildQuizPrompt(note.rawText, count, existingQuestions)
 
+        const model = spend.model || DEFAULT_MODEL
         const t0 = Date.now()
         let invoking
         try {
             invoking = await groq.chat.completions.create({
                 messages: [{ role: 'system', content: prompt }, { role: 'user', content: 'Return only the JSON.' }],
-                model: MODEL,
+                model,
                 temperature: 0.4,
                 response_format: { type: 'json_object' },
             })
-            logAi({ user: id, type: 'quiz', plan: spend.plan, model: MODEL, usage: invoking.usage, latencyMs: Date.now() - t0, success: true })
+            logAi({ user: id, type: 'quiz', plan: spend.plan, model, usage: invoking.usage, latencyMs: Date.now() - t0, success: true })
         } catch (aiErr) {
-            logAi({ user: id, type: 'quiz', plan: spend.plan, model: MODEL, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
+            logAi({ user: id, type: 'quiz', plan: spend.plan, model, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
             throw aiErr
         }
 

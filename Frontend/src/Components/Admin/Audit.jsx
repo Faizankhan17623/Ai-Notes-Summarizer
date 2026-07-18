@@ -34,7 +34,11 @@ const Audit = () => {
                             <div key={log._id} className="p-4 text-sm text-richblack-200 flex items-center justify-between gap-4">
                                 <p>
                                     <span className="text-yellow-50 font-medium">{log.actor?.firstName} {log.actor?.lastName}</span>{' '}
-                                    {log.action.replaceAll('_', ' ')} {log.details ? `— ${log.details}` : ''}
+                                    {log.action.replaceAll('_', ' ')}
+                                    {log.target && (
+                                        <> <span className="text-richblack-5 font-medium">{log.target.firstName} {log.target.lastName}</span> <span className="text-richblack-500">({log.target.email})</span></>
+                                    )}
+                                    {log.details ? ` — ${log.details}` : ''}
                                 </p>
                                 <span className="text-richblack-500 text-xs shrink-0 font-mono">{new Date(log.createdAt).toLocaleString()}</span>
                             </div>
@@ -50,6 +54,7 @@ const Audit = () => {
                         <table className="w-full text-sm text-left">
                             <thead>
                                 <tr className="text-richblack-400 border-b border-border-soft">
+                                    <th className="py-3 px-4 font-medium">User</th>
                                     <th className="py-3 px-4 font-medium">Type</th>
                                     <th className="py-3 px-4 font-medium">Plan</th>
                                     <th className="py-3 px-4 font-medium">Model</th>
@@ -62,6 +67,9 @@ const Audit = () => {
                             <tbody>
                                 {aiLogs.map((log) => (
                                     <tr key={log._id} className="border-b border-border-soft last:border-b-0 text-richblack-200 hover:bg-surface-hover transition-colors">
+                                        <td className="py-3 px-4 text-xs">
+                                            {log.user ? `${log.user.firstName} ${log.user.lastName}` : <span className="text-richblack-500">Deleted user</span>}
+                                        </td>
                                         <td className="py-3 px-4">{log.type}</td>
                                         <td className="py-3 px-4">{log.plan}</td>
                                         <td className="py-3 px-4 text-richblack-400 text-xs">{log.model}</td>

@@ -74,7 +74,7 @@ export function BulkSummarizeNotes(formData, token, onDone) {
     }
 }
 
-// filters is optional sir — { search, tag, folder, pinned } — all independent, pass only what's needed
+// filters is optional sir — { search, tag, folder, pinned, favorite } — all independent, pass only what's needed
 export function GetAllNotes(token, filters = {}) {
     return async (dispatch) => {
         try {
