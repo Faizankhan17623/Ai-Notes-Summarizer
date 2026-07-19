@@ -13,6 +13,7 @@ import SupportRoute from './Hooks/SupportRoute'
 import ScrollToTop from './Components/extra/ScrollToTop'
 import AnnouncementBanner from './Components/extra/AnnouncementBanner'
 import CookieConsent from './Components/extra/CookieConsent'
+import ProMaxPlanNotice from './Components/extra/ProMaxPlanNotice'
 import { pageTransition } from './Components/extra/motionVariants.js'
 import { FetchCsrfToken } from './Services/operations/Auth.js'
 import { wakeUpServer } from './utils/wakeUpServer.js'
@@ -97,6 +98,7 @@ function App() {
   return (
     <>
       <AnnouncementBanner />
+      <ProMaxPlanNotice />
       <CookieConsent />
       <ScrollToTop />
       <Suspense fallback={<PageLoader />}>

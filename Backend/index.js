@@ -24,6 +24,7 @@ const notification = require('./Routes/Notification.js')
 const { globalLimiter } = require('./Middlewares/RateLimit.js')
 const { generateCsrfToken, invalidCsrfTokenError } = require('./Middlewares/Csrf.js')
 const { scheduleWeeklyDigest } = require('./utils/DigestJob.js')
+const { backfillProMaxCapNotice } = require('./utils/PlanChangeNotice.js')
 
 // deployed behind a proxy (Render/Railway/nginx) sir — needed so the rate limiter sees the REAL client IP
 app.set('trust proxy', 1)
@@ -143,6 +144,9 @@ const startServer = async () => {
     // weekly summary email sir — in-process cron, no separate infra needed since the
     // web service process stays alive on Render
     scheduleWeeklyDigest()
+
+    // one-time bell notice about the ProMax credit cap sir — idempotent, safe on every boot
+    backfillProMaxCapNotice()
 
     const server = app.listen(Port, () => {
         console.log(`Server running on port ${Port}`.bgGreen.black.bold)
