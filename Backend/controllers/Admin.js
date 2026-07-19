@@ -13,6 +13,13 @@ const writeAudit = (actor, action, target, details) => {
     AuditLog.create({ actor, action, target, details }).catch((err) => console.log('AuditLog write failed:', err.message))
 }
 
+// allowlist, not a blocklist, sir — '-password' alone still shipped refreshTokenHash,
+// apiKeyHash, resetPasswordToken and other secret-adjacent fields to the browser on every
+// admin Users-page load. Naming exactly what the admin UI needs means a new sensitive field
+// added to the User model later doesn't silently leak until someone remembers to exclude it.
+const ADMIN_USER_FIELDS = 'firstName lastName email role SubType Subscription SubscriptionExpires ' +
+    'Verified isBanned banReason lockUntil failedLoginAttempts count bonusCredits createdAt'
+
 // GET /admin/overview — top-line counts for the admin dashboard sir
 exports.getOverview = async (req, res) => {
     try {
@@ -161,7 +168,7 @@ exports.getUsers = async (req, res) => {
             : {}
 
         const [users, total] = await Promise.all([
-            User.find(filter).select('-password').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+            User.find(filter).select(ADMIN_USER_FIELDS).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
             User.countDocuments(filter),
         ])
 
@@ -178,7 +185,7 @@ exports.banUser = async (req, res) => {
         const { userId } = req.params
         const { banReason } = req.body
 
-        const user = await User.findByIdAndUpdate(userId, { isBanned: true, banReason: banReason || '' }, { returnDocument: 'after' }).select('-password')
+        const user = await User.findByIdAndUpdate(userId, { isBanned: true, banReason: banReason || '' }, { returnDocument: 'after' }).select(ADMIN_USER_FIELDS)
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' })
         }
@@ -197,7 +204,7 @@ exports.unbanUser = async (req, res) => {
     try {
         const { userId } = req.params
 
-        const user = await User.findByIdAndUpdate(userId, { isBanned: false, banReason: '' }, { returnDocument: 'after' }).select('-password')
+        const user = await User.findByIdAndUpdate(userId, { isBanned: false, banReason: '' }, { returnDocument: 'after' }).select(ADMIN_USER_FIELDS)
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' })
         }
@@ -221,7 +228,7 @@ exports.setRole = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid role' })
         }
 
-        const user = await User.findByIdAndUpdate(userId, { role }, { returnDocument: 'after' }).select('-password')
+        const user = await User.findByIdAndUpdate(userId, { role }, { returnDocument: 'after' }).select(ADMIN_USER_FIELDS)
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' })
         }

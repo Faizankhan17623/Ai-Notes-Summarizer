@@ -1,3 +1,4 @@
+import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
 import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { NotesData } from "../Apis/NotesApi.js"
@@ -25,7 +26,7 @@ export function SummarizeNotes(payload, token, navigate) {
             dispatch(setCurrentNote({ _id: response.data.noteId, summary: response.data.summary }))
             if (navigate) navigate(`/Dashboard/Note/${response.data.noteId}`)
         } catch (error) {
-            console.error("Error summarizing notes", error)
+            logError("Error summarizing notes", error)
             toast.error(error?.response?.data?.message || "Could not summarize your notes")
         } finally {
             dispatch(setLoading(false))
@@ -65,7 +66,7 @@ export function BulkSummarizeNotes(formData, token, onDone) {
             dispatch(GetAllNotes(token))
             if (onDone) onDone(results)
         } catch (error) {
-            console.error("Error bulk summarizing notes", error)
+            logError("Error bulk summarizing notes", error)
             toast.error(error?.response?.data?.message || "Could not summarize those files")
         } finally {
             dispatch(setLoading(false))
@@ -89,7 +90,7 @@ export async function SummarizeArticleLink(url, token) {
         }
         return { ok: true, noteId: response.data.noteId, title: response.data.summary?.title || "Untitled note" }
     } catch (error) {
-        console.error("Error summarizing article link", error)
+        logError("Error summarizing article link", error)
         return {
             ok: false,
             rateLimited: error?.response?.status === 429,
@@ -112,7 +113,7 @@ export function GetAllNotes(token, filters = {}) {
 
             dispatch(setAllNotes(response.data.notes))
         } catch (error) {
-            console.error("Error fetching notes", error)
+            logError("Error fetching notes", error)
         }
     }
 }
@@ -131,7 +132,7 @@ export function GetSingleNote(noteId, token) {
 
             dispatch(setCurrentNote(response.data.note))
         } catch (error) {
-            console.error("Error fetching note", error)
+            logError("Error fetching note", error)
             toast.error(error?.response?.data?.message || "Could not load the note")
         } finally {
             dispatch(setLoading(false))
@@ -156,7 +157,7 @@ export function DeleteNote(noteId, token, navigate) {
             dispatch(GetAllNotes(token))
             if (navigate) navigate("/Dashboard/History")
         } catch (error) {
-            console.error("Error deleting note", error)
+            logError("Error deleting note", error)
             toast.error(error?.response?.data?.message || "Could not delete the note")
         } finally {
             toast.dismiss(toastId)
@@ -177,7 +178,7 @@ export function GetTagsAndFolders(token) {
 
             dispatch(setTagsAndFolders({ tags: response.data.tags, folders: response.data.folders }))
         } catch (error) {
-            console.error("Error fetching tags/folders", error)
+            logError("Error fetching tags/folders", error)
         }
     }
 }
@@ -198,7 +199,7 @@ export function OrganizeNote(noteId, updates, token) {
             dispatch(GetTagsAndFolders(token))
             toast.success("Note updated")
         } catch (error) {
-            console.error("Error organizing note", error)
+            logError("Error organizing note", error)
             toast.error(error?.response?.data?.message || "Could not update the note")
         }
     }
@@ -217,7 +218,7 @@ export function EnableShare(noteId, token) {
 
             return response.data.shareId
         } catch (error) {
-            console.error("Error enabling share", error)
+            logError("Error enabling share", error)
             toast.error(error?.response?.data?.message || "Could not enable sharing")
             return null
         }
@@ -238,7 +239,7 @@ export function DisableShare(noteId, token) {
             toast.success("Sharing disabled")
             return true
         } catch (error) {
-            console.error("Error disabling share", error)
+            logError("Error disabling share", error)
             toast.error(error?.response?.data?.message || "Could not disable sharing")
             return false
         }
@@ -258,7 +259,7 @@ export function GetSharedNote(shareId) {
 
             dispatch(setCurrentNote(response.data.note))
         } catch (error) {
-            console.error("Error fetching shared note", error)
+            logError("Error fetching shared note", error)
         } finally {
             dispatch(setLoading(false))
         }
@@ -280,7 +281,7 @@ export function GetRelatedNotes(noteId, token) {
 
             dispatch(setRelatedNotes(response.data.notes))
         } catch (error) {
-            console.error("Error fetching related notes", error)
+            logError("Error fetching related notes", error)
         }
     }
 }
@@ -309,7 +310,7 @@ export function ExportNote(noteId, format, title, token) {
 
             toast.success('Export ready')
         } catch (error) {
-            console.error("Error exporting note", error)
+            logError("Error exporting note", error)
             toast.error("Could not export the note")
         } finally {
             toast.dismiss(toastId)

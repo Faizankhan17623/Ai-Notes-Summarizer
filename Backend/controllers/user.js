@@ -20,6 +20,14 @@ const { isStrongPassword } = require('../utils/PasswordPolicy.js')
 const { hashToken, signAccessToken, issueRefreshToken, REFRESH_TOKEN_TTL_MS } = require('../utils/RefreshToken.js')
 const { sampleNoteFields } = require('../utils/SampleNote.js')
 
+// allowlist, not a blocklist, sir — '-password' alone still shipped refreshTokenHash,
+// apiKeyHash, resetPasswordToken and other secret-adjacent fields back to the user's own
+// browser on every profile update. Same field set getProfile below already uses, so every
+// self-service update returns exactly the shape the frontend's setProfile/setUser expect.
+const SAFE_USER_FIELDS = 'firstName lastName email role Verified Subscription SubType SubscriptionExpires ' +
+    'count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount receiveDigest ' +
+    'currentStreak longestStreak dailyGoal hasCompletedOnboarding createdAt Buffer BufferTiming'
+
 const isProd = process.env.NODE_ENV === 'production'
 // frontend (Vercel) and backend (Render) are different sites in prod sir, so cross-site XHR
 // needs SameSite=None (which requires Secure) or the browser silently drops the cookie on
@@ -414,7 +422,7 @@ exports.updateFirstName = async (req, res) => {
             userId,
             { firstName },
             { returnDocument: 'after' }
-        ).select('-password')
+        ).select(SAFE_USER_FIELDS)
 
         return res.status(200).json({
             success: true,
@@ -450,7 +458,7 @@ exports.updateDigestPreference = async (req, res) => {
             userId,
             { receiveDigest },
             { returnDocument: 'after' }
-        ).select('-password')
+        ).select(SAFE_USER_FIELDS)
 
         return res.status(200).json({
             success: true,
@@ -486,7 +494,7 @@ exports.updateDailyGoal = async (req, res) => {
             userId,
             { dailyGoal },
             { returnDocument: 'after' }
-        ).select('-password')
+        ).select(SAFE_USER_FIELDS)
 
         return res.status(200).json({
             success: true,
@@ -512,7 +520,7 @@ exports.completeOnboarding = async (req, res) => {
             req.User.id,
             { hasCompletedOnboarding: true },
             { returnDocument: 'after' }
-        ).select('-password')
+        ).select(SAFE_USER_FIELDS)
 
         return res.status(200).json({
             success: true,
@@ -560,7 +568,7 @@ exports.updateModelPreference = async (req, res) => {
             userId,
             { preferredModel: model },
             { returnDocument: 'after' }
-        ).select('-password')
+        ).select(SAFE_USER_FIELDS)
 
         return res.status(200).json({
             success: true,
@@ -620,7 +628,7 @@ exports.updateLastName = async (req, res) => {
             userId,
             { lastName },
             { returnDocument: 'after' }
-        ).select('-password')
+        ).select(SAFE_USER_FIELDS)
 
         return res.status(200).json({
             success: true,
@@ -763,7 +771,6 @@ exports.forgotPassword = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Failed to send reset email',
-            debug: error.message, // TEMP sir — remove once the 500 cause is confirmed
         })
     }
 }

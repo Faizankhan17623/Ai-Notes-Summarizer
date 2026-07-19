@@ -1,3 +1,4 @@
+import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
 import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { StudyKitData } from "../Apis/StudyKitApi.js"
@@ -26,7 +27,7 @@ export function GenerateFlashcards(noteId, count, token) {
             toast.success(`${response.data.flashcards.length} flashcards generated`)
             dispatch(GetFlashcardsForNote(noteId, token))
         } catch (error) {
-            console.error("Error generating flashcards", error)
+            logError("Error generating flashcards", error)
             toast.error(error?.response?.data?.message || "Could not generate flashcards")
         } finally {
             dispatch(setLoading(false))
@@ -48,7 +49,7 @@ export function GetFlashcardsForNote(noteId, token) {
 
             dispatch(setFlashcards(response.data.flashcards))
         } catch (error) {
-            console.error("Error fetching flashcards", error)
+            logError("Error fetching flashcards", error)
         }
     }
 }
@@ -67,7 +68,7 @@ export function GetDueFlashcards(token) {
 
             dispatch(setDueFlashcards(response.data.flashcards))
         } catch (error) {
-            console.error("Error fetching due flashcards", error)
+            logError("Error fetching due flashcards", error)
         } finally {
             dispatch(setLoading(false))
         }
@@ -90,7 +91,7 @@ export function ReviewFlashcard(cardId, rating, token) {
             const remaining = getState().studyKit.dueFlashcards.filter((c) => c._id !== cardId)
             dispatch(setDueFlashcards(remaining))
         } catch (error) {
-            console.error("Error reviewing flashcard", error)
+            logError("Error reviewing flashcard", error)
             toast.error(error?.response?.data?.message || "Could not record the review")
         }
     }
@@ -111,7 +112,7 @@ export function DeleteFlashcard(cardId, noteId, token) {
             toast.success("Flashcard deleted")
             dispatch(GetFlashcardsForNote(noteId, token))
         } catch (error) {
-            console.error("Error deleting flashcard", error)
+            logError("Error deleting flashcard", error)
             toast.error(error?.response?.data?.message || "Could not delete the flashcard")
         } finally {
             toast.dismiss(toastId)
@@ -143,7 +144,7 @@ export function ExportReviewQueue(token) {
 
             toast.success('Export ready')
         } catch (error) {
-            console.error("Error exporting the review queue", error)
+            logError("Error exporting the review queue", error)
             toast.error("Could not export the review queue")
         } finally {
             toast.dismiss(toastId)
@@ -175,7 +176,7 @@ export function ExportFlashcardDeck(noteId, title, token) {
 
             toast.success('Export ready')
         } catch (error) {
-            console.error("Error exporting the flashcard deck", error)
+            logError("Error exporting the flashcard deck", error)
             toast.error(error?.response?.data?.message || "Could not export the flashcard deck")
         } finally {
             toast.dismiss(toastId)
@@ -202,7 +203,7 @@ export function GenerateQuiz(noteId, count, token) {
             dispatch(setActiveQuiz(response.data.quiz))
             dispatch(GetQuizzesForNote(noteId, token))
         } catch (error) {
-            console.error("Error generating quiz", error)
+            logError("Error generating quiz", error)
             toast.error(error?.response?.data?.message || "Could not generate the quiz")
         } finally {
             dispatch(setLoading(false))
@@ -224,7 +225,7 @@ export function GetQuizzesForNote(noteId, token) {
 
             dispatch(setQuizzes(response.data.quizzes))
         } catch (error) {
-            console.error("Error fetching quizzes", error)
+            logError("Error fetching quizzes", error)
         }
     }
 }
@@ -243,7 +244,7 @@ export function AttemptQuiz(quizId, answers, token) {
             dispatch(setActiveQuiz(response.data.quiz))
             return response.data
         } catch (error) {
-            console.error("Error submitting quiz attempt", error)
+            logError("Error submitting quiz attempt", error)
             toast.error(error?.response?.data?.message || "Could not submit your answers")
             return null
         }
@@ -274,7 +275,7 @@ export function ExportQuiz(quizId, title, token) {
 
             toast.success('Export ready')
         } catch (error) {
-            console.error("Error exporting the quiz", error)
+            logError("Error exporting the quiz", error)
             toast.error(error?.response?.data?.message || "Could not export the quiz")
         } finally {
             toast.dismiss(toastId)
@@ -297,7 +298,7 @@ export function DeleteQuiz(quizId, noteId, token) {
             toast.success("Quiz deleted")
             dispatch(GetQuizzesForNote(noteId, token))
         } catch (error) {
-            console.error("Error deleting quiz", error)
+            logError("Error deleting quiz", error)
             toast.error(error?.response?.data?.message || "Could not delete the quiz")
         } finally {
             toast.dismiss(toastId)

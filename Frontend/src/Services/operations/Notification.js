@@ -1,3 +1,4 @@
+import { logError } from "../../utils/logError.js"
 import { apiConnector } from "../apiConnector.js"
 import { NotificationData } from "../Apis/NotificationApi.js"
 import { setNotifications, markReadLocal, markAllReadLocal } from "../../Slices/notificationSlice.js"
@@ -20,7 +21,7 @@ export function GetNotifications(token) {
 
             dispatch(setNotifications({ notifications: response.data.notifications, unreadCount: response.data.unreadCount }))
         } catch (error) {
-            console.error("Error fetching notifications", error)
+            logError("Error fetching notifications", error)
         }
     }
 }
@@ -33,7 +34,7 @@ export function MarkNotificationRead(id, token) {
                 Authorization: `Bearer ${token}`
             })
         } catch (error) {
-            console.error("Error marking notification read", error)
+            logError("Error marking notification read", error)
         }
     }
 }
@@ -46,7 +47,7 @@ export function MarkAllNotificationsRead(token) {
                 Authorization: `Bearer ${token}`
             })
         } catch (error) {
-            console.error("Error marking all notifications read", error)
+            logError("Error marking all notifications read", error)
         }
     }
 }

@@ -1,3 +1,4 @@
+import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
 import { apiConnector } from "../apiConnector.js"
 import { AdminData } from "../Apis/AdminApi.js"
@@ -16,7 +17,7 @@ export function GetOverview(token) {
             if (!response.data.success) throw new Error(response.data.message)
             dispatch(setOverview(response.data.overview))
         } catch (error) {
-            console.error("Error fetching overview", error)
+            logError("Error fetching overview", error)
         } finally {
             dispatch(setLoading(false))
         }
@@ -31,7 +32,7 @@ export function GetAnalytics(token) {
             if (!response.data.success) throw new Error(response.data.message)
             dispatch(setAnalytics(response.data.analytics))
         } catch (error) {
-            console.error("Error fetching analytics", error)
+            logError("Error fetching analytics", error)
         } finally {
             dispatch(setLoading(false))
         }
@@ -53,7 +54,7 @@ export function GetTraffic(token, range = 'week', customFrom, customTo) {
             if (!response.data.success) throw new Error(response.data.message)
             dispatch(setTraffic(response.data.traffic))
         } catch (error) {
-            console.error("Error fetching traffic", error)
+            logError("Error fetching traffic", error)
             toast.error(error?.response?.data?.message || "Could not load traffic data")
         } finally {
             dispatch(setTrafficLoading(false))
@@ -69,7 +70,7 @@ export function GetUsers(token, page = 1, search = "") {
             if (!response.data.success) throw new Error(response.data.message)
             dispatch(setUsers({ users: response.data.users, total: response.data.total, page: response.data.page, pages: response.data.pages }))
         } catch (error) {
-            console.error("Error fetching users", error)
+            logError("Error fetching users", error)
         } finally {
             dispatch(setLoading(false))
         }
@@ -132,7 +133,7 @@ export function GetPayments(token) {
             if (!response.data.success) throw new Error(response.data.message)
             dispatch(setPayments(response.data.payments))
         } catch (error) {
-            console.error("Error fetching payments", error)
+            logError("Error fetching payments", error)
         } finally {
             dispatch(setLoading(false))
         }
@@ -163,7 +164,7 @@ export function GetContactMessages(token) {
             if (!response.data.success) throw new Error(response.data.message)
             dispatch(setContactMessages(response.data.messages))
         } catch (error) {
-            console.error("Error fetching contact messages", error)
+            logError("Error fetching contact messages", error)
         } finally {
             dispatch(setLoading(false))
         }
@@ -214,7 +215,7 @@ export function GetAuditLog(token) {
             if (!response.data.success) throw new Error(response.data.message)
             dispatch(setAuditLogs(response.data.logs))
         } catch (error) {
-            console.error("Error fetching audit log", error)
+            logError("Error fetching audit log", error)
         } finally {
             dispatch(setLoading(false))
         }
@@ -229,7 +230,7 @@ export function GetAiLogs(token) {
             if (!response.data.success) throw new Error(response.data.message)
             dispatch(setAiLogs(response.data.logs))
         } catch (error) {
-            console.error("Error fetching AI logs", error)
+            logError("Error fetching AI logs", error)
         } finally {
             dispatch(setLoading(false))
         }
@@ -245,7 +246,7 @@ export function GetActiveAnnouncement() {
                 dispatch(setAnnouncements([response.data.announcement]))
             }
         } catch (error) {
-            console.error("Error fetching active announcement", error)
+            logError("Error fetching active announcement", error)
         }
     }
 }
@@ -258,7 +259,7 @@ export function GetAnnouncements(token) {
             if (!response.data.success) throw new Error(response.data.message)
             dispatch(setAnnouncements(response.data.announcements))
         } catch (error) {
-            console.error("Error fetching announcements", error)
+            logError("Error fetching announcements", error)
         } finally {
             dispatch(setLoading(false))
         }

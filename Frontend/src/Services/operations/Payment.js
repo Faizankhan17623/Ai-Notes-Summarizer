@@ -1,3 +1,4 @@
+import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
 import { apiConnector } from "../apiConnector.js"
 import { PaymentData } from "../Apis/PaymentApi.js"
@@ -22,7 +23,7 @@ export function GetPlans() {
             dispatch(setCreditPacks(response.data.creditPacks))
             dispatch(setPaymentsLive(response.data.paymentsLive))
         } catch (error) {
-            console.error("Error fetching plans", error)
+            logError("Error fetching plans", error)
         } finally {
             dispatch(setLoading(false))
         }
@@ -43,7 +44,7 @@ export function GetPurchaseHistory(token) {
 
             dispatch(setHistory(response.data.payments))
         } catch (error) {
-            console.error("Error fetching purchase history", error)
+            logError("Error fetching purchase history", error)
         }
     }
 }
@@ -66,7 +67,7 @@ export function CreateOrder(planOrPackBody, token) {
             toast.success("Order created")
             return response.data
         } catch (error) {
-            console.error("Error creating order", error)
+            logError("Error creating order", error)
             toast.error(error?.response?.data?.message || "Payments are not available yet")
             return null
         } finally {
@@ -101,7 +102,7 @@ function VerifyPayment(paymentResponse, token) {
             }
             return true
         } catch (error) {
-            console.error("Error verifying payment", error)
+            logError("Error verifying payment", error)
             toast.error(error?.response?.data?.message || "Payment verification failed")
             return false
         }

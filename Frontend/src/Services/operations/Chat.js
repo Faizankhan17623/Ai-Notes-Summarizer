@@ -1,3 +1,4 @@
+import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
 import { apiConnector } from "../apiConnector.js"
 import { setAllChats, setCurrentChat, setLoading, setReplying } from "../../Slices/chatSlice.js"
@@ -23,7 +24,7 @@ export function CreateChat(noteId, token, navigate) {
             dispatch(GetAllChats(token))
             if (navigate) navigate(`/Dashboard/Chat/${response.data.chatId}`)
         } catch (error) {
-            console.error("Error creating the chat", error)
+            logError("Error creating the chat", error)
             toast.error(error?.response?.data?.message || "Could not start the chat")
         } finally {
             dispatch(setLoading(false))
@@ -45,7 +46,7 @@ export function GetAllChats(token) {
 
             dispatch(setAllChats(response.data.chats))
         } catch (error) {
-            console.error("Error fetching the chats", error)
+            logError("Error fetching the chats", error)
         }
     }
 }
@@ -64,7 +65,7 @@ export function GetSingleChat(chatId, token) {
 
             dispatch(setCurrentChat(response.data.chat))
         } catch (error) {
-            console.error("Error fetching the chat", error)
+            logError("Error fetching the chat", error)
             toast.error(error?.response?.data?.message || "Could not load the chat")
         } finally {
             dispatch(setLoading(false))
@@ -102,7 +103,7 @@ export function SendMessage(chatId, message, token, currentChat) {
                 ]
             }))
         } catch (error) {
-            console.error("Error sending the message", error)
+            logError("Error sending the message", error)
             toast.error(error?.response?.data?.message || "Could not send the message")
             // roll the optimistic bubble back sir
             dispatch(setCurrentChat(currentChat))
@@ -137,7 +138,7 @@ export function RegenerateReply(chatId, token, currentChat) {
                 messages: [...messagesWithoutLastReply, { role: 'assistant', content: response.data.reply }]
             }))
         } catch (error) {
-            console.error("Error regenerating the reply", error)
+            logError("Error regenerating the reply", error)
             toast.error(error?.response?.data?.message || "Could not regenerate the reply")
             // roll back to the original reply sir
             dispatch(setCurrentChat(currentChat))
@@ -164,7 +165,7 @@ export function DeleteChat(chatId, token, navigate) {
             dispatch(GetAllChats(token))
             if (navigate) navigate("/Dashboard/Chats")
         } catch (error) {
-            console.error("Error deleting the chat", error)
+            logError("Error deleting the chat", error)
             toast.error(error?.response?.data?.message || "Could not delete the chat")
         } finally {
             toast.dismiss(toastId)

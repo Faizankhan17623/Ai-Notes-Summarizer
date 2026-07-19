@@ -1,3 +1,4 @@
+import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
 import { apiConnector } from "../apiConnector.js"
 import { UserData } from "../Apis/UserApi.js"
@@ -23,7 +24,7 @@ export function GetApiKeyStatus(token) {
                 lastUsedAt: response.data.lastUsedAt,
             }))
         } catch (error) {
-            console.error("Error fetching API key status", error)
+            logError("Error fetching API key status", error)
         } finally {
             dispatch(setLoading(false))
         }
@@ -47,7 +48,7 @@ export function GenerateApiKey(token) {
             dispatch(GetApiKeyStatus(token))
             toast.success("API key generated — copy it now, it won't be shown again")
         } catch (error) {
-            console.error("Error generating API key", error)
+            logError("Error generating API key", error)
             toast.error(error?.response?.data?.message || "Could not generate an API key")
         } finally {
             toast.dismiss(toastId)
@@ -71,7 +72,7 @@ export function RevokeApiKey(token) {
             dispatch(GetApiKeyStatus(token))
             toast.success("API key revoked")
         } catch (error) {
-            console.error("Error revoking API key", error)
+            logError("Error revoking API key", error)
             toast.error(error?.response?.data?.message || "Could not revoke the API key")
         } finally {
             toast.dismiss(toastId)

@@ -1,3 +1,4 @@
+import { logError } from "../../utils/logError.js"
 import { apiConnector } from "../apiConnector.js"
 import { AnalyticsData } from "../Apis/AnalyticsApi.js"
 import { setAnalytics, setLoading } from "../../Slices/analyticsSlice.js"
@@ -18,7 +19,7 @@ export function GetMyAnalytics(token) {
 
             dispatch(setAnalytics(response.data.analytics))
         } catch (error) {
-            console.error("Error fetching analytics", error)
+            logError("Error fetching analytics", error)
         } finally {
             dispatch(setLoading(false))
         }

@@ -1,3 +1,4 @@
+import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
 import { apiConnector } from "../apiConnector.js"
 import { ContactData } from "../Apis/ContactApi.js"
@@ -16,7 +17,7 @@ export async function SubmitContactMessage(name, email, message) {
 
         return true
     } catch (error) {
-        console.error("Error sending contact message", error)
+        logError("Error sending contact message", error)
         toast.error(error?.response?.data?.message || "Could not send your message, please try again")
         return false
     }

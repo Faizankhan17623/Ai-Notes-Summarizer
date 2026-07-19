@@ -1,3 +1,4 @@
+import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
 import { apiConnector, setCsrfToken } from "../apiConnector.js"
 import { UserData } from "../Apis/UserApi.js"
@@ -20,7 +21,7 @@ export function FetchCsrfToken() {
                 setCsrfToken(response.data.csrfToken)
             }
         } catch (error) {
-            console.error("Error fetching CSRF token", error)
+            logError("Error fetching CSRF token", error)
         }
     }
 }
@@ -43,7 +44,7 @@ export function SendOtp(email, navigate) {
             // exactly why createUser used to fail with "All fields are required".
             if (navigate) navigate("/Verify-Otp")
         } catch (error) {
-            console.error("Error sending OTP", error)
+            logError("Error sending OTP", error)
             toast.error(error?.response?.data?.message || "Could not send OTP")
         } finally {
             dispatch(setLoading(false))
@@ -67,7 +68,7 @@ export function CreateUser(formData, navigate) {
             dispatch(setSignupData(null))
             if (navigate) navigate("/Login")
         } catch (error) {
-            console.error("Error creating account", error)
+            logError("Error creating account", error)
             toast.error(error?.response?.data?.message || "Could not create account")
         } finally {
             dispatch(setLoading(false))
@@ -101,7 +102,7 @@ export function LoginUser(email, password, navigate) {
             const landingPath = role === 'Admin' ? '/Admin' : role === 'Support' ? '/Support' : '/Dashboard'
             if (navigate) navigate(landingPath)
         } catch (error) {
-            console.error("Error logging in", error)
+            logError("Error logging in", error)
             toast.error(error?.response?.data?.message || "Could not log in")
         } finally {
             dispatch(setLoading(false))
@@ -116,7 +117,7 @@ export function LogoutUser(navigate) {
             await apiConnector("POST", logout)
         } catch (error) {
             // best-effort sir — clear local state regardless, the access token will simply expire on its own
-            console.error("Error logging out on the server", error)
+            logError("Error logging out on the server", error)
         }
         dispatch(setToken(null))
         dispatch(setUser(null))
@@ -143,7 +144,7 @@ export function ForgotPassword(email) {
             toast.success("Reset link sent to your email")
             sent = true
         } catch (error) {
-            console.error("Error sending reset link", error)
+            logError("Error sending reset link", error)
             toast.error(error?.response?.data?.message || "Could not send reset link")
         } finally {
             dispatch(setLoading(false))
@@ -169,7 +170,7 @@ export function ResetPassword(token, newPassword, confirmNewPassword, navigate) 
             toast.success("Password reset, please log in")
             if (navigate) navigate("/Login")
         } catch (error) {
-            console.error("Error resetting password", error)
+            logError("Error resetting password", error)
             toast.error(error?.response?.data?.message || "Could not reset password")
         } finally {
             dispatch(setLoading(false))
@@ -194,7 +195,7 @@ export function GetProfile(token) {
             dispatch(setPlan(response.data.plan))
             dispatch(setActivity(response.data.activity))
         } catch (error) {
-            console.error("Error fetching profile", error)
+            logError("Error fetching profile", error)
         } finally {
             dispatch(setLoading(false))
         }
@@ -213,7 +214,7 @@ export function CompleteOnboarding(token) {
                 dispatch(setProfile(response.data.user))
             }
         } catch (error) {
-            console.error("Error completing onboarding", error)
+            logError("Error completing onboarding", error)
         }
     }
 }
@@ -233,7 +234,7 @@ export function UpdateFirstName(firstName, token) {
             toast.success("First name updated")
             dispatch(GetProfile(token))
         } catch (error) {
-            console.error("Error updating first name", error)
+            logError("Error updating first name", error)
             toast.error(error?.response?.data?.message || "Could not update first name")
         } finally {
             toast.dismiss(toastId)
@@ -256,7 +257,7 @@ export function UpdateLastName(lastName, token) {
             toast.success("Last name updated")
             dispatch(GetProfile(token))
         } catch (error) {
-            console.error("Error updating last name", error)
+            logError("Error updating last name", error)
             toast.error(error?.response?.data?.message || "Could not update last name")
         } finally {
             toast.dismiss(toastId)
@@ -278,7 +279,7 @@ export function UpdateDigestPreference(receiveDigest, token) {
             toast.success(receiveDigest ? "Weekly digest emails turned on" : "Weekly digest emails turned off")
             dispatch(GetProfile(token))
         } catch (error) {
-            console.error("Error updating digest preference", error)
+            logError("Error updating digest preference", error)
             toast.error(error?.response?.data?.message || "Could not update your preference")
         }
     }
@@ -298,7 +299,7 @@ export function UpdateDailyGoal(dailyGoal, token) {
             toast.success("Daily study goal updated")
             dispatch(GetProfile(token))
         } catch (error) {
-            console.error("Error updating daily goal", error)
+            logError("Error updating daily goal", error)
             toast.error(error?.response?.data?.message || "Could not update your goal")
         }
     }
@@ -318,7 +319,7 @@ export function GetModelCatalog(token) {
 
             dispatch(setModelCatalog({ models: response.data.models, preferredModel: response.data.preferredModel }))
         } catch (error) {
-            console.error("Error fetching model catalog", error)
+            logError("Error fetching model catalog", error)
         }
     }
 }
@@ -338,7 +339,7 @@ export function UpdateModelPreference(model, token) {
             toast.success(response.data.message)
             dispatch(GetModelCatalog(token))
         } catch (error) {
-            console.error("Error updating preferred model", error)
+            logError("Error updating preferred model", error)
             toast.error(error?.response?.data?.message || "Could not update your preferred model")
         }
     }
@@ -358,7 +359,7 @@ export function UpdatePassword(oldPassword, newPassword, confirmNewPassword, tok
 
             toast.success("Password updated")
         } catch (error) {
-            console.error("Error updating password", error)
+            logError("Error updating password", error)
             toast.error(error?.response?.data?.message || "Could not update password")
         } finally {
             toast.dismiss(toastId)
@@ -381,7 +382,7 @@ export function DeleteAccount(token, navigate) {
             toast.success(response.data.message)
             dispatch(GetProfile(token))
         } catch (error) {
-            console.error("Error deleting account", error)
+            logError("Error deleting account", error)
             toast.error(error?.response?.data?.message || "Could not delete account")
         } finally {
             toast.dismiss(toastId)
@@ -404,7 +405,7 @@ export function RecoverAccount(token) {
             toast.success("Account recovered")
             dispatch(GetProfile(token))
         } catch (error) {
-            console.error("Error recovering account", error)
+            logError("Error recovering account", error)
             toast.error(error?.response?.data?.message || "Could not recover account")
         } finally {
             toast.dismiss(toastId)
