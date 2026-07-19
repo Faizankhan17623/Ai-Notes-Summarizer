@@ -87,6 +87,29 @@ const Report = () => {
                             <p className="text-richblack-100 text-base leading-relaxed">{summary.tldr}</p>
                         </div>
 
+                        {/* article-only sir — image URLs Tavily pulled from the source page; broken/
+                            hotlink-blocked ones remove themselves via onError instead of showing
+                            broken-image icons */}
+                        {currentNote.images?.length > 0 && (
+                            <div className="border border-border-soft bg-surface rounded-lg p-6">
+                                <h2 className="text-richblack-5 font-semibold mb-4">Images from the article</h2>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    {currentNote.images.map((src, i) => (
+                                        <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="block">
+                                            <img
+                                                src={src}
+                                                alt={`From the article (${i + 1})`}
+                                                loading="lazy"
+                                                referrerPolicy="no-referrer"
+                                                onError={(e) => { e.currentTarget.closest('a').style.display = 'none' }}
+                                                className="w-full h-32 object-cover rounded-md border border-border-soft hover:opacity-90 transition-opacity"
+                                            />
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="border border-border-soft bg-surface rounded-lg p-6">
                             <h2 className="text-richblack-5 font-semibold mb-3">Key points</h2>
                             <ul className="space-y-2.5">

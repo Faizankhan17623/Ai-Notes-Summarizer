@@ -38,6 +38,7 @@ const SpacedRepetitionFeature = lazy(() => import('./Components/Home/SpacedRepet
 const DashboardLayout = lazy(() => import('./Components/Dashboard/DashboardLayout'))
 const DashboardHome = lazy(() => import('./Components/Dashboard/DashboardHome'))
 const NewSummary = lazy(() => import('./Components/Dashboard/NewSummary'))
+const Articles = lazy(() => import('./Components/Dashboard/Articles'))
 const Report = lazy(() => import('./Components/Dashboard/Report'))
 const SharedNote = lazy(() => import('./Components/Dashboard/SharedNote'))
 const Review = lazy(() => import('./Components/Dashboard/Review'))
@@ -133,6 +134,7 @@ function App() {
             <Route element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
               <Route path="/Dashboard" element={<PageFade><DashboardHome /></PageFade>} />
               <Route path="/Dashboard/New-Summary" element={<PageFade><NewSummary /></PageFade>} />
+              <Route path="/Dashboard/Articles" element={<PageFade><Articles /></PageFade>} />
               <Route path="/Dashboard/Note/:noteId" element={<PageFade><Report /></PageFade>} />
               <Route path="/Dashboard/Review" element={<PageFade><Review /></PageFade>} />
               <Route path="/Dashboard/History" element={<PageFade><History /></PageFade>} />

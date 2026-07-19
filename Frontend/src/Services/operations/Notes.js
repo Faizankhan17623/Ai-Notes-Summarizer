@@ -74,6 +74,30 @@ export function BulkSummarizeNotes(formData, token, onDone) {
     }
 }
 
+// one article link sir — used by the Dashboard Articles page, which summarizes a list of
+// links ONE AT A TIME (sequential keeps each request inside Groq's per-minute token limit
+// and lets the page show live per-link status). Not a thunk on purpose: the caller owns
+// the loop and the per-row UI state, so this just returns { ok, noteId, title | message }
+export async function SummarizeArticleLink(url, token) {
+    try {
+        const response = await apiConnector("POST", summarize, { url }, {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+        })
+        if (!response.data.success) {
+            return { ok: false, message: response.data.message || "Could not summarize that article" }
+        }
+        return { ok: true, noteId: response.data.noteId, title: response.data.summary?.title || "Untitled note" }
+    } catch (error) {
+        console.error("Error summarizing article link", error)
+        return {
+            ok: false,
+            rateLimited: error?.response?.status === 429,
+            message: error?.response?.data?.message || "Could not summarize that article"
+        }
+    }
+}
+
 // filters is optional sir — { search, tag, folder, pinned, favorite } — all independent, pass only what's needed
 export function GetAllNotes(token, filters = {}) {
     return async (dispatch) => {

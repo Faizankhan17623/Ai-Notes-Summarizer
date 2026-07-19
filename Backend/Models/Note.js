@@ -38,6 +38,12 @@ const noteSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.Mixed,
             required: true
         },
+        // article-only sir — image URLs Tavily extracted alongside the text, shown on the
+        // Report page next to the summary (empty for every other sourceType)
+        images: {
+            type: [String],
+            default: []
+        },
         // organization sir — free-form tags the user assigns, e.g. "Work", "Lectures"
         tags: {
             type: [String],

@@ -1,11 +1,12 @@
 import { Outlet, NavLink } from 'react-router-dom'
 import { useSelector } from 'react-redux'
-import { FaHome, FaPlus, FaHistory, FaClipboardCheck, FaComments, FaUserCog } from 'react-icons/fa'
+import { FaHome, FaPlus, FaHistory, FaClipboardCheck, FaComments, FaUserCog, FaLink } from 'react-icons/fa'
 import Navbar from '../Home/Navbar.jsx'
 
 const navItems = [
     { to: '/Dashboard', label: 'Overview', icon: FaHome, end: true },
     { to: '/Dashboard/New-Summary', label: 'New summary', icon: FaPlus },
+    { to: '/Dashboard/Articles', label: 'Articles', icon: FaLink },
     { to: '/Dashboard/History', label: 'All notes', icon: FaHistory },
     { to: '/Dashboard/Review', label: 'Review queue', icon: FaClipboardCheck },
     { to: '/Dashboard/Chats', label: 'Chats', icon: FaComments },

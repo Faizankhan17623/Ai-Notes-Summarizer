@@ -68,7 +68,9 @@ const SummarizerHero = ({ tab, setTab }) => {
 
         if (tab === 'article') {
             if (!articleUrl.trim()) return
-            dispatch(SummarizeNotes({ url: normalizeArticleUrl(articleUrl) }, token, navigate))
+            // articles get their own dashboard page sir — multi-link input, per-link status,
+            // image extraction; carry the typed link over via router state so it's prefilled
+            navigate('/Dashboard/Articles', { state: { url: normalizeArticleUrl(articleUrl) } })
             return
         }
 

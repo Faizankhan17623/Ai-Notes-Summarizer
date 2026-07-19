@@ -21,7 +21,7 @@ const DOC_SOURCE_TYPES = new Set(['pdf', 'docx', 'txt'])
 // on any failure so each caller can decide how to report it (500 vs per-item bulk result).
 // `feature` overrides which gate to spend against: 'bulkSummary' when called per-file from
 // bulkSummarize below, otherwise inferred from sourceType (docSummary/audioSummary/shared pool)
-const summarizeExtractedText = async (userId, text, sourceType, feature = null) => {
+const summarizeExtractedText = async (userId, text, sourceType, feature = null, images = []) => {
     // Groq's free tier caps tokens-per-MINUTE at 8,000 for our models sir — a long article
     // can be 11k+ tokens on its own and 413s instantly ("Request too large"). Cap the input
     // at ~20k chars (~5k tokens), leaving room for the system prompt + the JSON completion.
@@ -118,6 +118,7 @@ const summarizeExtractedText = async (userId, text, sourceType, feature = null) 
         plan: spend.plan,
         summary,
         tags: suggestedTags,
+        images,
     })
 
     return { note, summary }
@@ -137,6 +138,7 @@ exports.Calling = async (req, res) => {
 
         let text = ''
         let sourceType = 'text'
+        let images = []
 
         const file = rawFiles
         const audioFile = req.files?.audio
@@ -170,6 +172,7 @@ exports.Calling = async (req, res) => {
                 const extracted = await extractFromUrl(articleUrl.trim())
                 text = extracted.text
                 sourceType = extracted.sourceType
+                images = extracted.images || []
             } catch (parseErr) {
                 return res.status(400).json({
                     success: false,
@@ -197,7 +200,7 @@ exports.Calling = async (req, res) => {
             })
         }
 
-        const { note, summary } = await summarizeExtractedText(id, text, sourceType)
+        const { note, summary } = await summarizeExtractedText(id, text, sourceType, null, images)
 
         const streakUser = await User.findById(id).select('currentStreak lastStreakDate longestStreak')
         await recordStudyActivity(streakUser)

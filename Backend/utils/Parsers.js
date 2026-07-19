@@ -45,7 +45,10 @@ const extractText = async (file) => {
 }
 
 // fetches an article's readable text via Tavily's Extract API sir — same { text, sourceType }
-// contract as extractText, so AI.js can feed the result into the same summarize pipeline
+// contract as extractText (plus `images`), so AI.js can feed the result into the same
+// summarize pipeline. include_images asks Tavily for the article's image URLs too — we
+// don't run a vision model on them (current Groq catalog is text-only), we store them on
+// the Note so the Report page can display them alongside the summary
 const extractFromUrl = async (url) => {
     const response = await fetch('https://api.tavily.com/extract', {
         method: 'POST',
@@ -53,7 +56,7 @@ const extractFromUrl = async (url) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${process.env.TAVILY_API_KEY}`,
         },
-        body: JSON.stringify({ urls: [url] }),
+        body: JSON.stringify({ urls: [url], include_images: true }),
     })
 
     if (!response.ok) {
@@ -67,7 +70,13 @@ const extractFromUrl = async (url) => {
         throw new Error('Could not extract readable text from that link — it may be paywalled, blocked, or not an article')
     }
 
-    return { text: result.raw_content, sourceType: 'article' }
+    // http(s) URLs only, capped at 8 sir — enough to illustrate the article without
+    // turning the Report page into a gallery of tracking pixels and icons
+    const images = (Array.isArray(result.images) ? result.images : [])
+        .filter((img) => typeof img === 'string' && /^https?:\/\//i.test(img))
+        .slice(0, 8)
+
+    return { text: result.raw_content, sourceType: 'article', images }
 }
 
 // transcribes an uploaded audio file via Groq's Whisper endpoint sir — same { text, sourceType }
