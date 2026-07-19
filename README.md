@@ -4,8 +4,10 @@ Turn any notes into a clear, structured summary — paste text, upload a PDF/Wor
 
 ## Live demo
 
-- **Frontend:** [ai-notes-summarizer-v2.vercel.app](https://ai-notes-summarizer-v2.vercel.app/)
-- **Backend API:** [ai-notes-summarizer-v2.onrender.com](https://ai-notes-summarizer-v2.onrender.com)
+- **Frontend:** [ai-notes-summarizer-phi.vercel.app](https://ai-notes-summarizer-phi.vercel.app/)
+- **Backend API:** [ai-notes-summarizer-3trc.onrender.com](https://ai-notes-summarizer-3trc.onrender.com)
+
+> The backend runs on Render's free tier and spins down when idle — the frontend pings it awake on page load, but the very first request after a quiet period can still take ~30-60s.
 
 ## Features
 
@@ -22,7 +24,7 @@ Turn any notes into a clear, structured summary — paste text, upload a PDF/Wor
 
 ## Tech stack
 
-**Backend:** Node.js, Express, MongoDB (Mongoose), JWT, Groq SDK, `pdf-parse`, `mammoth` (docx), `pdfkit`/`docx` (export), Nodemailer (+ Brevo HTTP API fallback), `node-cron`, `express-rate-limit`, Helmet, `csrf-csrf`
+**Backend:** Node.js, Express, MongoDB (Mongoose), JWT, Groq SDK, `pdf-parse`, `mammoth` (docx), `pdfkit`/`docx` (export), Nodemailer (direct SMTP locally; in production relayed through a Vercel serverless function because Render's free tier blocks outbound SMTP), `node-cron`, `express-rate-limit`, Helmet, `csrf-csrf`
 
 **Frontend:** React 19, Vite, Redux Toolkit, Tailwind CSS v4, Axios, React Router, react-hook-form, react-hot-toast
 
@@ -54,6 +56,8 @@ FRONTEND_URL=http://localhost:5173
 MAIL_HOST=smtp.gmail.com          # optional, needed for OTP/reset emails
 MAIL_USER=
 MAIL_PASS=
+MAIL_RELAY_URL=                   # optional, prod only: Vercel /api/send-mail function URL (Render blocks SMTP)
+MAIL_RELAY_SECRET=                # shared secret for the relay — set the same value on Vercel
 RAZORPAY_KEY_ID=                  # optional, leave blank for payments stub mode
 RAZORPAY_KEY_SECRET=
 ```
@@ -172,6 +176,11 @@ ADMIN & SUPPORT PANELS (RBAC-gated, shared AdminLayout sidebar)
 SITE-WIDE / MISC UI
 - Light/dark theme toggle, persisted
 - Announcement banner (dismissible)
+- Cookie consent banner (accept once, remembered in localStorage)
+- Backend wake-up ping on page load (utils/wakeUpServer.js -> GET /health, retries, then CSRF fetch)
+- Navbar slims to theme/bell/logout inside dashboard shells (sidebar handles nav there)
+- One-time ProMax plan-change notice: dismissible banner + idempotent startup bell notification
+  (ProMaxPlanNotice.jsx + utils/PlanChangeNotice.js — both deletable once rollout is old news)
 - Dev/under-construction banner
 - Persistent dashboard sidebar nav + live credit-usage progress bar
 - Lazy-loaded/code-split routes with spinner fallback, scroll-restore on route change
@@ -179,8 +188,14 @@ SITE-WIDE / MISC UI
 
 THIRD-PARTY INTEGRATIONS
 - Groq (LLM inference) for summarization/chat/flashcards/quizzes — all calls logged to AiLog for cost monitoring
+  - Current catalog (2026-07): openai/gpt-oss-20b (default, all tiers), + gpt-oss-120b (Pro/ProMax),
+    + qwen/qwen3.6-27b preview (ProMax); whisper-large-v3-turbo for audio transcription
+  - Groq rotates/retires models — check console.groq.com/docs/deprecations before touching MODEL_CATALOG
+  - All prompt inputs capped at ~20k chars to fit the free tier's 8,000 tokens-per-minute limit;
+    413/429 from Groq surface as a friendly "wait a minute" message
 - Razorpay (payment orders + signature verification, stub mode)
-- Nodemailer/SMTP: OTP email, password reset, account-deletion notice, weekly digest (no-ops if SMTP unset)
+- Nodemailer: OTP email, password reset, account-deletion notice, weekly digest (no-ops if SMTP unset);
+  in production hands off to the Vercel function Frontend/api/send-mail.js via MAIL_RELAY_URL/SECRET
 - Browser Web Speech API: voice dictation for note input and chat messages (no external API key)
 - MongoDB Atlas as primary datastore
 
