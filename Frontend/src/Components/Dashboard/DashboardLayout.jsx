@@ -1,7 +1,8 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { FaHome, FaPlus, FaHistory, FaClipboardCheck, FaComments, FaUserCog, FaLink } from 'react-icons/fa'
 import Navbar from '../Home/Navbar.jsx'
+import AnimatedOutlet from '../extra/AnimatedOutlet.jsx'
 
 const navItems = [
     { to: '/Dashboard', label: 'Overview', icon: FaHome, end: true },
@@ -85,7 +86,7 @@ const DashboardLayout = () => {
                 </aside>
 
                 <main className="flex-1 min-w-0">
-                    <Outlet />
+                    <AnimatedOutlet />
                 </main>
             </div>
         </div>

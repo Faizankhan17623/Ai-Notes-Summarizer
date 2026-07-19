@@ -1,6 +1,7 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { FaChartLine, FaChartBar, FaUsers, FaCreditCard, FaClipboardList, FaBullhorn, FaEnvelopeOpenText, FaGlobeAmericas } from 'react-icons/fa'
 import Navbar from '../Home/Navbar.jsx'
+import AnimatedOutlet from '../extra/AnimatedOutlet.jsx'
 
 // Admin-only sir — Support has its own separate dashboard (SupportLayout) with its own,
 // smaller nav, so this list never needs to be filtered by role
@@ -43,7 +44,7 @@ const AdminLayout = () => {
                 </aside>
 
                 <main className="flex-1 min-w-0">
-                    <Outlet />
+                    <AnimatedOutlet />
                 </main>
             </div>
         </div>

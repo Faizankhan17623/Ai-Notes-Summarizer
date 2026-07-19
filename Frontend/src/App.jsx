@@ -63,13 +63,19 @@ const PageLoader = () => (
   </div>
 )
 
-// Fades/slides each route in on mount sir — keyed by pathname below so AnimatePresence
-// treats every navigation as an exit+enter pair instead of a silent swap.
-const PageFade = ({ children }) => (
-  <motion.div initial="initial" animate="animate" exit="exit" variants={pageTransition}>
-    {children}
-  </motion.div>
-)
+// Fades/slides each top-level route in on mount sir — self-keyed by pathname so
+// AnimatePresence (wrapping the whole <Routes> below) still treats navigation between
+// STANDALONE pages as an exit+enter pair. Pages nested inside a persistent sidebar layout
+// (Dashboard/Admin/Support) don't use this — see AnimatedOutlet.jsx, which animates just
+// the Outlet content so the sidebar around it never remounts.
+const PageFade = ({ children }) => {
+  const location = useLocation()
+  return (
+    <motion.div key={location.pathname} initial="initial" animate="animate" exit="exit" variants={pageTransition}>
+      {children}
+    </motion.div>
+  )
+}
 
 const Homelayout = () => {
   return (
@@ -114,7 +120,7 @@ function App() {
       <ScrollToTop />
       <Suspense fallback={<PageLoader />}>
         <AnimatePresence mode="wait" initial={false}>
-          <Routes location={location} key={location.pathname}>
+          <Routes location={location}>
             {/* Public sir */}
             <Route path="/" element={<Homelayout />} />
             <Route path="/Pricing" element={<PageFade><Pricing /></PageFade>} />
@@ -140,28 +146,28 @@ function App() {
             {/* Only for the logged-IN sir — one shared sidebar shell via Outlet instead of every
                 page rendering its own Navbar */}
             <Route element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
-              <Route path="/Dashboard" element={<PageFade><DashboardHome /></PageFade>} />
-              <Route path="/Dashboard/New-Summary" element={<PageFade><NewSummary /></PageFade>} />
-              <Route path="/Dashboard/Articles" element={<PageFade><Articles /></PageFade>} />
-              <Route path="/Dashboard/Note/:noteId" element={<PageFade><Report /></PageFade>} />
-              <Route path="/Dashboard/Review" element={<PageFade><Review /></PageFade>} />
-              <Route path="/Dashboard/History" element={<PageFade><History /></PageFade>} />
-              <Route path="/Dashboard/Chats" element={<PageFade><Chat /></PageFade>} />
-              <Route path="/Dashboard/Chat/:chatId" element={<PageFade><Chat /></PageFade>} />
-              <Route path="/Dashboard/Account" element={<PageFade><Account /></PageFade>} />
+              <Route path="/Dashboard" element={<DashboardHome />} />
+              <Route path="/Dashboard/New-Summary" element={<NewSummary />} />
+              <Route path="/Dashboard/Articles" element={<Articles />} />
+              <Route path="/Dashboard/Note/:noteId" element={<Report />} />
+              <Route path="/Dashboard/Review" element={<Review />} />
+              <Route path="/Dashboard/History" element={<History />} />
+              <Route path="/Dashboard/Chats" element={<Chat />} />
+              <Route path="/Dashboard/Chat/:chatId" element={<Chat />} />
+              <Route path="/Dashboard/Account" element={<Account />} />
             </Route>
 
             {/* Admin only sir — Support has its own completely separate dashboard below, not a
                 filtered view of this one. The backend re-checks the role on every call anyway. */}
             <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
-              <Route path="/Admin" element={<PageFade><AdminOverview /></PageFade>} />
-              <Route path="/Admin/Analytics" element={<PageFade><AdminAnalytics /></PageFade>} />
-              <Route path="/Admin/Traffic" element={<PageFade><AdminTraffic /></PageFade>} />
-              <Route path="/Admin/Users" element={<PageFade><AdminUsers /></PageFade>} />
-              <Route path="/Admin/Payments" element={<PageFade><AdminPayments /></PageFade>} />
-              <Route path="/Admin/Messages" element={<PageFade><AdminContactMessages /></PageFade>} />
-              <Route path="/Admin/Audit" element={<PageFade><AdminAudit /></PageFade>} />
-              <Route path="/Admin/Announcements" element={<PageFade><AdminAnnouncements /></PageFade>} />
+              <Route path="/Admin" element={<AdminOverview />} />
+              <Route path="/Admin/Analytics" element={<AdminAnalytics />} />
+              <Route path="/Admin/Traffic" element={<AdminTraffic />} />
+              <Route path="/Admin/Users" element={<AdminUsers />} />
+              <Route path="/Admin/Payments" element={<AdminPayments />} />
+              <Route path="/Admin/Messages" element={<AdminContactMessages />} />
+              <Route path="/Admin/Audit" element={<AdminAudit />} />
+              <Route path="/Admin/Announcements" element={<AdminAnnouncements />} />
             </Route>
 
             {/* Support only sir — its own dashboard at /Support, reusing the same Overview/Users/
@@ -169,10 +175,10 @@ function App() {
                 hit the same endpoints Support is allowed to call) but never AdminLayout's shell
                 or its Admin-only tabs */}
             <Route element={<SupportRoute><SupportLayout /></SupportRoute>}>
-              <Route path="/Support" element={<PageFade><AdminOverview /></PageFade>} />
-              <Route path="/Support/Users" element={<PageFade><AdminUsers /></PageFade>} />
-              <Route path="/Support/Payments" element={<PageFade><AdminPayments /></PageFade>} />
-              <Route path="/Support/Messages" element={<PageFade><AdminContactMessages /></PageFade>} />
+              <Route path="/Support" element={<AdminOverview />} />
+              <Route path="/Support/Users" element={<AdminUsers />} />
+              <Route path="/Support/Payments" element={<AdminPayments />} />
+              <Route path="/Support/Messages" element={<AdminContactMessages />} />
             </Route>
 
             {/* anything unknown goes home sir */}

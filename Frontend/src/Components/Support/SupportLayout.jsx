@@ -1,6 +1,7 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { FaChartLine, FaUsers, FaCreditCard, FaEnvelopeOpenText } from 'react-icons/fa'
 import Navbar from '../Home/Navbar.jsx'
+import AnimatedOutlet from '../extra/AnimatedOutlet.jsx'
 
 // Support's own dashboard sir — separate from AdminLayout entirely, not a filtered copy of it.
 // Only the "view/help" pages the backend actually lets Support call (see isSupport in
@@ -40,7 +41,7 @@ const SupportLayout = () => {
                 </aside>
 
                 <main className="flex-1 min-w-0">
-                    <Outlet />
+                    <AnimatedOutlet />
                 </main>
             </div>
         </div>
