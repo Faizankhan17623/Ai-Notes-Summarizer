@@ -8,7 +8,7 @@ import { setProfile, setPlan, setActivity, setModelCatalog } from "../../Slices/
 const {
     sendOtp, createUser, login, forgotPassword, resetPassword, profile, updateFirstName, updateLastName,
     updateDigestPreference, updateDailyGoal, modelCatalog, updateModel, completeOnboarding, updatePassword,
-    deleteAccount, recoverAccount, logout, csrfToken
+    deleteAccount, recoverAccount, logout, csrfToken, appeal
 } = UserData
 
 // fetched once on app mount and again right after login sir — the CSRF secret cookie may be
@@ -194,11 +194,44 @@ export function GetProfile(token) {
             dispatch(setProfile(response.data.user))
             dispatch(setPlan(response.data.plan))
             dispatch(setActivity(response.data.activity))
+            // keep auth.user's ban/appeal fields in sync too sir — GetProfile runs on every
+            // dashboard load and is the only thing that can ever move a banned user OUT of
+            // 'pending' into 'denied' (an admin's Deny) without them logging out and back in
+            dispatch(setUser(response.data.user))
+            localStorage.setItem("user", JSON.stringify(response.data.user))
         } catch (error) {
             logError("Error fetching profile", error)
         } finally {
             dispatch(setLoading(false))
         }
+    }
+}
+
+// POST /appeal sir — one-shot, banned users only. Returns true/false so the locked-dashboard
+// form can swap to the "pending" state on success without a second round-trip.
+export function AppealBan(message, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Submitting your appeal...")
+        let submitted = false
+        try {
+            const response = await apiConnector("POST", appeal, { message }, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            toast.success("Appeal submitted")
+            submitted = true
+            dispatch(GetProfile(token))
+        } catch (error) {
+            logError("Error submitting appeal", error)
+            toast.error(error?.response?.data?.message || "Could not submit your appeal")
+        } finally {
+            toast.dismiss(toastId)
+        }
+        return submitted
     }
 }
 

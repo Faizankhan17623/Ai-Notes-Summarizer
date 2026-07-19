@@ -5,7 +5,7 @@ import { AdminData } from "../Apis/AdminApi.js"
 import { setOverview, setAnalytics, setTraffic, setTrafficLoading, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setContactMessages, setLoading } from "../../Slices/adminSlice.js"
 
 const {
-    overview, analytics, traffic, users, banUser, unbanUser, setRole, payments, refundPayment, contactMessages,
+    overview, analytics, traffic, users, banUser, unbanUser, denyAppeal, setRole, payments, refundPayment, contactMessages,
     replyToContactMessage, addInternalNote, audit, aiLogs, activeAnnouncement, announcements, deactivateAnnouncement
 } = AdminData
 
@@ -103,6 +103,24 @@ export function UnbanUser(userId, token) {
             dispatch(GetUsers(token))
         } catch (error) {
             toast.error(error?.response?.data?.message || "Could not unban user")
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+// permanent sir — the user stays banned, but their appeal option is gone for good (see
+// Backend/controllers/Admin.js denyAppeal). Only ever unbanning starts a fresh appeal cycle.
+export function DenyAppeal(userId, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Denying appeal...")
+        try {
+            const response = await apiConnector("PATCH", `${denyAppeal}/${userId}/deny-appeal`, null, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success("Appeal denied")
+            dispatch(GetUsers(token))
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not deny the appeal")
         } finally {
             toast.dismiss(toastId)
         }

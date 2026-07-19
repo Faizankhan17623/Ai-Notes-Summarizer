@@ -18,7 +18,8 @@ const writeAudit = (actor, action, target, details) => {
 // admin Users-page load. Naming exactly what the admin UI needs means a new sensitive field
 // added to the User model later doesn't silently leak until someone remembers to exclude it.
 const ADMIN_USER_FIELDS = 'firstName lastName email role SubType Subscription SubscriptionExpires ' +
-    'Verified isBanned banReason lockUntil failedLoginAttempts count bonusCredits createdAt'
+    'Verified isBanned banReason lockUntil failedLoginAttempts count bonusCredits createdAt ' +
+    'appealStatus appealMessage appealSubmittedAt'
 
 // GET /admin/overview — top-line counts for the admin dashboard sir
 exports.getOverview = async (req, res) => {
@@ -204,7 +205,13 @@ exports.unbanUser = async (req, res) => {
     try {
         const { userId } = req.params
 
-        const user = await User.findByIdAndUpdate(userId, { isBanned: false, banReason: '' }, { returnDocument: 'after' }).select(ADMIN_USER_FIELDS)
+        // appeal state resets to 'none' sir — a future ban on this account should start with
+        // a fresh appeal available, not inherit whatever happened on the previous ban
+        const user = await User.findByIdAndUpdate(
+            userId,
+            { isBanned: false, banReason: '', appealStatus: 'none', appealMessage: '', appealSubmittedAt: null },
+            { returnDocument: 'after' }
+        ).select(ADMIN_USER_FIELDS)
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' })
         }
@@ -215,6 +222,36 @@ exports.unbanUser = async (req, res) => {
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to unban user' })
+    }
+}
+
+// PATCH /admin/users/:userId/deny-appeal sir — Admin only. Permanent: flips appealStatus to
+// 'denied', the user stays banned, and there is no path back to 'none' except a full unban
+// (which starts a fresh appeal cycle on any FUTURE ban, not this one).
+exports.denyAppeal = async (req, res) => {
+    try {
+        const { userId } = req.params
+
+        const target = await User.findById(userId).select('isBanned appealStatus')
+        if (!target) {
+            return res.status(404).json({ success: false, message: 'User not found' })
+        }
+        if (!target.isBanned || target.appealStatus !== 'pending') {
+            return res.status(400).json({ success: false, message: 'This user has no pending appeal to deny' })
+        }
+
+        const user = await User.findByIdAndUpdate(
+            userId,
+            { appealStatus: 'denied' },
+            { returnDocument: 'after' }
+        ).select(ADMIN_USER_FIELDS)
+
+        writeAudit(req.User.id, 'deny_appeal', userId)
+
+        return res.status(200).json({ success: true, message: 'Appeal denied — this decision is final', user })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to deny the appeal' })
     }
 }
 

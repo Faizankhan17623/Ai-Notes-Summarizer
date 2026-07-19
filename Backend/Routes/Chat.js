@@ -1,6 +1,6 @@
 const express = require('express')
 const route = express.Router()
-const { Auth } = require('../Middlewares/Auth.js')
+const { Auth, blockIfBanned } = require('../Middlewares/Auth.js')
 const { aiLimiter } = require('../Middlewares/RateLimit.js')
 const { doubleCsrfProtection } = require('../Middlewares/Csrf.js')
 const { validate } = require('../Middlewares/Validate.js')
@@ -14,13 +14,13 @@ const {
     deleteChat
 } = require('../controllers/Chat.js')
 
-route.post('/chat', doubleCsrfProtection, createChatRules, validate, Auth, createChat)
+route.post('/chat', doubleCsrfProtection, createChatRules, validate, Auth, blockIfBanned, createChat)
 // this one hits Groq sir so it gets the AI rate limit
-route.post('/chat/:chatId/message', aiLimiter, doubleCsrfProtection, sendMessageRules, validate, Auth, sendMessage)
+route.post('/chat/:chatId/message', aiLimiter, doubleCsrfProtection, sendMessageRules, validate, Auth, blockIfBanned, sendMessage)
 // also hits Groq sir — same rate limit as sending a message
-route.post('/chat/:chatId/regenerate', aiLimiter, doubleCsrfProtection, regenerateReplyRules, validate, Auth, regenerateReply)
-route.get('/chat', Auth, getChats)
-route.get('/chat/:chatId', Auth, getChat)
-route.delete('/chat/:chatId', doubleCsrfProtection, Auth, deleteChat)
+route.post('/chat/:chatId/regenerate', aiLimiter, doubleCsrfProtection, regenerateReplyRules, validate, Auth, blockIfBanned, regenerateReply)
+route.get('/chat', Auth, blockIfBanned, getChats)
+route.get('/chat/:chatId', Auth, blockIfBanned, getChat)
+route.delete('/chat/:chatId', doubleCsrfProtection, Auth, blockIfBanned, deleteChat)
 
 module.exports = route

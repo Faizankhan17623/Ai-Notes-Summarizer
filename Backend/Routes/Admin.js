@@ -10,6 +10,7 @@ const {
     getUsers,
     banUser,
     unbanUser,
+    denyAppeal,
     setRole,
     getPayments,
     refundPayment,
@@ -49,6 +50,7 @@ route.get('/admin/traffic', Auth, isAdmin, getTraffic)
 route.patch('/admin/payments/:paymentId/refund', doubleCsrfProtection, Auth, isAdmin, refundPayment)
 route.patch('/admin/users/:userId/ban', doubleCsrfProtection, banUserRules, validate, Auth, isAdmin, banUser)
 route.patch('/admin/users/:userId/unban', doubleCsrfProtection, Auth, isAdmin, unbanUser)
+route.patch('/admin/users/:userId/deny-appeal', doubleCsrfProtection, Auth, isAdmin, denyAppeal)
 route.patch('/admin/users/:userId/role', doubleCsrfProtection, setRoleRules, validate, Auth, isAdmin, setRole)
 route.get('/admin/audit', Auth, isAdmin, getAuditLog)
 route.get('/admin/announcements', Auth, isAdmin, getAnnouncements)

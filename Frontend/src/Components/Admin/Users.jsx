@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
 import { FaSearch, FaChevronLeft, FaChevronRight, FaUserShield, FaUserClock } from 'react-icons/fa'
 import Swal from 'sweetalert2'
-import { GetUsers, BanUser, UnbanUser, SetRole } from '../../Services/operations/Admin.js'
+import { GetUsers, BanUser, UnbanUser, DenyAppeal, SetRole } from '../../Services/operations/Admin.js'
 import StatusBadge from './StatusBadge.jsx'
 
 const ROLE_TONE = {
@@ -159,7 +159,7 @@ const Users = () => {
                                         </td>
                                         <td className="py-3 px-4 font-mono text-xs">{u.SubType}</td>
                                         <td className="py-3 px-4">
-                                            <div className="flex items-center gap-1.5">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
                                                 {u.isBanned ? <StatusBadge tone="danger">Banned</StatusBadge> : <StatusBadge tone="good">Active</StatusBadge>}
                                                 {/* self-clearing brute-force lockout sir — separate from isBanned, only shown while
                                                     actually in effect (lockUntil in the future), explains a "can't log in" ticket
@@ -169,11 +169,24 @@ const Users = () => {
                                                         Locked out
                                                     </StatusBadge>
                                                 )}
+                                                {/* one-shot appeal sir — 'pending' means they're waiting on Unban/Deny below,
+                                                    'denied' means the ban is now permanent (no further appeal possible) */}
+                                                {u.isBanned && u.appealStatus === 'pending' && (
+                                                    <StatusBadge tone="neutral" title={u.appealMessage}>Appeal pending</StatusBadge>
+                                                )}
+                                                {u.isBanned && u.appealStatus === 'denied' && (
+                                                    <StatusBadge tone="danger">Permanently banned</StatusBadge>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="py-3 px-4">
                                             {!isAdmin ? null : u.isBanned ? (
-                                                <button onClick={() => dispatch(UnbanUser(u._id, token))} className="text-good text-xs font-medium cursor-pointer hover:underline">Unban</button>
+                                                <div className="flex items-center gap-3">
+                                                    <button onClick={() => dispatch(UnbanUser(u._id, token))} className="text-good text-xs font-medium cursor-pointer hover:underline">Unban</button>
+                                                    {u.appealStatus === 'pending' && (
+                                                        <button onClick={() => dispatch(DenyAppeal(u._id, token))} className="text-danger-soft text-xs font-medium cursor-pointer hover:underline">Deny appeal</button>
+                                                    )}
+                                                </div>
                                             ) : (
                                                 <button onClick={() => handleBan(u._id)} className="text-danger-soft text-xs font-medium cursor-pointer hover:underline">Ban</button>
                                             )}

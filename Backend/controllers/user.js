@@ -199,14 +199,10 @@ exports.loginUser = async (req, res) => {
             })
         }
 
-        if (existingUser.isBanned) {
-            return res.status(403).json({
-                success: false,
-                message: existingUser.banReason
-                    ? `Your account has been suspended: ${existingUser.banReason}`
-                    : 'Your account has been suspended, please contact support',
-            })
-        }
+        // banned users ARE allowed to log in sir — they land on a locked dashboard (see
+        // DashboardLayout.jsx) that blocks every action but shows the ban reason and a
+        // one-shot appeal form, instead of being turned away at the door with no way to
+        // ever contest it. isBanned is still enforced per-route by blockIfBanned in Auth.js.
 
         // account-level brute-force lockout sir — separate from isBanned, self-healing, no admin
         // action needed. Checked BEFORE bcrypt.compare so a locked account never pays the bcrypt
@@ -251,7 +247,7 @@ exports.loginUser = async (req, res) => {
             existingUser.BufferTiming = null
         }
 
-        const { _id, firstName, lastName, role, SubType } = existingUser
+        const { _id, firstName, lastName, role, SubType, isBanned, banReason, appealStatus } = existingUser
 
         // short-lived access token + a separate long-lived refresh token sir — only the refresh
         // token's SHA-256 hash is stored (mirrors the existing apiKeyHash pattern), the raw value
@@ -292,6 +288,9 @@ exports.loginUser = async (req, res) => {
                 email: existingUser.email,
                 role,
                 SubType,
+                isBanned,
+                banReason,
+                appealStatus,
             }
         })
     } catch (error) {
@@ -328,14 +327,8 @@ exports.refreshToken = async (req, res) => {
             })
         }
 
-        if (user.isBanned) {
-            return res.status(403).json({
-                success: false,
-                message: user.banReason
-                    ? `Your account has been suspended: ${user.banReason}`
-                    : 'Your account has been suspended, please contact support',
-            })
-        }
+        // banned users keep refreshing sir — same reasoning as loginUser above, they need a
+        // working session to reach the locked dashboard and submit their one-shot appeal
 
         const accessToken = signAccessToken(user)
         user.token = accessToken
@@ -962,7 +955,7 @@ exports.getProfile = async (req, res) => {
         const id = req.User.id
 
         const user = await User.findById(id)
-            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount receiveDigest currentStreak longestStreak dailyGoal hasCompletedOnboarding createdAt Buffer BufferTiming')
+            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount receiveDigest currentStreak longestStreak dailyGoal hasCompletedOnboarding createdAt Buffer BufferTiming isBanned banReason appealStatus appealMessage')
 
         if (!user) {
             return res.status(404).json({
@@ -1023,6 +1016,61 @@ exports.getProfile = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Failed to get the profile',
+        })
+    }
+}
+
+// ============================================================
+// APPEAL A BAN — POST /appeal sir, banned users only (route is NOT behind blockIfBanned,
+// that's the whole point). One shot: appealStatus must still be 'none', so this always
+// 400s on a second attempt or after an admin has denied the first one. A Deny is permanent —
+// there is no path back to 'none' except an admin unbanning the account outright.
+// ============================================================
+exports.appealBan = async (req, res) => {
+    try {
+        const userId = req.User.id
+        const { message } = req.body
+
+        if (!message || !message.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please explain why your account should be reinstated',
+            })
+        }
+
+        const user = await User.findById(userId).select('isBanned appealStatus')
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' })
+        }
+
+        if (!user.isBanned) {
+            return res.status(400).json({ success: false, message: 'Your account is not banned' })
+        }
+
+        if (user.appealStatus !== 'none') {
+            return res.status(400).json({
+                success: false,
+                message: user.appealStatus === 'pending'
+                    ? 'Your appeal has already been submitted and is awaiting review'
+                    : 'Your appeal was reviewed and denied — this decision is final',
+            })
+        }
+
+        await User.findByIdAndUpdate(userId, {
+            appealStatus: 'pending',
+            appealMessage: message.trim(),
+            appealSubmittedAt: new Date(),
+        })
+
+        return res.status(200).json({
+            success: true,
+            message: 'Your appeal has been submitted for review',
+        })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to submit your appeal',
         })
     }
 }

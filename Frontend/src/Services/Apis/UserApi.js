@@ -21,4 +21,5 @@ export const UserData = {
     logout: BASE_URL + "/logout",
     csrfToken: BASE_URL + "/csrf-token",
     visit: BASE_URL + "/visit",
+    appeal: BASE_URL + "/appeal",
 }

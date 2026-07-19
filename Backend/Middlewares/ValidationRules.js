@@ -43,6 +43,8 @@ exports.updatePasswordRules = [
 exports.updateFirstNameRules = [body('firstName').trim().notEmpty().isLength({ max: 50 })]
 exports.updateLastNameRules = [body('lastName').trim().notEmpty().isLength({ max: 50 })]
 
+exports.appealRules = [body('message').trim().notEmpty().isLength({ max: 1000 })]
+
 exports.organizeNoteRules = [
     param('noteId').isMongoId(),
     body('tags').optional().isArray({ max: 20 }),

@@ -1,6 +1,6 @@
 const express = require('express')
 const route = express.Router()
-const { Auth } = require('../Middlewares/Auth.js')
+const { Auth, blockIfBanned } = require('../Middlewares/Auth.js')
 const { authLimiter, otpLimiter } = require('../Middlewares/RateLimit.js')
 const { doubleCsrfProtection } = require('../Middlewares/Csrf.js')
 const { validate } = require('../Middlewares/Validate.js')
@@ -13,6 +13,7 @@ const {
     updatePasswordRules,
     updateFirstNameRules,
     updateLastNameRules,
+    appealRules,
 } = require('../Middlewares/ValidationRules.js')
 const {
     createUser,
@@ -33,6 +34,7 @@ const {
     recoverAccount,
     refreshToken,
     logoutUser,
+    appealBan,
 } = require('../controllers/user.js')
 const { generateApiKey, getApiKeyStatus, revokeApiKey } = require('../controllers/ApiKey.js')
 
@@ -48,24 +50,30 @@ route.post('/reset-password', authLimiter, resetPasswordRules, validate, resetPa
 // no CSRF here either — it's often the first authenticated action in a fresh tab before a CSRF
 // token has been fetched, and the httpOnly sameSite:'lax' refresh cookie is the real protection
 route.post('/refresh-token', authLimiter, refreshToken)
+// logout stays open to banned users sir — no reason to trap them in a session they can't leave
 route.post('/logout', doubleCsrfProtection, Auth, logoutUser)
 
-// the account page reads/writes everything from here sir
+// banned users need this to submit their one-shot appeal sir — deliberately NOT behind
+// blockIfBanned, everything else on this route file is
+route.post('/appeal', doubleCsrfProtection, appealRules, validate, Auth, appealBan)
+
+// the account page reads/writes everything from here sir. GET /profile stays open to banned
+// users too — the locked dashboard reads isBanned/banReason/appealStatus from this same call
 route.get('/profile', Auth, getProfile)
-route.patch('/profile/first-name', doubleCsrfProtection, updateFirstNameRules, validate, Auth, updateFirstName)
-route.patch('/profile/last-name', doubleCsrfProtection, updateLastNameRules, validate, Auth, updateLastName)
-route.patch('/profile/digest-preference', doubleCsrfProtection, Auth, updateDigestPreference)
-route.patch('/profile/daily-goal', doubleCsrfProtection, Auth, updateDailyGoal)
-route.get('/profile/model-catalog', Auth, getModelCatalog)
-route.patch('/profile/model', doubleCsrfProtection, Auth, updateModelPreference)
-route.patch('/profile/onboarding-complete', doubleCsrfProtection, Auth, completeOnboarding)
-route.patch('/profile/password', doubleCsrfProtection, updatePasswordRules, validate, Auth, updatePassword)
-route.delete('/profile', doubleCsrfProtection, Auth, deleteAccount)
-route.post('/profile/recover', doubleCsrfProtection, Auth, recoverAccount)
+route.patch('/profile/first-name', doubleCsrfProtection, updateFirstNameRules, validate, Auth, blockIfBanned, updateFirstName)
+route.patch('/profile/last-name', doubleCsrfProtection, updateLastNameRules, validate, Auth, blockIfBanned, updateLastName)
+route.patch('/profile/digest-preference', doubleCsrfProtection, Auth, blockIfBanned, updateDigestPreference)
+route.patch('/profile/daily-goal', doubleCsrfProtection, Auth, blockIfBanned, updateDailyGoal)
+route.get('/profile/model-catalog', Auth, blockIfBanned, getModelCatalog)
+route.patch('/profile/model', doubleCsrfProtection, Auth, blockIfBanned, updateModelPreference)
+route.patch('/profile/onboarding-complete', doubleCsrfProtection, Auth, blockIfBanned, completeOnboarding)
+route.patch('/profile/password', doubleCsrfProtection, updatePasswordRules, validate, Auth, blockIfBanned, updatePassword)
+route.delete('/profile', doubleCsrfProtection, Auth, blockIfBanned, deleteAccount)
+route.post('/profile/recover', doubleCsrfProtection, Auth, blockIfBanned, recoverAccount)
 
 // Pro/ProMax API key management sir — the raw key itself is only ever returned by POST
-route.get('/api-key', Auth, getApiKeyStatus)
-route.post('/api-key', doubleCsrfProtection, Auth, generateApiKey)
-route.delete('/api-key', doubleCsrfProtection, Auth, revokeApiKey)
+route.get('/api-key', Auth, blockIfBanned, getApiKeyStatus)
+route.post('/api-key', doubleCsrfProtection, Auth, blockIfBanned, generateApiKey)
+route.delete('/api-key', doubleCsrfProtection, Auth, blockIfBanned, revokeApiKey)
 
 module.exports = route

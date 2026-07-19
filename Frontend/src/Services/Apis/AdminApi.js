@@ -6,6 +6,7 @@ export const AdminData = {
     users: BASE_URL + "/admin/users",
     banUser: BASE_URL + "/admin/users",         // + /:userId/ban
     unbanUser: BASE_URL + "/admin/users",       // + /:userId/unban
+    denyAppeal: BASE_URL + "/admin/users",      // + /:userId/deny-appeal
     setRole: BASE_URL + "/admin/users",         // + /:userId/role
     payments: BASE_URL + "/admin/payments",
     refundPayment: BASE_URL + "/admin/payments",   // + /:paymentId/refund

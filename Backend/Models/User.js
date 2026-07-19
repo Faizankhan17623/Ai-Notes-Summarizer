@@ -135,6 +135,24 @@ const UserSchema = new mongoose.Schema(
             type: String,
             trim: true
         },
+        // one-shot appeal sir — a banned user can submit exactly once (see POST /appeal).
+        // 'pending' shows "under review" on their locked dashboard; an admin's Deny flips it
+        // to 'denied', which is permanent (the appeal button never comes back). Unbanning
+        // resets this to 'none' so a future ban starts with a fresh appeal available.
+        appealStatus: {
+            type: String,
+            enum: ['none', 'pending', 'denied'],
+            default: 'none'
+        },
+        appealMessage: {
+            type: String,
+            trim: true,
+            maxlength: 1000
+        },
+        appealSubmittedAt: {
+            type: Date,
+            default: null
+        },
         // self-healing brute-force lockout sir — separate from isBanned (admin-driven, permanent).
         // this clears itself once lockUntil passes, no admin action needed
         failedLoginAttempts: {

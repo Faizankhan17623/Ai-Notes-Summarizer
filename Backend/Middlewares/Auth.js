@@ -39,19 +39,15 @@ exports.Auth = async (req, res, next) => {
             })
         }
 
-        // banned users are blocked everywhere, instantly sir
-        if (user.isBanned) {
-            return res.status(403).json({
-                success: false,
-                message: user.banReason
-                    ? `Your account has been suspended: ${user.banReason}`
-                    : 'Your account has been suspended, please contact support',
-            })
-        }
-
-        // attach the decoded payload + the fresh role so the next handlers can use req.User sir
+        // NOT blocked here anymore sir — a banned user is allowed to authenticate so they can
+        // reach their locked dashboard (profile, appeal, logout) instead of being turned away
+        // at the door with no way to ever contest it. Actual route-level blocking now happens
+        // per-route via blockIfBanned below, applied to every route except the few a banned
+        // user still needs (profile, appeal, logout, refresh-token).
         req.User = decoded
         req.User.role = user.role
+        req.User.isBanned = user.isBanned
+        req.User.banReason = user.banReason
 
         next()
     } catch (error) {
@@ -61,6 +57,22 @@ exports.Auth = async (req, res, next) => {
             message: 'Failed to authenticate',
         })
     }
+}
+
+// run AFTER Auth on every route that a banned user should NOT be able to use sir — Auth
+// itself no longer blocks banned users (see above), this is the actual enforcement point.
+// Deliberately opt-in per route rather than opt-out, so a newly added route is BLOCKED by
+// default for banned users unless someone explicitly decides otherwise.
+exports.blockIfBanned = (req, res, next) => {
+    if (req?.User?.isBanned) {
+        return res.status(403).json({
+            success: false,
+            message: req.User.banReason
+                ? `Your account has been suspended: ${req.User.banReason}`
+                : 'Your account has been suspended, please contact support',
+        })
+    }
+    next()
 }
 
 // admin gate sir — runs AFTER Auth, which already loaded the role fresh from the DB
