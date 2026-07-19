@@ -38,7 +38,7 @@ const COMPARISON_ROWS = [
     // mirrors Backend/utils/Plans.js MODEL_CATALOG sir — Basic has no choice (empty list there),
     // update the counts here if the catalog's model list per tier changes
     { label: 'Choice of AI model', basic: false, pro: true, proMax: true },
-    { label: 'Models to choose from', basic: '1 (fixed)', pro: '2', proMax: '4' },
+    { label: 'Models to choose from', basic: '1 (fixed)', pro: '2', proMax: '3' },
 ]
 
 const Cell = ({ value }) => {

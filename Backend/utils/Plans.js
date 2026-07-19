@@ -36,27 +36,29 @@ const PLANS = {
 }
 
 // the model each tier is stuck with if they haven't picked (or aren't allowed to pick) sir —
-// same value as the old hardcoded MODEL constant in AI.js/Chat.js/StudyKit.js, kept as the
-// universal fallback so an invalid/cleared preference never breaks a request
-const DEFAULT_MODEL = 'qwen/qwen3-32b'
+// the universal fallback, so an invalid/cleared preference never breaks a request.
+// Catalog refreshed 2026-07-19: the old default qwen/qwen3-32b was SHUT DOWN by Groq on
+// 2026-07-17 (deepseek-r1-distill-llama-70b and gemma2-9b-it died back in Oct 2025, and
+// llama-3.1-8b-instant retires 2026-08-16) — every ID below is a current production model
+// except the clearly-labelled preview. Check console.groq.com/docs/deprecations before
+// adding or swapping any ID here.
+const DEFAULT_MODEL = 'openai/gpt-oss-20b'
 
-// which Groq models each plan is allowed to choose from sir — placeholder IDs, swap for the
-// real free-tier model list. Basic has no choice (empty list, always DEFAULT_MODEL); Pro picks
-// from a couple of options; ProMax gets the full menu. Every list should include DEFAULT_MODEL
-// itself so "no preference set" and "explicitly picked the default" both work identically.
-// llama-3.3-70b-versatile was removed sir — deprecated on Groq, do not re-add without
-// confirming it's still an active model ID first
+// which Groq models each plan is allowed to choose from sir — Basic has no choice (empty
+// list, always DEFAULT_MODEL); Pro picks between fast and smart; ProMax gets the full menu.
+// Every list should include DEFAULT_MODEL itself so "no preference set" and "explicitly
+// picked the default" both work identically. Users whose saved preferredModel is no longer
+// listed silently fall back to DEFAULT_MODEL via resolveModel below — no migration needed
 const MODEL_CATALOG = {
     Basic: [],
     Pro: [
-        { id: 'qwen/qwen3-32b', label: 'Qwen 3 32B (default)' },
-        { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
+        { id: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B (default)' },
+        { id: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B' },
     ],
     ProMax: [
-        { id: 'qwen/qwen3-32b', label: 'Qwen 3 32B (default)' },
-        { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
-        { id: 'deepseek-r1-distill-llama-70b', label: 'DeepSeek R1 Distill 70B' },
-        { id: 'gemma2-9b-it', label: 'Gemma 2 9B' },
+        { id: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B (default)' },
+        { id: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B' },
+        { id: 'qwen/qwen3.6-27b', label: 'Qwen 3.6 27B (preview)' },
     ],
 }
 
