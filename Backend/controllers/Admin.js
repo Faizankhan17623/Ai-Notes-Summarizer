@@ -104,12 +104,15 @@ exports.getAdminAnalytics = async (req, res) => {
         const topUsers = topUsersRaw.map((u) => ({ ...u, user: userById.get(u.userId.toString()) || null }))
 
         // credit/overage stats sir
-        // users currently at their plan's limit (ProMax excluded — unlimited). The limit numbers
-        // below are hard-coded from PLANS since Mongo aggregation can't reference the JS object
-        // directly — if PLANS.Basic/Pro.credits ever change, update this pipeline too
+        // users currently at their plan's limit sir — ProMax is capped now too (500/mo), so all
+        // three tiers are counted. The limit numbers are wired in from PLANS at pipeline-build
+        // time since Mongo aggregation can't reference the JS object directly
         const usersAtLimit = await User.aggregate([
-            { $match: { SubType: { $in: ['Basic', 'Pro'] } } },
-            { $project: { SubType: 1, count: 1, limit: { $cond: [{ $eq: ['$SubType', 'Basic'] }, PLANS.Basic.credits, PLANS.Pro.credits] } } },
+            { $match: { SubType: { $in: ['Basic', 'Pro', 'ProMax'] } } },
+            { $project: { SubType: 1, count: 1, limit: { $switch: { branches: [
+                { case: { $eq: ['$SubType', 'Basic'] }, then: PLANS.Basic.credits },
+                { case: { $eq: ['$SubType', 'Pro'] }, then: PLANS.Pro.credits },
+            ], default: PLANS.ProMax.credits } } } },
             { $match: { $expr: { $gte: ['$count', '$limit'] } } },
             { $group: { _id: '$SubType', usersAtLimit: { $sum: 1 } } },
         ])

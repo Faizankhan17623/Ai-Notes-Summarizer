@@ -23,22 +23,22 @@ const COMPARISON_ROWS = [
     { label: 'Flashcards generated with every summary', basic: false, pro: false, proMax: true },
     { label: 'Spaced-repetition review queue', basic: true, pro: true, proMax: true },
     { section: 'Chat with your notes' },
-    { label: 'Messages per chat', basic: '60', pro: '200', proMax: 'Unlimited' },
+    { label: 'Messages per chat', basic: '60', pro: '200', proMax: '500' },
     { label: 'Chat context window (past turns remembered)', basic: '10', pro: '20', proMax: '40' },
     { label: 'On-request quizzes & flashcards in chat', basic: false, pro: true, proMax: true },
     { label: 'Mock quiz/exam sessions in chat', basic: false, pro: false, proMax: true },
     { label: 'Multi-day study plans in chat', basic: false, pro: false, proMax: true },
     { section: 'Usage' },
-    { label: 'Summaries per month', basic: '5', pro: '100', proMax: 'Unlimited' },
+    { label: 'Summaries per month', basic: '5', pro: '100', proMax: '500' },
     { label: 'Document summaries per month', basic: '10', pro: '80', proMax: '150' },
     { label: 'Bulk file uploads per month', basic: '10', pro: '80', proMax: '150' },
     { label: 'Audio summaries per month', basic: '10', pro: '80', proMax: '150' },
-    { label: 'Extra credit top-up packs', basic: true, pro: true, proMax: false },
+    { label: 'Extra credit top-up packs', basic: true, pro: true, proMax: true },
     { section: 'AI model' },
     // mirrors Backend/utils/Plans.js MODEL_CATALOG sir — Basic has no choice (empty list there),
     // update the counts here if the catalog's model list per tier changes
     { label: 'Choice of AI model', basic: false, pro: true, proMax: true },
-    { label: 'Models to choose from', basic: '1 (fixed)', pro: '2', proMax: '5' },
+    { label: 'Models to choose from', basic: '1 (fixed)', pro: '2', proMax: '4' },
 ]
 
 const Cell = ({ value }) => {
@@ -80,7 +80,7 @@ const Pricing = () => {
                 <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
                     {plans.map((plan) => {
                         // Pro is the recommended tier sir — best value between the free Basic
-                        // plan and the unlimited-but-priciest ProMax, so it gets the highlight
+                        // plan and the highest-allowance-but-priciest ProMax, so it gets the highlight
                         // border + badge regardless of what the viewer is currently on
                         const isRecommended = plan.key === 'Pro'
                         return (

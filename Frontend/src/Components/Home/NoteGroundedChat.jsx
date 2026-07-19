@@ -10,7 +10,7 @@ const HOW_IT_WORKS = [
 const PLAN_LIMITS = [
     { plan: 'Basic', messages: '60 messages per chat', context: '10 past turns remembered', extra: 'Light help — for deep study features like quizzes or flashcards, it will point you to Pro/Pro Max' },
     { plan: 'Pro', messages: '200 messages per chat', context: '20 past turns remembered', extra: 'Can generate quiz questions, flashcards, or short practice explanations on request' },
-    { plan: 'Pro Max', messages: 'Unlimited messages', context: '40 past turns remembered', extra: 'Full study coach — mock quiz/exam sessions, multi-day study plans, deep explanations' },
+    { plan: 'Pro Max', messages: '500 messages per chat', context: '40 past turns remembered', extra: 'Full study coach — mock quiz/exam sessions, multi-day study plans, deep explanations' },
 ]
 
 const NoteGroundedChat = () => (

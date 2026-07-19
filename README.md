@@ -100,7 +100,7 @@ NOTES / SUMMARIZATION
   - Basic: title, TL;DR, key points, action items (tasks/keyDates/decisions), AI-suggested tags
   - Pro: + topic sections, key terms/definitions
   - Pro Max: + initial quiz + initial flashcard set generated inline
-- Credit-gated generation (monthly cycle: Basic 5 / Pro 100 / ProMax unlimited) + purchasable top-up credits
+- Credit-gated generation (monthly cycle: Basic 5 / Pro 100 / ProMax 500) + purchasable top-up credits
 - AI-suggested tags (2-3 topics) at creation time
 - Note detail "Report" page: full summary render, embedded Study Tools, Organize + Share/Export rail, delete (cascades chats/flashcards/quizzes), jump into Chat
 - History page: full-text search (Mongo text index over title+rawText), filter by tag/folder/pinned, pin/unpin, delete
@@ -113,7 +113,7 @@ CHAT WITH NOTES
 - Chat grounded in one specific note; AI restricted to that note's content
 - Plan-based context depth: Basic 10 / Pro 20 / ProMax 40 past turns replayed
 - Plan-based capability scope: Basic light Q&A, Pro adds quizzes/flashcards/reorganize on request, Pro Max full study coach (mock exams, multi-day study plans)
-- Plan-based message caps: Basic 60 / Pro 200 / ProMax unlimited per chat
+- Plan-based message caps: Basic 60 / Pro 200 / ProMax 500 per chat
 - Chat list sidebar + conversation view, voice-dictate messages, delete chat
 
 STUDY KIT - FLASHCARDS
@@ -131,7 +131,7 @@ STUDY KIT - QUIZZES
 - Export a quiz as a printable PDF (questions + options, answer key on a separate page)
 
 PLANS, CREDITS & PAYMENTS
-- Three tiers: Basic (free, 5 credits/mo), Pro (Rs499/mo, 100 credits), Pro Max (Rs1499/mo, unlimited)
+- Three tiers: Basic (free, 5 credits/mo), Pro (Rs499/mo, 100 credits), Pro Max (Rs1499/mo, 500 credits)
 - Lazy 30-day rolling credit cycle per user (auto-resets, no cron needed)
 - One-time credit top-up packs (small/medium/large: 20/50/100 credits)
 - Razorpay checkout: order creation + HMAC signature verification (stub "coming soon" mode until live keys added)

@@ -25,7 +25,7 @@ const TermsOfService = () => (
                     <h2 className="text-richblack-5 font-semibold text-lg mb-2">Plans and credits</h2>
                     <p>
                         Basic is free and includes a limited number of monthly credits. Pro and Pro Max are paid
-                        subscriptions billed monthly, with higher or unlimited credit allowances. Credit packs are
+                        subscriptions billed monthly, with higher credit allowances. Credit packs are
                         one-time purchases that add credits to your account on top of your plan's monthly allowance.
                     </p>
                 </section>

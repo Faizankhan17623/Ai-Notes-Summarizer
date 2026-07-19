@@ -24,8 +24,12 @@ const PLANS = {
     ProMax: {
         key: 'ProMax',
         name: 'Pro Max',
-        credits: null,            // unlimited
-        maxMessagesPerChat: null, // unlimited
+        // capped since 2026-07 sir — was unlimited (null), but an unmetered top tier is an
+        // abuse magnet on a free Groq key; 5x Pro keeps it clearly premium while bounded.
+        // Top-up packs work here too — consumeCredit falls back to bonusCredits for any
+        // capped plan, and the Account page shows the packs whenever creditsLimit != null
+        credits: 500,
+        maxMessagesPerChat: 500,
         contextWindow: 40,
         featureLimits: { docSummary: 150, bulkSummary: 150, audioSummary: 150 },
     },
