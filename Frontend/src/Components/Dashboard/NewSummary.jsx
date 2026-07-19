@@ -107,7 +107,10 @@ const NewSummary = () => {
 
         if (tab === 'article') {
             if (!articleUrl.trim()) return
-            dispatch(SummarizeNotes({ url: normalizeArticleUrl(articleUrl) }, token, navigate))
+            // articles get their own dashboard page sir — multi-link input, per-link status,
+            // image extraction; same redirect the homepage hero's Article tab uses, so there's
+            // one consistent place article links end up regardless of where they're pasted
+            navigate('/Dashboard/Articles', { state: { url: normalizeArticleUrl(articleUrl) } })
             return
         }
 
