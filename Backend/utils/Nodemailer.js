@@ -4,6 +4,26 @@ const dns = require('dns')
 // sends one email sir — used by OTP, password reset, and account deletion notices
 const mailSender = async (email, title, body) => {
     try {
+        // Render's free tier blocks every outbound SMTP port sir — when the relay is
+        // configured, hand the email to our Vercel function (port 465 is open there)
+        // and let the direct SMTP code below serve as the local-dev fallback
+        if (process.env.MAIL_RELAY_URL && process.env.MAIL_RELAY_SECRET) {
+            const response = await fetch(process.env.MAIL_RELAY_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-relay-secret': process.env.MAIL_RELAY_SECRET,
+                },
+                body: JSON.stringify({ to: email, subject: title, html: body }),
+                signal: AbortSignal.timeout(20000),
+            })
+            const data = await response.json().catch(() => null)
+            if (!response.ok || !data || !data.success) {
+                throw new Error(`Mail relay failed with status ${response.status}`)
+            }
+            return data
+        }
+
         // no SMTP configured sir — skip sending instead of crashing the caller
         if (!process.env.MAIL_HOST || !process.env.MAIL_USER || !process.env.MAIL_PASS) {
             console.log(`Mail not configured — would have sent "${title}" to ${email}`)
