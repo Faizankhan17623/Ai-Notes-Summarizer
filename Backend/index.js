@@ -23,6 +23,7 @@ const contact = require('./Routes/Contact.js')
 const notification = require('./Routes/Notification.js')
 const { globalLimiter } = require('./Middlewares/RateLimit.js')
 const { generateCsrfToken, invalidCsrfTokenError } = require('./Middlewares/Csrf.js')
+const { sanitizeBody } = require('./Middlewares/Sanitize.js')
 const { scheduleWeeklyDigest } = require('./utils/DigestJob.js')
 const { backfillProMaxCapNotice } = require('./utils/PlanChangeNotice.js')
 
@@ -33,6 +34,10 @@ app.set('trust proxy', 1)
 app.use(helmet())
 
 app.use(express.json())
+// NoSQL-injection defense-in-depth sir — strips $operator/dotted-path keys from every
+// JSON body before any controller sees it, see Middlewares/Sanitize.js for why this is
+// hand-rolled instead of express-mongo-sanitize
+app.use(sanitizeBody)
 
 // credentials:true so the auth cookie flows sir — the frontend must call axios with withCredentials:true
 // NOTE: origin:'*' is not usable here — browsers reject Access-Control-Allow-Origin:* together
