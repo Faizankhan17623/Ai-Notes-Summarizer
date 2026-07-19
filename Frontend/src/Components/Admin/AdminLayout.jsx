@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { FaChartLine, FaChartBar, FaUsers, FaCreditCard, FaClipboardList, FaBullhorn, FaEnvelopeOpenText } from 'react-icons/fa'
+import { FaChartLine, FaChartBar, FaUsers, FaCreditCard, FaClipboardList, FaBullhorn, FaEnvelopeOpenText, FaGlobeAmericas } from 'react-icons/fa'
 import Navbar from '../Home/Navbar.jsx'
 
 // Admin-only sir — Support has its own separate dashboard (SupportLayout) with its own,
@@ -7,6 +7,7 @@ import Navbar from '../Home/Navbar.jsx'
 const navItems = [
     { to: '/Admin', label: 'Overview', icon: FaChartLine, end: true },
     { to: '/Admin/Analytics', label: 'Analytics', icon: FaChartBar },
+    { to: '/Admin/Traffic', label: 'Traffic', icon: FaGlobeAmericas },
     { to: '/Admin/Users', label: 'Users', icon: FaUsers },
     { to: '/Admin/Payments', label: 'Payments', icon: FaCreditCard },
     { to: '/Admin/Messages', label: 'Contact messages', icon: FaEnvelopeOpenText },

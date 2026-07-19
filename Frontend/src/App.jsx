@@ -17,6 +17,7 @@ import ProMaxPlanNotice from './Components/extra/ProMaxPlanNotice'
 import { pageTransition } from './Components/extra/motionVariants.js'
 import { FetchCsrfToken } from './Services/operations/Auth.js'
 import { wakeUpServer } from './utils/wakeUpServer.js'
+import { logVisit } from './utils/logVisit.js'
 
 // Lazy-loaded route components sir — split into separate chunks for faster initial load
 const Join = lazy(() => import('./Components/UserCreation/Join'))
@@ -48,6 +49,7 @@ const Account = lazy(() => import('./Components/Dashboard/Account'))
 const AdminLayout = lazy(() => import('./Components/Admin/AdminLayout'))
 const AdminOverview = lazy(() => import('./Components/Admin/Overview'))
 const AdminAnalytics = lazy(() => import('./Components/Admin/Analytics'))
+const AdminTraffic = lazy(() => import('./Components/Admin/Traffic'))
 const AdminUsers = lazy(() => import('./Components/Admin/Users'))
 const AdminPayments = lazy(() => import('./Components/Admin/Payments'))
 const AdminAudit = lazy(() => import('./Components/Admin/Audit'))
@@ -97,6 +99,12 @@ function App() {
     wakeUpServer()
     dispatch(FetchCsrfToken())
   }, [dispatch])
+
+  // one ping per route change sir — powers the admin Traffic dashboard's unique-visitor
+  // and page-view charts. Fire-and-forget, never blocks or affects the page transition above.
+  useEffect(() => {
+    logVisit(location.pathname)
+  }, [location.pathname])
 
   return (
     <>
@@ -148,6 +156,7 @@ function App() {
             <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
               <Route path="/Admin" element={<PageFade><AdminOverview /></PageFade>} />
               <Route path="/Admin/Analytics" element={<PageFade><AdminAnalytics /></PageFade>} />
+              <Route path="/Admin/Traffic" element={<PageFade><AdminTraffic /></PageFade>} />
               <Route path="/Admin/Users" element={<PageFade><AdminUsers /></PageFade>} />
               <Route path="/Admin/Payments" element={<PageFade><AdminPayments /></PageFade>} />
               <Route path="/Admin/Messages" element={<PageFade><AdminContactMessages /></PageFade>} />

@@ -54,4 +54,14 @@ const contactLimiter = rateLimit({
     message: tooMany('Too many messages sent, please try again after 15 minutes'),
 })
 
-module.exports = { globalLimiter, authLimiter, otpLimiter, aiLimiter, contactLimiter }
+// visit pings are cheap (one Mongo insert, no email/AI cost) but public and fired on every
+// navigation sir — generous enough for real browsing, still a ceiling against a scripted flood
+const visitLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: tooMany('Too many requests, please slow down'),
+})
+
+module.exports = { globalLimiter, authLimiter, otpLimiter, aiLimiter, contactLimiter, visitLimiter }

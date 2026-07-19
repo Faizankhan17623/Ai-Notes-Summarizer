@@ -5,6 +5,7 @@ const AuditLog = require('../Models/AuditLog')
 const Announcement = require('../Models/Announcement')
 const Note = require('../Models/Note')
 const Chat = require('../Models/Chat')
+const Visit = require('../Models/Visit')
 const { PLANS } = require('../utils/Plans')
 const { notify } = require('./Notification')
 
@@ -381,5 +382,106 @@ exports.deactivateAnnouncement = async (req, res) => {
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to deactivate announcement' })
+    }
+}
+
+// how far back each preset range reaches sir — 'custom' is handled separately below since
+// it needs the caller's from/to instead of "now minus N"
+const RANGE_WINDOWS = {
+    day: 24 * 60 * 60 * 1000,
+    week: 7 * 24 * 60 * 60 * 1000,
+    month: 30 * 24 * 60 * 60 * 1000,
+}
+// the bucket size scales with the range sir — hourly buckets over a month would be 720
+// unreadable bars, and daily buckets over a single day would just be one bar
+const BUCKET_FORMAT = {
+    day: '%Y-%m-%dT%H:00',
+    week: '%Y-%m-%d',
+    month: '%Y-%m-%d',
+    custom: '%Y-%m-%d',
+}
+
+// GET /admin/traffic — unique-visitor + total-visit dashboard sir. Query params:
+//   range: 'day' | 'week' | 'month' | 'custom' (default 'week')
+//   from, to: ISO date strings, only read when range='custom'
+exports.getTraffic = async (req, res) => {
+    try {
+        const range = ['day', 'week', 'month', 'custom'].includes(req.query.range) ? req.query.range : 'week'
+
+        let start, end
+        if (range === 'custom') {
+            const parsedFrom = new Date(req.query.from)
+            const parsedTo = new Date(req.query.to)
+            if (isNaN(parsedFrom) || isNaN(parsedTo) || parsedFrom > parsedTo) {
+                return res.status(400).json({ success: false, message: 'Invalid custom date range' })
+            }
+            start = parsedFrom
+            // include the entire "to" day sir — a date-only picker gives midnight, which would
+            // otherwise exclude every visit that happened ON the end date
+            end = new Date(parsedTo.getTime() + 24 * 60 * 60 * 1000)
+        } else {
+            end = new Date()
+            start = new Date(end.getTime() - RANGE_WINDOWS[range])
+        }
+
+        const dateFormat = BUCKET_FORMAT[range]
+        const match = { createdAt: { $gte: start, $lte: end } }
+
+        const [visitsByBucket, uniqueByBucket, totals, topPaths] = await Promise.all([
+            // total visits per bucket sir — every ping counts, repeat views included
+            Visit.aggregate([
+                { $match: match },
+                { $group: { _id: { $dateToString: { format: dateFormat, date: '$createdAt' } }, visits: { $sum: 1 } } },
+                { $sort: { _id: 1 } },
+            ]),
+            // unique visitors per bucket sir — de-duplicated by the visitor_id cookie within
+            // each bucket (a returning visitor still counts once per day/hour, not once total)
+            Visit.aggregate([
+                { $match: match },
+                { $group: { _id: { bucket: { $dateToString: { format: dateFormat, date: '$createdAt' } }, visitor: '$visitorId' } } },
+                { $group: { _id: '$_id.bucket', uniqueVisitors: { $sum: 1 } } },
+                { $sort: { _id: 1 } },
+            ]),
+            // whole-window totals sir — visitorId AND ipHash counted separately since one
+            // person can look like several IPs (mobile networks) or several people can share
+            // one IP (office wifi); showing both is more honest than picking just one
+            Visit.aggregate([
+                { $match: match },
+                { $group: { _id: null, totalVisits: { $sum: 1 }, uniqueVisitorIds: { $addToSet: '$visitorId' }, uniqueIps: { $addToSet: '$ipHash' }, loggedInVisits: { $sum: { $cond: [{ $ne: ['$user', null] }, 1, 0] } } } },
+                { $project: { _id: 0, totalVisits: 1, uniqueVisitors: { $size: '$uniqueVisitorIds' }, uniqueIps: { $size: '$uniqueIps' }, loggedInVisits: 1 } },
+            ]),
+            // most-visited pages in the window sir — top 10, quick "what are people looking at"
+            Visit.aggregate([
+                { $match: { ...match, path: { $nin: [null, ''] } } },
+                { $group: { _id: '$path', visits: { $sum: 1 } } },
+                { $sort: { visits: -1 } },
+                { $limit: 10 },
+            ]),
+        ])
+
+        // merge the two per-bucket series into one row each sir, same pattern as topUsers above
+        const bucketMap = new Map()
+        visitsByBucket.forEach((row) => bucketMap.set(row._id, { bucket: row._id, visits: row.visits, uniqueVisitors: 0 }))
+        uniqueByBucket.forEach((row) => {
+            const entry = bucketMap.get(row._id) || { bucket: row._id, visits: 0, uniqueVisitors: 0 }
+            entry.uniqueVisitors = row.uniqueVisitors
+            bucketMap.set(row._id, entry)
+        })
+        const series = Array.from(bucketMap.values()).sort((a, b) => a.bucket.localeCompare(b.bucket))
+
+        return res.status(200).json({
+            success: true,
+            traffic: {
+                range,
+                from: start,
+                to: end,
+                series,
+                totals: totals[0] || { totalVisits: 0, uniqueVisitors: 0, uniqueIps: 0, loggedInVisits: 0 },
+                topPaths,
+            },
+        })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to load traffic data' })
     }
 }

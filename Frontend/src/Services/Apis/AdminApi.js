@@ -17,4 +17,5 @@ export const AdminData = {
     activeAnnouncement: BASE_URL + "/announcements/active",
     announcements: BASE_URL + "/admin/announcements",
     deactivateAnnouncement: BASE_URL + "/admin/announcements",  // + /:id/deactivate
+    traffic: BASE_URL + "/admin/traffic",
 }

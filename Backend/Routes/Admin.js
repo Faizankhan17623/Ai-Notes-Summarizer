@@ -19,6 +19,7 @@ const {
     getAnnouncements,
     createAnnouncement,
     deactivateAnnouncement,
+    getTraffic,
 } = require('../controllers/Admin.js')
 const { getContactMessages, replyToContactMessage, addInternalNote } = require('../controllers/Contact.js')
 
@@ -42,6 +43,9 @@ route.post('/admin/contact-messages/:messageId/notes', doubleCsrfProtection, Aut
 // everything below is Admin only sir — either destructive (ban/unban/role change), a
 // site-wide write (announcements), or oversight OF admins themselves (audit log/analytics)
 route.get('/admin/analytics', Auth, isAdmin, getAdminAnalytics)
+// unique-visitor/traffic dashboard sir — reads raw ipHash rows, Admin only (not Support)
+// same bar as analytics/audit above
+route.get('/admin/traffic', Auth, isAdmin, getTraffic)
 route.patch('/admin/payments/:paymentId/refund', doubleCsrfProtection, Auth, isAdmin, refundPayment)
 route.patch('/admin/users/:userId/ban', doubleCsrfProtection, banUserRules, validate, Auth, isAdmin, banUser)
 route.patch('/admin/users/:userId/unban', doubleCsrfProtection, Auth, isAdmin, unbanUser)

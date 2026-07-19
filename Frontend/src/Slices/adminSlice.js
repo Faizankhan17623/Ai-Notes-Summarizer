@@ -3,6 +3,8 @@ import { createSlice } from "@reduxjs/toolkit"
 const initialState = {
     overview: null,
     analytics: null,
+    traffic: null,
+    trafficLoading: false,
     users: [],
     usersTotal: 0,
     usersPage: 1,
@@ -24,6 +26,12 @@ const adminSlice = createSlice({
         },
         setAnalytics(state, value) {
             state.analytics = value.payload
+        },
+        setTraffic(state, value) {
+            state.traffic = value.payload
+        },
+        setTrafficLoading(state, value) {
+            state.trafficLoading = value.payload
         },
         setUsers(state, value) {
             state.users = value.payload.users
@@ -52,5 +60,5 @@ const adminSlice = createSlice({
     }
 })
 
-export const { setOverview, setAnalytics, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setContactMessages, setLoading } = adminSlice.actions
+export const { setOverview, setAnalytics, setTraffic, setTrafficLoading, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setContactMessages, setLoading } = adminSlice.actions
 export default adminSlice.reducer

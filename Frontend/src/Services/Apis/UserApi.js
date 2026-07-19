@@ -20,4 +20,5 @@ export const UserData = {
     apiKey: BASE_URL + "/api-key",
     logout: BASE_URL + "/logout",
     csrfToken: BASE_URL + "/csrf-token",
+    visit: BASE_URL + "/visit",
 }

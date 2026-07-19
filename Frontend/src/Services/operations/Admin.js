@@ -1,10 +1,10 @@
 import toast from "react-hot-toast"
 import { apiConnector } from "../apiConnector.js"
 import { AdminData } from "../Apis/AdminApi.js"
-import { setOverview, setAnalytics, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setContactMessages, setLoading } from "../../Slices/adminSlice.js"
+import { setOverview, setAnalytics, setTraffic, setTrafficLoading, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setContactMessages, setLoading } from "../../Slices/adminSlice.js"
 
 const {
-    overview, analytics, users, banUser, unbanUser, setRole, payments, refundPayment, contactMessages,
+    overview, analytics, traffic, users, banUser, unbanUser, setRole, payments, refundPayment, contactMessages,
     replyToContactMessage, addInternalNote, audit, aiLogs, activeAnnouncement, announcements, deactivateAnnouncement
 } = AdminData
 
@@ -34,6 +34,29 @@ export function GetAnalytics(token) {
             console.error("Error fetching analytics", error)
         } finally {
             dispatch(setLoading(false))
+        }
+    }
+}
+
+// range: 'day' | 'week' | 'month' | 'custom'; customFrom/customTo are ISO date strings,
+// only sent when range==='custom' sir
+export function GetTraffic(token, range = 'week', customFrom, customTo) {
+    return async (dispatch) => {
+        dispatch(setTrafficLoading(true))
+        try {
+            const params = { range }
+            if (range === 'custom') {
+                params.from = customFrom
+                params.to = customTo
+            }
+            const response = await apiConnector("GET", traffic, null, { Authorization: `Bearer ${token}` }, params)
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setTraffic(response.data.traffic))
+        } catch (error) {
+            console.error("Error fetching traffic", error)
+            toast.error(error?.response?.data?.message || "Could not load traffic data")
+        } finally {
+            dispatch(setTrafficLoading(false))
         }
     }
 }
