@@ -88,11 +88,13 @@ function App() {
   const location = useLocation()
 
   useEffect(() => {
-    // Ping the Render backend awake FIRST sir — on a cold start the CSRF fetch below would
-    // otherwise hang/fail with no retry, leaving the whole session without a CSRF token.
-    // When the server is already warm the /health ping answers in milliseconds, so this
-    // adds no meaningful delay to the normal path.
-    wakeUpServer().finally(() => dispatch(FetchCsrfToken()))
+    // Fire both in PARALLEL sir — the CSRF fetch itself also wakes the server (on a cold
+    // start it simply hangs until the boot finishes, then succeeds). Chaining it after
+    // wakeUpServer() was a bug: ad-blockers block /health (ERR_BLOCKED_BY_CLIENT), so the
+    // retry loop burned ~15s before the CSRF token was ever fetched, and any summarize
+    // clicked in that window 403'd with "Invalid or missing CSRF token".
+    wakeUpServer()
+    dispatch(FetchCsrfToken())
   }, [dispatch])
 
   return (

@@ -32,6 +32,22 @@ axiosinstance.interceptors.response.use(
         const status = error.response?.status
         const isAuthRoute = original?.url?.includes('/Login') || original?.url?.includes('/refresh-token')
 
+        // CSRF self-heal sir — a 403 "Invalid or missing CSRF token" means our in-memory
+        // token is stale (login/refresh changed the session cookie) or was never fetched
+        // (user acted before the on-load fetch landed). Re-fetch and retry ONCE — the
+        // request interceptor above stamps the fresh token onto the retried request.
+        const isCsrfError = status === 403 && /csrf/i.test(error.response?.data?.message || '')
+        if (isCsrfError && original && !original._csrfRetry) {
+            original._csrfRetry = true
+            try {
+                const csrfRes = await axiosinstance.get(`${import.meta.env.VITE_MAIN_BACKEND_URL}/csrf-token`)
+                if (csrfRes.data?.success) setCsrfToken(csrfRes.data.csrfToken)
+                return axiosinstance(original)
+            } catch (csrfErr) {
+                return Promise.reject(error)
+            }
+        }
+
         if (status === 401 && original && !original._retry && !isAuthRoute) {
             original._retry = true
             try {
