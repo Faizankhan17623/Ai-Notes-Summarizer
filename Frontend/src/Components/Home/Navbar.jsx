@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { FaSun, FaMoon } from 'react-icons/fa'
@@ -13,6 +13,13 @@ const Navbar = ({ showMegaMenu = false }) => {
     const dispatch = useDispatch()
     const navigate = useNavigate()
     const { theme, toggleTheme } = useTheme()
+    const { pathname } = useLocation()
+
+    // inside any dashboard shell the sidebar already handles navigation sir — the top bar
+    // slims down to theme toggle + bell + logout, no Pricing/Dashboard/Review links
+    const inDashboard = ['/Dashboard', '/Admin', '/Support'].some(
+        (p) => pathname === p || pathname.startsWith(p + '/')
+    )
 
     return (
         <nav className="w-full border-b border-border-soft flex items-center justify-between px-6 py-4">
@@ -40,7 +47,7 @@ const Navbar = ({ showMegaMenu = false }) => {
                 {token ? (
                     <>
                         <NotificationBell />
-                        {!showMegaMenu && (
+                        {!showMegaMenu && !inDashboard && (
                             <Link to="/Pricing" className="text-richblack-100 hover:text-richblack-25 text-sm">
                                 Pricing
                             </Link>
@@ -50,23 +57,25 @@ const Navbar = ({ showMegaMenu = false }) => {
                             show only the link to whichever dashboard this role actually owns. Label
                             always reads "Dashboard" (not "Admin"/"Support") so the main site nav
                             looks the same regardless of role — only the destination differs */}
-                        {user?.role === 'Admin' ? (
-                            <Link to="/Admin" className="text-richblack-100 hover:text-richblack-25 text-sm">
-                                Dashboard
-                            </Link>
-                        ) : user?.role === 'Support' ? (
-                            <Link to="/Support" className="text-richblack-100 hover:text-richblack-25 text-sm">
-                                Dashboard
-                            </Link>
-                        ) : (
-                            <>
-                                <Link to="/Dashboard" className="text-richblack-100 hover:text-richblack-25 text-sm">
+                        {!inDashboard && (
+                            user?.role === 'Admin' ? (
+                                <Link to="/Admin" className="text-richblack-100 hover:text-richblack-25 text-sm">
                                     Dashboard
                                 </Link>
-                                <Link to="/Dashboard/Review" className="text-richblack-100 hover:text-richblack-25 text-sm">
-                                    Review
+                            ) : user?.role === 'Support' ? (
+                                <Link to="/Support" className="text-richblack-100 hover:text-richblack-25 text-sm">
+                                    Dashboard
                                 </Link>
-                            </>
+                            ) : (
+                                <>
+                                    <Link to="/Dashboard" className="text-richblack-100 hover:text-richblack-25 text-sm">
+                                        Dashboard
+                                    </Link>
+                                    <Link to="/Dashboard/Review" className="text-richblack-100 hover:text-richblack-25 text-sm">
+                                        Review
+                                    </Link>
+                                </>
+                            )
                         )}
                         <button
                             onClick={() => dispatch(LogoutUser(navigate))}
