@@ -12,8 +12,10 @@ import AdminRoute from './Hooks/AdminRoute'
 import SupportRoute from './Hooks/SupportRoute'
 import ScrollToTop from './Components/extra/ScrollToTop'
 import AnnouncementBanner from './Components/extra/AnnouncementBanner'
+import CookieConsent from './Components/extra/CookieConsent'
 import { pageTransition } from './Components/extra/motionVariants.js'
 import { FetchCsrfToken } from './Services/operations/Auth.js'
+import { wakeUpServer } from './utils/wakeUpServer.js'
 
 // Lazy-loaded route components sir — split into separate chunks for faster initial load
 const Join = lazy(() => import('./Components/UserCreation/Join'))
@@ -85,12 +87,17 @@ function App() {
   const location = useLocation()
 
   useEffect(() => {
-    dispatch(FetchCsrfToken())
+    // Ping the Render backend awake FIRST sir — on a cold start the CSRF fetch below would
+    // otherwise hang/fail with no retry, leaving the whole session without a CSRF token.
+    // When the server is already warm the /health ping answers in milliseconds, so this
+    // adds no meaningful delay to the normal path.
+    wakeUpServer().finally(() => dispatch(FetchCsrfToken()))
   }, [dispatch])
 
   return (
     <>
       <AnnouncementBanner />
+      <CookieConsent />
       <ScrollToTop />
       <Suspense fallback={<PageLoader />}>
         <AnimatePresence mode="wait" initial={false}>
