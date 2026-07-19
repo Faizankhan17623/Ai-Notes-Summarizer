@@ -132,6 +132,7 @@ export function ForgotPassword(email) {
     return async (dispatch) => {
         dispatch(setLoading(true))
         const toastId = toast.loading("Sending reset link...")
+        let sent = false
         try {
             const response = await apiConnector("POST", forgotPassword, { email })
 
@@ -140,6 +141,7 @@ export function ForgotPassword(email) {
             }
 
             toast.success("Reset link sent to your email")
+            sent = true
         } catch (error) {
             console.error("Error sending reset link", error)
             toast.error(error?.response?.data?.message || "Could not send reset link")
@@ -147,6 +149,9 @@ export function ForgotPassword(email) {
             dispatch(setLoading(false))
             toast.dismiss(toastId)
         }
+        // caller uses this to swap the form for a success screen sir — a toast alone
+        // is easy to miss, especially on a page the user is about to navigate away from
+        return sent
     }
 }
 
