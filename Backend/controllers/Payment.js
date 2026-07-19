@@ -7,7 +7,9 @@ const { PLANS, CREDIT_PACKS, MODEL_CATALOG } = require('../utils/Plans')
 // price table sir — only used once Razorpay keys are actually configured
 const PRICE_INR = {
     Pro: 499,
-    ProMax: 1499,
+    // dropped from 1499 sir — priced down alongside the 2026-07 change from unlimited
+    // to 500 credits/mo (see utils/Plans.js); ~Rs2/credit vs Pro's ~Rs5/credit
+    ProMax: 999,
 }
 
 // POST /payment/order — creates a Razorpay order sir, or a friendly stub response until real keys are added

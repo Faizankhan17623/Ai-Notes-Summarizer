@@ -131,7 +131,7 @@ STUDY KIT - QUIZZES
 - Export a quiz as a printable PDF (questions + options, answer key on a separate page)
 
 PLANS, CREDITS & PAYMENTS
-- Three tiers: Basic (free, 5 credits/mo), Pro (Rs499/mo, 100 credits), Pro Max (Rs1499/mo, 500 credits)
+- Three tiers: Basic (free, 5 credits/mo), Pro (Rs499/mo, 100 credits), Pro Max (Rs999/mo, 500 credits)
 - Lazy 30-day rolling credit cycle per user (auto-resets, no cron needed)
 - One-time credit top-up packs (small/medium/large: 20/50/100 credits)
 - Razorpay checkout: order creation + HMAC signature verification (stub "coming soon" mode until live keys added)
