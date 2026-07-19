@@ -110,7 +110,9 @@ exports.sendMessage = async (req, res) => {
         const Messages = [
             {
                 role: 'system',
-                content: buildChatSystemPrompt(plan?.key, note.rawText)
+                // 20k-char cap sir — Groq free tier allows 8,000 tokens/min, and notes
+                // created before AI.js's input cap can carry rawText far beyond that
+                content: buildChatSystemPrompt(plan?.key, note.rawText.slice(0, 20000))
             },
             ...chat.messages.slice(-contextWindow).map((m) => ({
                 role: m.role,
@@ -133,6 +135,13 @@ exports.sendMessage = async (req, res) => {
             logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: plan?.model || DEFAULT_MODEL, usage: Invoking.usage, latencyMs: Date.now() - t0, success: true })
         } catch (aiErr) {
             logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: plan?.model || DEFAULT_MODEL, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
+            // friendly message for Groq free-tier limit errors sir, same mapping as AI.js
+            if (aiErr?.status === 413 || aiErr?.status === 429) {
+                return res.status(429).json({
+                    success: false,
+                    message: 'Our AI service is at its per-minute limit right now — please wait about a minute and try again',
+                })
+            }
             throw aiErr
         }
 
@@ -214,7 +223,9 @@ exports.regenerateReply = async (req, res) => {
         const Messages = [
             {
                 role: 'system',
-                content: buildChatSystemPrompt(plan?.key, note.rawText)
+                // 20k-char cap sir — Groq free tier allows 8,000 tokens/min, and notes
+                // created before AI.js's input cap can carry rawText far beyond that
+                content: buildChatSystemPrompt(plan?.key, note.rawText.slice(0, 20000))
             },
             ...historyWithoutLastReply.slice(-contextWindow).map((m) => ({
                 role: m.role,
@@ -233,6 +244,13 @@ exports.regenerateReply = async (req, res) => {
             logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: plan?.model || DEFAULT_MODEL, usage: Invoking.usage, latencyMs: Date.now() - t0, success: true })
         } catch (aiErr) {
             logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: plan?.model || DEFAULT_MODEL, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
+            // friendly message for Groq free-tier limit errors sir, same mapping as AI.js
+            if (aiErr?.status === 413 || aiErr?.status === 429) {
+                return res.status(429).json({
+                    success: false,
+                    message: 'Our AI service is at its per-minute limit right now — please wait about a minute and try again',
+                })
+            }
             throw aiErr
         }
 

@@ -22,6 +22,20 @@ const DOC_SOURCE_TYPES = new Set(['pdf', 'docx', 'txt'])
 // `feature` overrides which gate to spend against: 'bulkSummary' when called per-file from
 // bulkSummarize below, otherwise inferred from sourceType (docSummary/audioSummary/shared pool)
 const summarizeExtractedText = async (userId, text, sourceType, feature = null) => {
+    // Groq's free tier caps tokens-per-MINUTE at 8,000 for our models sir — a long article
+    // can be 11k+ tokens on its own and 413s instantly ("Request too large"). Cap the input
+    // at ~20k chars (~5k tokens), leaving room for the system prompt + the JSON completion.
+    // The truncated text is also what gets stored as Note.rawText below, which keeps the
+    // note-grounded chat prompt (which replays rawText in full) under the same limit.
+    const MAX_INPUT_CHARS = 20000
+    if (text.length > MAX_INPUT_CHARS) {
+        let cut = text.slice(0, MAX_INPUT_CHARS)
+        // back up to the last paragraph/sentence break so we don't cut mid-word sir
+        const lastBreak = Math.max(cut.lastIndexOf('\n'), cut.lastIndexOf('. '))
+        if (lastBreak > MAX_INPUT_CHARS * 0.8) cut = cut.slice(0, lastBreak + 1)
+        text = cut
+    }
+
     const resolvedFeature = feature || (DOC_SOURCE_TYPES.has(sourceType) ? 'docSummary' : sourceType === 'audio' ? 'audioSummary' : null)
 
     const spend = resolvedFeature
@@ -51,6 +65,15 @@ const summarizeExtractedText = async (userId, text, sourceType, feature = null) 
         logAi({ user: userId, type: 'summary', plan: spend.plan, model, usage: Invoking.usage, latencyMs: Date.now() - t0, success: true })
     } catch (aiErr) {
         logAi({ user: userId, type: 'summary', plan: spend.plan, model, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
+        // Groq free-tier limit errors sir — 413 (request over TPM) / 429 (too many requests
+        // in the window). With the input cap above, these only fire when several summaries
+        // land inside the same minute, so "wait a minute" is the honest fix — surface that
+        // instead of Groq's raw org-id-laden error text
+        if (aiErr?.status === 413 || aiErr?.status === 429) {
+            const err = new Error('Our AI service is at its per-minute limit right now — please wait about a minute and try again')
+            err.status = 429
+            throw err
+        }
         throw aiErr
     }
 

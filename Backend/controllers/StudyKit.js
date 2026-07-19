@@ -59,7 +59,8 @@ exports.generateFlashcards = async (req, res) => {
         }
 
         const existing = await Flashcard.find({ note: note._id }).select('front').limit(50)
-        const prompt = buildFlashcardPrompt(note.rawText, count, existing.map((c) => c.front))
+        // 20k-char cap sir — Groq free tier allows 8,000 tokens/min (same cap as AI.js/Chat.js)
+        const prompt = buildFlashcardPrompt(note.rawText.slice(0, 20000), count, existing.map((c) => c.front))
 
         const model = spend.model || DEFAULT_MODEL
         const t0 = Date.now()
@@ -216,7 +217,8 @@ exports.generateQuiz = async (req, res) => {
 
         const existingQuizzes = await Quiz.find({ note: note._id }).select('questions.question').limit(10)
         const existingQuestions = existingQuizzes.flatMap((q) => q.questions.map((qq) => qq.question))
-        const prompt = buildQuizPrompt(note.rawText, count, existingQuestions)
+        // 20k-char cap sir — Groq free tier allows 8,000 tokens/min (same cap as AI.js/Chat.js)
+        const prompt = buildQuizPrompt(note.rawText.slice(0, 20000), count, existingQuestions)
 
         const model = spend.model || DEFAULT_MODEL
         const t0 = Date.now()

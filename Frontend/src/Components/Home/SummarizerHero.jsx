@@ -51,7 +51,10 @@ const SummarizerHero = ({ tab, setTab }) => {
 
     const handleSummarize = () => {
         if (!token) {
-            navigate('/Signup')
+            // not logged in sir — send them to Login (it links to Signup for new users);
+            // after logging in they land on the Dashboard, where New Summary has the same
+            // text/document/article/audio tabs to run the summary from
+            navigate('/Login')
             return
         }
 
