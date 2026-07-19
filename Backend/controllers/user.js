@@ -218,12 +218,14 @@ exports.loginUser = async (req, res) => {
         const Comparing = await bcrypt.compare(password, existingUser.password)
 
         if (!Comparing) {
-            // 5 consecutive failures locks the account for 15 minutes sir — syncs with authLimiter's
-            // own 15-minute window so the user gets one consistent "try again later" mental model
+            // 5 consecutive failures locks the account for 2 minutes sir — short enough that a
+            // genuine owner who mistyped their password isn't locked out for long, still enough
+            // friction to slow down a brute-force attempt. Separate from authLimiter's own
+            // 15-minute/20-try IP-level window in RateLimit.js, which stays as the broader guard.
             const attempts = (existingUser.failedLoginAttempts || 0) + 1
             const update = { failedLoginAttempts: attempts }
             if (attempts >= 5) {
-                update.lockUntil = new Date(Date.now() + 15 * 60 * 1000)
+                update.lockUntil = new Date(Date.now() + 2 * 60 * 1000)
                 update.failedLoginAttempts = 0
             }
             await User.findByIdAndUpdate(existingUser._id, update)
