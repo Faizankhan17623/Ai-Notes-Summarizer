@@ -1,20 +1,24 @@
 import { useState } from 'react'
 import { FaEye, FaEyeSlash } from 'react-icons/fa'
 
-const Input = ({ label, error, className = "", id, type, ...props }) => {
+const Input = ({ label, error, className = "", id, type, name, ...props }) => {
     const [showPassword, setShowPassword] = useState(false)
     const isPassword = type === 'password'
+    // react-hook-form's register() always supplies name sir — fall back to it so the
+    // <label htmlFor> actually matches the <input id> instead of both being undefined.
+    const inputId = id || name
 
     return (
         <div className="w-full">
             {label && (
-                <label htmlFor={id} className="block text-sm text-richblack-300 mb-1.5">
+                <label htmlFor={inputId} className="block text-sm text-richblack-300 mb-1.5">
                     {label}
                 </label>
             )}
             <div className="relative">
                 <input
-                    id={id}
+                    id={inputId}
+                    name={name}
                     type={isPassword ? (showPassword ? 'text' : 'password') : type}
                     className={`w-full bg-surface-hover border rounded-md px-3 py-2 text-richblack-5 outline-none transition-colors
                         ${isPassword ? "pr-10" : ""}

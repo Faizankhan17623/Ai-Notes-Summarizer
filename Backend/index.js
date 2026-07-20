@@ -97,8 +97,13 @@ app.get('/api/v1/csrf-token', (req, res) => {
     res.json({ success: true, csrfToken: generateCsrfToken(req, res) })
 })
 
-// generous global rate limit sir — the tight per-route ones live in the route files
-app.use(globalLimiter)
+// generous global rate limit sir — the tight per-route ones live in the route files.
+// Skipped only when SCREENSHOT_MODE is explicitly set (local Playwright screenshot runs
+// hammer every page's data fetches across many devices/roles in one burst) — never set
+// this in production/normal dev, so real request throttling stays untouched.
+if (process.env.SCREENSHOT_MODE !== 'true') {
+    app.use(globalLimiter)
+}
 
 app.use('/api/v1', auth)
 app.use('/api/v1', notes)

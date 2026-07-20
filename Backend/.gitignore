@@ -14,6 +14,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Mobile-layout screenshot tooling — local testing only, not pushed
+scripts/seedScreenshotUsers.js
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
 import { FaRupeeSign, FaCheckCircle, FaTimesCircle, FaReceipt, FaUndo } from 'react-icons/fa'
+import {
+    ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
+    CartesianGrid, Tooltip, Cell, LabelList,
+} from 'recharts'
 import Swal from 'sweetalert2'
 import { GetPayments, RefundPayment } from '../../Services/operations/Admin.js'
 import StatusBadge from './StatusBadge.jsx'
@@ -13,6 +17,125 @@ const STATUS_TONE = {
     pending: 'neutral',
     created: 'neutral',
     refunded: 'neutral',
+}
+
+// same fills as StatusBadge's tones sir — status is a reserved semantic color, not a
+// generic categorical series, so "by status" reuses good/danger/neutral rather than
+// picking new hues from the chart-1/2/3 categorical ramp
+const STATUS_CHART_COLOR = {
+    paid: 'var(--color-good)',
+    completed: 'var(--color-good)',
+    failed: 'var(--color-danger-soft)',
+    pending: 'var(--color-richblack-500)',
+    created: 'var(--color-richblack-500)',
+    refunded: 'var(--color-richblack-500)',
+}
+
+// fixed hue order sir — Pro/ProMax/CreditPack always map to the same chart-1/2/3 slot
+// regardless of which plans are present in the current data, so a filter never repaints
+// a plan's color out from under it
+const PLAN_CHART_COLOR = {
+    Pro: 'var(--color-chart-1)',
+    ProMax: 'var(--color-chart-2)',
+    CreditPack: 'var(--color-chart-3)',
+}
+
+// shared tooltip sir — same dark/light-aware card as Analytics.jsx's ChartTooltip
+const ChartTooltip = ({ active, payload, label, formatValue = (v) => v }) => {
+    if (!active || !payload?.length) return null
+    return (
+        <div className="bg-surface-raised border border-border-soft rounded-md px-3 py-2 text-xs shadow-lg">
+            <p className="text-richblack-400 mb-1">{label}</p>
+            {payload.map((p) => (
+                <p key={p.dataKey} className="text-richblack-5 font-mono font-semibold">
+                    {formatValue(p.value)}
+                </p>
+            ))}
+        </div>
+    )
+}
+
+// revenue over time sir — single magnitude series, filled area, thin 2px line, same
+// treatment as Analytics.jsx's RevenueChart
+const RevenueChart = ({ data }) => {
+    if (!data || data.length === 0) {
+        return <p className="text-richblack-400 text-sm">No revenue yet.</p>
+    }
+    return (
+        <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                    <linearGradient id="paymentsRevenueFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity={0} />
+                    </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-soft)" vertical={false} />
+                <XAxis
+                    dataKey="date"
+                    tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={{ stroke: 'var(--color-border-soft)' }}
+                    minTickGap={24}
+                />
+                <YAxis
+                    tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v) => `₹${v}`}
+                    width={56}
+                />
+                <Tooltip content={<ChartTooltip formatValue={(v) => `₹${v}`} />} cursor={{ stroke: 'var(--color-border-soft)' }} />
+                <Area
+                    type="monotone"
+                    dataKey="total"
+                    stroke="var(--color-chart-1)"
+                    strokeWidth={2}
+                    fill="url(#paymentsRevenueFill)"
+                    dot={false}
+                    activeDot={{ r: 4, fill: 'var(--color-chart-1)', stroke: 'var(--color-surface)', strokeWidth: 2 }}
+                    isAnimationActive
+                    animationDuration={900}
+                    animationEasing="ease-out"
+                />
+            </AreaChart>
+        </ResponsiveContainer>
+    )
+}
+
+// categorical counts (status or plan) sir — bars, each keyed to its own reserved/fixed
+// color via colorKey rather than one flat fill, since the whole point is telling the
+// categories apart
+const CategoryBarChart = ({ data, colorMap, formatValue = (v) => v }) => {
+    if (!data || data.length === 0) {
+        return <p className="text-richblack-400 text-sm">No data yet.</p>
+    }
+    return (
+        <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-soft)" vertical={false} />
+                <XAxis
+                    dataKey="name"
+                    tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={{ stroke: 'var(--color-border-soft)' }}
+                    className="capitalize"
+                />
+                <YAxis tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }} tickLine={false} axisLine={false} width={40} />
+                <Tooltip content={<ChartTooltip formatValue={formatValue} />} cursor={{ fill: 'var(--color-surface-hover)' }} />
+                <Bar dataKey="value" radius={[3, 3, 0, 0]} maxBarSize={40} isAnimationActive animationDuration={700} animationEasing="ease-out">
+                    {data.map((d) => (
+                        <Cell key={d.name} fill={colorMap[d.name] || 'var(--color-chart-1)'} />
+                    ))}
+                    {/* direct value labels sir — the good/danger/neutral status colors are a
+                        reserved semantic palette, not a validated categorical set, so identity
+                        can't rely on hue alone for CVD readers; the x-axis name + this label
+                        both carry it in text regardless of color */}
+                    <LabelList dataKey="value" position="top" fill="var(--color-richblack-300)" fontSize={11} formatter={formatValue} />
+                </Bar>
+            </BarChart>
+        </ResponsiveContainer>
+    )
 }
 
 // counts up from 0 to the target value on mount/change instead of just popping in sir —
@@ -104,18 +227,80 @@ const Payments = () => {
         return { totalRevenue, paidCount: paid.length, failedCount: failed.length, refundedCount: refunded.length }
     }, [payments])
 
+    // paid revenue per calendar day sir — client-side since getPayments already returns
+    // the last 100 rows in full (unlike Analytics, which has a dedicated byDay aggregation
+    // endpoint); sorted ascending (oldest first) so the area chart reads left-to-right in time
+    const revenueByDay = useMemo(() => {
+        const byDate = new Map()
+        payments
+            .filter((p) => p.status === 'paid' || p.status === 'completed')
+            .forEach((p) => {
+                const date = new Date(p.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+                byDate.set(date, (byDate.get(date) || 0) + (p.amount || 0))
+            })
+        return [...byDate.entries()]
+            .map(([date, total]) => ({ date, total, _t: new Date(date).getTime() }))
+            .sort((a, b) => a._t - b._t)
+    }, [payments])
+
+    const paymentsByStatus = useMemo(() => {
+        const byStatus = new Map()
+        payments.forEach((p) => byStatus.set(p.status, (byStatus.get(p.status) || 0) + 1))
+        return [...byStatus.entries()].map(([name, value]) => ({ name, value }))
+    }, [payments])
+
+    // fixed Pro/ProMax/CreditPack order sir — not derived from whatever plans happen to be
+    // present, so a plan's color/position never shifts as the underlying data changes
+    const revenueByPlan = useMemo(() => {
+        const byPlan = new Map()
+        payments
+            .filter((p) => p.status === 'paid' || p.status === 'completed')
+            .forEach((p) => byPlan.set(p.plan, (byPlan.get(p.plan) || 0) + (p.amount || 0)))
+        return ['Pro', 'ProMax', 'CreditPack']
+            .filter((plan) => byPlan.has(plan))
+            .map((name) => ({ name, value: byPlan.get(name) }))
+    }, [payments])
+
     return (
         <div className="px-6 md:px-10 py-10">
             <Helmet><title>Admin Payments — Notewise</title></Helmet>
             <h1 className="font-display text-3xl font-semibold text-richblack-5 mb-6 animate-fade-in-up">Payments</h1>
 
             {payments.length > 0 && (
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <StatCard label="Total revenue" value={stats.totalRevenue} icon={FaRupeeSign} prefix="₹" delay={0} />
-                    <StatCard label="Successful payments" value={stats.paidCount} icon={FaCheckCircle} delay={60} />
-                    <StatCard label="Failed payments" value={stats.failedCount} icon={FaTimesCircle} tone="danger" delay={120} />
-                    <StatCard label="Refunded payments" value={stats.refundedCount} icon={FaUndo} delay={180} />
-                </div>
+                <>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <StatCard label="Total revenue" value={stats.totalRevenue} icon={FaRupeeSign} prefix="₹" delay={0} />
+                        <StatCard label="Successful payments" value={stats.paidCount} icon={FaCheckCircle} delay={60} />
+                        <StatCard label="Failed payments" value={stats.failedCount} icon={FaTimesCircle} tone="danger" delay={120} />
+                        <StatCard label="Refunded payments" value={stats.refundedCount} icon={FaUndo} delay={180} />
+                    </div>
+
+                    <div className="grid lg:grid-cols-2 gap-4 mb-6">
+                        <div
+                            style={{ '--delay': '260ms' }}
+                            className="border border-border-soft bg-surface rounded-lg p-6 lg:col-span-2 animate-fade-in-up transition-colors duration-200 hover:border-yellow-50/30"
+                        >
+                            <h2 className="text-richblack-5 font-semibold mb-4">Revenue over time</h2>
+                            <RevenueChart data={revenueByDay} />
+                        </div>
+
+                        <div
+                            style={{ '--delay': '320ms' }}
+                            className="border border-border-soft bg-surface rounded-lg p-6 animate-fade-in-up transition-colors duration-200 hover:border-yellow-50/30"
+                        >
+                            <h2 className="text-richblack-5 font-semibold mb-4">Payments by status</h2>
+                            <CategoryBarChart data={paymentsByStatus} colorMap={STATUS_CHART_COLOR} />
+                        </div>
+
+                        <div
+                            style={{ '--delay': '380ms' }}
+                            className="border border-border-soft bg-surface rounded-lg p-6 animate-fade-in-up transition-colors duration-200 hover:border-yellow-50/30"
+                        >
+                            <h2 className="text-richblack-5 font-semibold mb-4">Revenue by plan</h2>
+                            <CategoryBarChart data={revenueByPlan} colorMap={PLAN_CHART_COLOR} formatValue={(v) => `₹${v}`} />
+                        </div>
+                    </div>
+                </>
             )}
 
             {loading ? (
@@ -129,7 +314,7 @@ const Payments = () => {
                 </div>
             ) : (
                 <>
-                    <div className="flex flex-wrap items-center gap-3 mb-6 animate-fade-in-up" style={{ '--delay': '220ms' }}>
+                    <div className="flex flex-wrap items-center gap-3 mb-6 animate-fade-in-up" style={{ '--delay': '440ms' }}>
                         <div className="flex gap-1.5">
                             {['all', 'paid', 'failed', 'created'].map((s) => (
                                 <button
@@ -155,7 +340,7 @@ const Payments = () => {
                             <p className="text-richblack-300 text-sm">No payments match this filter.</p>
                         </div>
                     ) : (
-                        <div className="border border-border-soft bg-surface rounded-lg overflow-hidden animate-fade-in-up" style={{ '--delay': '260ms' }}>
+                        <div className="border border-border-soft bg-surface rounded-lg overflow-hidden animate-fade-in-up" style={{ '--delay': '480ms' }}>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
                                     <thead>

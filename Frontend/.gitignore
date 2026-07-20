@@ -16,6 +16,12 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+.env.screenshots
+
+# Mobile-layout screenshot tooling — local testing only, not pushed
+screenshots/
+scripts/
+.env.screenshots.example
 
 # Editor directories and files
 .vscode/*

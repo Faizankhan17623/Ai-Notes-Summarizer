@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
 import {
@@ -7,8 +7,19 @@ import {
 } from 'recharts'
 import { GetAnalytics } from '../../Services/operations/Admin.js'
 
-const StatCard = ({ label, value }) => (
-    <div className="border border-border-soft bg-surface rounded-lg p-5">
+// backend already rolls these up (Admin.js getAdminAnalytics) sir — day is 30d, week is
+// 30d of ISO-week buckets, month is 12mo; the chart just picks which one to render
+const REVENUE_RANGES = [
+    { key: 'byDay', label: 'Daily' },
+    { key: 'byWeek', label: 'Weekly' },
+    { key: 'byMonth', label: 'Monthly' },
+]
+
+const StatCard = ({ label, value, delay = 0 }) => (
+    <div
+        style={{ '--delay': `${delay}ms` }}
+        className="border border-border-soft bg-surface rounded-lg p-5 animate-fade-in-up transition-all duration-200 hover:-translate-y-0.5 hover:border-yellow-50/40 hover:shadow-lg hover:shadow-black/20"
+    >
         <p className="text-xs uppercase tracking-wide text-richblack-400 mb-2">{label}</p>
         <p className="font-mono text-2xl text-richblack-5">{value}</p>
     </div>
@@ -105,6 +116,7 @@ const Analytics = () => {
     const dispatch = useDispatch()
     const { token } = useSelector((state) => state.auth)
     const { analytics, loading } = useSelector((state) => state.admin)
+    const [revenueRange, setRevenueRange] = useState('byDay')
 
     useEffect(() => {
         dispatch(GetAnalytics(token))
@@ -113,7 +125,7 @@ const Analytics = () => {
     return (
         <div className="px-6 md:px-10 py-10 space-y-6">
             <Helmet><title>Admin Analytics — Notewise</title></Helmet>
-            <h1 className="font-display text-3xl font-semibold text-richblack-5">Analytics</h1>
+            <h1 className="font-display text-3xl font-semibold text-richblack-5 animate-fade-in-up">Analytics</h1>
 
             {loading || !analytics ? (
                 <div className="flex items-center justify-center py-20">
@@ -121,17 +133,39 @@ const Analytics = () => {
                 </div>
             ) : (
                 <>
-                    <div className="border border-border-soft bg-surface rounded-lg p-6">
-                        <h2 className="text-richblack-5 font-semibold mb-4">Revenue — last 30 days</h2>
-                        <RevenueChart data={analytics.revenue.byDay} />
+                    <div
+                        style={{ '--delay': '0ms' }}
+                        className="border border-border-soft bg-surface rounded-lg p-6 animate-fade-in-up transition-colors duration-200 hover:border-yellow-50/30"
+                    >
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                            <h2 className="text-richblack-5 font-semibold">Revenue</h2>
+                            <div className="flex gap-1.5">
+                                {REVENUE_RANGES.map(({ key, label }) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setRevenueRange(key)}
+                                        className={`text-sm rounded-md px-3 py-1.5 cursor-pointer transition-all duration-200 ${revenueRange === key ? 'bg-yellow-50 text-richblack-900 scale-105' : 'bg-surface-hover text-richblack-200 border border-border-soft hover:border-yellow-50 hover:scale-105'}`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <RevenueChart data={analytics.revenue[revenueRange]} />
                     </div>
 
-                    <div className="border border-border-soft bg-surface rounded-lg p-6">
+                    <div
+                        style={{ '--delay': '60ms' }}
+                        className="border border-border-soft bg-surface rounded-lg p-6 animate-fade-in-up transition-colors duration-200 hover:border-yellow-50/30"
+                    >
                         <h2 className="text-richblack-5 font-semibold mb-4">New signups — last 30 days</h2>
                         <CountBarChart data={analytics.signups.byDay} valueKey="count" color="var(--color-chart-2)" />
                     </div>
 
-                    <div className="border border-border-soft bg-surface rounded-lg p-6">
+                    <div
+                        style={{ '--delay': '120ms' }}
+                        className="border border-border-soft bg-surface rounded-lg p-6 animate-fade-in-up transition-colors duration-200 hover:border-yellow-50/30"
+                    >
                         <h2 className="text-richblack-5 font-semibold mb-4">Top users by usage — last 30 days</h2>
                         {analytics.topUsers.length === 0 ? (
                             <p className="text-richblack-400 text-sm">No usage in this window yet.</p>
@@ -165,15 +199,18 @@ const Analytics = () => {
                         )}
                     </div>
 
-                    <div className="border border-border-soft bg-surface rounded-lg p-6">
+                    <div
+                        style={{ '--delay': '180ms' }}
+                        className="border border-border-soft bg-surface rounded-lg p-6 animate-fade-in-up transition-colors duration-200 hover:border-yellow-50/30"
+                    >
                         <h2 className="text-richblack-5 font-semibold mb-4">Credit &amp; top-up stats</h2>
                         <div className="grid md:grid-cols-3 gap-4 mb-6">
-                            {analytics.creditStats.usersAtLimit.map((row) => (
-                                <StatCard key={row._id} label={`${row._id} users at their limit`} value={row.usersAtLimit} />
+                            {analytics.creditStats.usersAtLimit.map((row, i) => (
+                                <StatCard key={row._id} label={`${row._id} users at their limit`} value={row.usersAtLimit} delay={220 + i * 40} />
                             ))}
-                            <StatCard label="Top-up purchases (all time)" value={analytics.creditStats.topUps.totals.totalPurchases} />
-                            <StatCard label="Top-up revenue (all time)" value={`₹${analytics.creditStats.topUps.totals.totalRevenue}`} />
-                            <StatCard label="Top-up credits granted (all time)" value={analytics.creditStats.topUps.totals.totalCreditsGranted} />
+                            <StatCard label="Top-up purchases (all time)" value={analytics.creditStats.topUps.totals.totalPurchases} delay={340} />
+                            <StatCard label="Top-up revenue (all time)" value={`₹${analytics.creditStats.topUps.totals.totalRevenue}`} delay={380} />
+                            <StatCard label="Top-up credits granted (all time)" value={analytics.creditStats.topUps.totals.totalCreditsGranted} delay={420} />
                         </div>
                         <h3 className="text-richblack-200 text-sm font-semibold mb-2">Top-up purchases — last 30 days</h3>
                         <CountBarChart data={analytics.creditStats.topUps.byDay} valueKey="count" color="var(--color-chart-3)" />
