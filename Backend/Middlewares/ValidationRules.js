@@ -71,7 +71,7 @@ exports.verifyPaymentRules = [
 ]
 
 exports.banUserRules = [param('userId').isMongoId(), body('banReason').optional().trim().isLength({ max: 300 })]
-exports.setRoleRules = [param('userId').isMongoId(), body('role').isIn(['User', 'Support', 'Admin'])]
+exports.setRoleRules = [param('userId').isMongoId(), body('role').isIn(['User', 'Support'])]
 
 exports.createChatRules = [body('noteId').isMongoId()]
 exports.sendMessageRules = [param('chatId').isMongoId(), body('message').trim().notEmpty().isLength({ max: 4000 })]

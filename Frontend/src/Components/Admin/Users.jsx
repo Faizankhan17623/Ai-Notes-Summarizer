@@ -143,7 +143,10 @@ const Users = () => {
                                             </div>
                                         </td>
                                         <td className="py-3 px-4">
-                                            {isAdmin ? (
+                                            {/* only one Admin, ever, sir — this dropdown can only toggle a user between Support
+                                                and User. The Admin's own row stays a plain badge since there's nothing to promote
+                                                them to and demoting them here would leave the app with zero admins */}
+                                            {isAdmin && u.role !== 'Admin' ? (
                                                 <select
                                                     value={u.role}
                                                     onChange={(e) => dispatch(SetRole(u._id, e.target.value, token))}
@@ -151,7 +154,6 @@ const Users = () => {
                                                 >
                                                     <option value="User">User</option>
                                                     <option value="Support">Support</option>
-                                                    <option value="Admin">Admin</option>
                                                 </select>
                                             ) : (
                                                 <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${ROLE_TONE[u.role] || ''}`}>{u.role}</span>

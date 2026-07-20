@@ -261,14 +261,22 @@ exports.setRole = async (req, res) => {
         const { userId } = req.params
         const { role } = req.body
 
-        if (!['User', 'Support', 'Admin'].includes(role)) {
+        // exactly one Admin, ever, sir — this endpoint can only toggle a user between Support
+        // and User. It can't create a second Admin, and it can't touch the existing Admin's own
+        // role (that would silently leave the app with zero admins)
+        if (!['User', 'Support'].includes(role)) {
             return res.status(400).json({ success: false, message: 'Invalid role' })
         }
 
-        const user = await User.findByIdAndUpdate(userId, { role }, { returnDocument: 'after' }).select(ADMIN_USER_FIELDS)
-        if (!user) {
+        const target = await User.findById(userId).select('role')
+        if (!target) {
             return res.status(404).json({ success: false, message: 'User not found' })
         }
+        if (target.role === 'Admin') {
+            return res.status(400).json({ success: false, message: "The Admin's role can't be changed here" })
+        }
+
+        const user = await User.findByIdAndUpdate(userId, { role }, { returnDocument: 'after' }).select(ADMIN_USER_FIELDS)
 
         writeAudit(req.User.id, 'set_role', userId, role)
 
