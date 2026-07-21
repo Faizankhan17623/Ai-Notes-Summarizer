@@ -50,7 +50,7 @@ const TrafficChart = ({ data }) => {
     return (
         <ResponsiveContainer width="100%" height={280}>
             <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-soft)" vertical={false} />
+                <CartesianGrid stroke="var(--color-border-soft)" vertical={false} />
                 <XAxis
                     dataKey="bucket"
                     tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }}

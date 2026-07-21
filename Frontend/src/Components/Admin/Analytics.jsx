@@ -57,7 +57,7 @@ const RevenueChart = ({ data }) => {
                         <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity={0} />
                     </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-soft)" vertical={false} />
+                <CartesianGrid stroke="var(--color-border-soft)" vertical={false} />
                 <XAxis
                     dataKey="_id"
                     tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }}
@@ -96,7 +96,7 @@ const CountBarChart = ({ data, valueKey, color, formatValue = (v) => v }) => {
     return (
         <ResponsiveContainer width="100%" height={180}>
             <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-soft)" vertical={false} />
+                <CartesianGrid stroke="var(--color-border-soft)" vertical={false} />
                 <XAxis
                     dataKey="_id"
                     tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }}
@@ -106,7 +106,7 @@ const CountBarChart = ({ data, valueKey, color, formatValue = (v) => v }) => {
                 />
                 <YAxis tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }} tickLine={false} axisLine={false} width={40} />
                 <Tooltip content={<ChartTooltip formatValue={formatValue} />} cursor={{ fill: 'var(--color-surface-hover)' }} />
-                <Bar dataKey={valueKey} fill={color} radius={[3, 3, 0, 0]} maxBarSize={28} />
+                <Bar dataKey={valueKey} fill={color} radius={[4, 4, 0, 0]} maxBarSize={24} />
             </BarChart>
         </ResponsiveContainer>
     )

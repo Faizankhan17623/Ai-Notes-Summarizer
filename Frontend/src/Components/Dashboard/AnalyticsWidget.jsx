@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts'
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { GetMyAnalytics } from '../../Services/operations/Analytics.js'
 
 const StatBox = ({ label, value }) => (
@@ -9,6 +9,18 @@ const StatBox = ({ label, value }) => (
         <p className="text-richblack-400 text-xs mt-0.5">{label}</p>
     </div>
 )
+
+// same dark/light-aware tooltip card as the Admin charts (Analytics.jsx/Payments.jsx/
+// Traffic.jsx) sir — recharts' default tooltip ignores the app's theme tokens entirely
+const ChartTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null
+    return (
+        <div className="bg-surface-raised border border-border-soft rounded-md px-3 py-2 text-xs shadow-lg">
+            <p className="text-richblack-400 mb-1">{label}</p>
+            <p className="text-richblack-5 font-mono font-semibold">{payload[0].value} notes</p>
+        </div>
+    )
+}
 
 const AnalyticsWidget = () => {
     const dispatch = useDispatch()
@@ -35,16 +47,45 @@ const AnalyticsWidget = () => {
             </div>
 
             {chartData.length > 0 && (
-                <div style={{ width: '100%', height: 160 }}>
-                    <ResponsiveContainer>
-                        <AreaChart data={chartData}>
-                            <XAxis dataKey="date" stroke="var(--color-richblack-500)" fontSize={11} />
-                            <YAxis allowDecimals={false} stroke="var(--color-richblack-500)" fontSize={11} width={24} />
-                            <Tooltip contentStyle={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border-soft)', color: 'var(--color-richblack-5)' }} />
-                            <Area type="monotone" dataKey="count" stroke="var(--color-yellow-50)" fill="var(--color-yellow-50)" fillOpacity={0.15} />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                </div>
+                <ResponsiveContainer width="100%" height={180}>
+                    <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                        <defs>
+                            <linearGradient id="myActivityFill" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.35} />
+                                <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid stroke="var(--color-border-soft)" vertical={false} />
+                        <XAxis
+                            dataKey="date"
+                            tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }}
+                            tickLine={false}
+                            axisLine={{ stroke: 'var(--color-border-soft)' }}
+                            minTickGap={24}
+                        />
+                        <YAxis
+                            allowDecimals={false}
+                            tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }}
+                            tickLine={false}
+                            axisLine={false}
+                            width={28}
+                        />
+                        <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--color-border-soft)' }} />
+                        <Area
+                            type="monotone"
+                            dataKey="count"
+                            name="Notes"
+                            stroke="var(--color-chart-1)"
+                            strokeWidth={2}
+                            fill="url(#myActivityFill)"
+                            dot={false}
+                            activeDot={{ r: 4, fill: 'var(--color-chart-1)', stroke: 'var(--color-surface)', strokeWidth: 2 }}
+                            isAnimationActive
+                            animationDuration={700}
+                            animationEasing="ease-out"
+                        />
+                    </AreaChart>
+                </ResponsiveContainer>
             )}
         </div>
     )

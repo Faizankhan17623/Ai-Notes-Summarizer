@@ -83,7 +83,7 @@ const RevenueChart = ({ data }) => {
                         <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity={0} />
                     </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-soft)" vertical={false} />
+                <CartesianGrid stroke="var(--color-border-soft)" vertical={false} />
                 <XAxis
                     dataKey="date"
                     tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }}
@@ -126,7 +126,7 @@ const CategoryBarChart = ({ data, colorMap, formatValue = (v) => v }) => {
     return (
         <ResponsiveContainer width="100%" height={200}>
             <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-soft)" vertical={false} />
+                <CartesianGrid stroke="var(--color-border-soft)" vertical={false} />
                 <XAxis
                     dataKey="name"
                     tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }}
@@ -136,7 +136,7 @@ const CategoryBarChart = ({ data, colorMap, formatValue = (v) => v }) => {
                 />
                 <YAxis tick={{ fill: 'var(--color-richblack-400)', fontSize: 11 }} tickLine={false} axisLine={false} width={40} />
                 <Tooltip content={<ChartTooltip formatValue={formatValue} />} cursor={{ fill: 'var(--color-surface-hover)' }} />
-                <Bar dataKey="value" radius={[3, 3, 0, 0]} maxBarSize={40} isAnimationActive animationDuration={700} animationEasing="ease-out">
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive animationDuration={700} animationEasing="ease-out">
                     {data.map((d) => (
                         <Cell key={d.name} fill={colorMap[d.name] || 'var(--color-chart-1)'} />
                     ))}
