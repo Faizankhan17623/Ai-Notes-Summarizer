@@ -1,4 +1,5 @@
 const User = require('../Models/User')
+const { notify } = require('../controllers/Notification')
 
 // plan catalogue sir — every credit/limit/prompt-depth decision in the app reads from here ONLY
 // key = value stored on User.SubType
@@ -104,7 +105,7 @@ const cycleElapsed = (user) => {
 const resetCycleIfNeeded = async (user) => {
     if (!cycleElapsed(user)) return user
     const now = new Date()
-    const zeroed = { count: 0, bonusCredits: 0, docSummaryCount: 0, bulkSummaryCount: 0, audioSummaryCount: 0, creditCycleStart: now }
+    const zeroed = { count: 0, bonusCredits: 0, docSummaryCount: 0, bulkSummaryCount: 0, audioSummaryCount: 0, lowCreditNotified: false, creditCycleStart: now }
     await User.findByIdAndUpdate(user._id, zeroed)
     Object.assign(user, zeroed)
     return user
@@ -118,7 +119,7 @@ const getEffectivePlan = (user) => {
     return PLANS[user.SubType] || PLANS.Basic
 }
 
-const USER_PLAN_FIELDS = 'SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount preferredModel createdAt'
+const USER_PLAN_FIELDS = 'SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount lowCreditNotified preferredModel createdAt'
 
 // fetch the user fresh and resolve their effective plan sir — the returned object also carries
 // `model` (this user's resolved Groq model, see resolveModel above) alongside the plan's own
@@ -128,6 +129,23 @@ const getUserPlan = async (userId) => {
     if (!user) return null
     await resetCycleIfNeeded(user)
     return { ...getEffectivePlan(user), model: resolveModel(user) }
+}
+
+// fires the one-per-cycle 'credits_low' notification the moment usage crosses 90% of a
+// tracked pool sir — `before`/`after` are the pre/post-increment counts, `notified` is the
+// user's current lowCreditNotified flag (already in scope from the caller's earlier fetch).
+// Fire-and-forget like every other notify() call site, and the $set piggybacks on the same
+// $inc update the caller already issues rather than a second DB round-trip.
+const maybeNotifyLowCredit = (userId, before, after, limit, notified) => {
+    if (notified || limit === null) return {}
+    if (before / limit >= 0.9 || after / limit < 0.9) return {}
+    notify({
+        user: userId,
+        type: 'credits_low',
+        message: "You've used 90% of your credits for this cycle — upgrade or grab a top-up pack to avoid running out.",
+        link: '/Pricing',
+    })
+    return { lowCreditNotified: true }
 }
 
 // spend one credit sir — call this before every Groq summarize call
@@ -149,7 +167,8 @@ const consumeCredit = async (userId) => {
     }
 
     if (user.count < plan.credits) {
-        await User.findByIdAndUpdate(userId, { $inc: { count: 1 } })
+        const notifyUpdate = maybeNotifyLowCredit(userId, user.count, user.count + 1, plan.credits, user.lowCreditNotified)
+        await User.findByIdAndUpdate(userId, { $inc: { count: 1 }, ...(Object.keys(notifyUpdate).length ? { $set: notifyUpdate } : {}) })
         return { ok: true, plan: plan.key, model }
     }
 
@@ -193,7 +212,8 @@ const consumeFeatureUsage = async (userId, feature) => {
 
     const used = user[meta.field] || 0
     if (used < limit) {
-        await User.findByIdAndUpdate(userId, { $inc: { [meta.field]: 1 } })
+        const notifyUpdate = maybeNotifyLowCredit(userId, used, used + 1, limit, user.lowCreditNotified)
+        await User.findByIdAndUpdate(userId, { $inc: { [meta.field]: 1 }, ...(Object.keys(notifyUpdate).length ? { $set: notifyUpdate } : {}) })
         return { ok: true, plan: plan.key, model }
     }
 

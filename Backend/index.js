@@ -25,6 +25,7 @@ const { globalLimiter } = require('./Middlewares/RateLimit.js')
 const { generateCsrfToken, invalidCsrfTokenError } = require('./Middlewares/Csrf.js')
 const { sanitizeBody } = require('./Middlewares/Sanitize.js')
 const { scheduleWeeklyDigest } = require('./utils/DigestJob.js')
+const { schedulePlanExpiryWarnings } = require('./utils/PlanExpiryJob.js')
 const { backfillProMaxCapNotice } = require('./utils/PlanChangeNotice.js')
 
 // deployed behind a proxy (Render/Railway/nginx) sir — needed so the rate limiter sees the REAL client IP
@@ -154,6 +155,9 @@ const startServer = async () => {
     // weekly summary email sir — in-process cron, no separate infra needed since the
     // web service process stays alive on Render
     scheduleWeeklyDigest()
+
+    // daily in-app "plan expiring soon" notice sir — same in-process cron approach as above
+    schedulePlanExpiryWarnings()
 
     // one-time bell notice about the ProMax credit cap sir — idempotent, safe on every boot
     backfillProMaxCapNotice()

@@ -185,6 +185,9 @@ exports.verifyPayment = async (req, res) => {
             bulkSummaryCount: 0,
             audioSummaryCount: 0,
             creditCycleStart: new Date(),
+            // fresh SubscriptionExpires means the old expiry warning no longer applies sir —
+            // re-arms utils/PlanExpiryJob.js for whenever THIS expiry eventually approaches
+            planExpiryNotified: false,
         })
 
         return res.status(200).json({

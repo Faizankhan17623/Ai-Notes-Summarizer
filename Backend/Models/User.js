@@ -68,6 +68,21 @@ const UserSchema = new mongoose.Schema(
             type: Number,
             default: 0
         },
+        // fires the 'credits_low' in-app notification once per cycle sir — set the moment
+        // usage crosses 90% of any tracked pool (see utils/Plans.js consumeCredit/
+        // consumeFeatureUsage), reset alongside count/bonusCredits/etc at the same
+        // creditCycleStart boundary so it re-arms every cycle
+        lowCreditNotified: {
+            type: Boolean,
+            default: false
+        },
+        // fires the 'plan_expiring' in-app notification once sir — set by utils/PlanExpiryJob.js
+        // when SubscriptionExpires is within the warning window, reset to false whenever
+        // SubscriptionExpires is renewed on a fresh payment (see controllers/Payment.js)
+        planExpiryNotified: {
+            type: Boolean,
+            default: false
+        },
         Verified: {
             type: Boolean,
             default: false,
