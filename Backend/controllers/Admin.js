@@ -455,14 +455,29 @@ exports.getAuditLog = async (req, res) => {
 }
 
 // GET /admin/ai-logs sir — the cost/health monitor feed, same pagination shape as above
+// optional ?userSearch=, ?model=, ?success=true|false filters sir, alongside the existing
+// pagination. userSearch resolves matching User ids first (AiLog.user is a ref, not an
+// embedded name/email, so it can't be RegExp-matched directly the way getUsers' search is)
 exports.getAiLogs = async (req, res) => {
     try {
         const page = Math.max(1, parseInt(req.query.page) || 1)
         const limit = 20
+        const { userSearch, model, success } = req.query
+
+        const filter = {}
+        if (userSearch?.trim()) {
+            const term = userSearch.trim()
+            const matchingUsers = await User.find({
+                $or: [{ email: new RegExp(term, 'i') }, { firstName: new RegExp(term, 'i') }, { lastName: new RegExp(term, 'i') }]
+            }).select('_id')
+            filter.user = { $in: matchingUsers.map((u) => u._id) }
+        }
+        if (model?.trim()) filter.model = model.trim()
+        if (success === 'true' || success === 'false') filter.success = success === 'true'
 
         const [logs, total] = await Promise.all([
-            AiLog.find().populate('user', 'firstName lastName email').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
-            AiLog.countDocuments(),
+            AiLog.find(filter).populate('user', 'firstName lastName email').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+            AiLog.countDocuments(filter),
         ])
 
         return res.status(200).json({ success: true, logs, total, page, pages: Math.ceil(total / limit) })

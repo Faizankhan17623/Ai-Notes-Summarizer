@@ -277,11 +277,11 @@ export function GetAuditLog(token, page = 1) {
     }
 }
 
-export function GetAiLogs(token, page = 1) {
+export function GetAiLogs(token, page = 1, filters = {}) {
     return async (dispatch) => {
         dispatch(setLoading(true))
         try {
-            const response = await apiConnector("GET", aiLogs, null, { Authorization: `Bearer ${token}` }, { page })
+            const response = await apiConnector("GET", aiLogs, null, { Authorization: `Bearer ${token}` }, { page, ...filters })
             if (!response.data.success) throw new Error(response.data.message)
             dispatch(setAiLogs({ logs: response.data.logs, total: response.data.total, page: response.data.page, pages: response.data.pages }))
         } catch (error) {

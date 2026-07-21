@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
-import { FaDownload, FaChevronLeft, FaChevronRight } from 'react-icons/fa'
+import { FaDownload, FaChevronLeft, FaChevronRight, FaSearch } from 'react-icons/fa'
 import { GetAuditLog, GetAiLogs } from '../../Services/operations/Admin.js'
 import StatusBadge from './StatusBadge.jsx'
 import { toCsv, downloadCsv } from '../../utils/csv.js'
@@ -73,14 +73,31 @@ const Audit = () => {
     // paginated independently sir — one table's Next shouldn't page the other
     const [auditPage, setAuditPage] = useState(1)
     const [aiPage, setAiPage] = useState(1)
+    const [aiUserSearch, setAiUserSearch] = useState('')
+    const [aiModel, setAiModel] = useState('')
+    const [aiSuccess, setAiSuccess] = useState('all')
 
     useEffect(() => {
         dispatch(GetAuditLog(token, auditPage))
     }, [dispatch, token, auditPage])
 
+    // debounced sir — same 300ms pattern as History.jsx's note search, avoids firing on
+    // every keystroke against the userSearch filter
     useEffect(() => {
-        dispatch(GetAiLogs(token, aiPage))
-    }, [dispatch, token, aiPage])
+        const handle = setTimeout(() => {
+            const filters = {}
+            if (aiUserSearch.trim()) filters.userSearch = aiUserSearch.trim()
+            if (aiModel) filters.model = aiModel
+            if (aiSuccess !== 'all') filters.success = aiSuccess
+            dispatch(GetAiLogs(token, aiPage, filters))
+        }, 300)
+        return () => clearTimeout(handle)
+    }, [dispatch, token, aiPage, aiUserSearch, aiModel, aiSuccess])
+
+    // model options come from whatever's currently loaded sir — AiLog.model is free-text,
+    // no fixed enum server-side to draw a dropdown from, same "derive from visible data"
+    // approach Payments.jsx already uses for its plan filter
+    const aiModelOptions = useMemo(() => [...new Set(aiLogs.map((l) => l.model).filter(Boolean))], [aiLogs])
 
     return (
         <div className="px-6 md:px-10 py-10 space-y-10">
@@ -131,13 +148,45 @@ const Audit = () => {
             </div>
 
             <div>
-                <div className="flex items-center justify-between gap-4 mb-6">
+                <div className="flex items-center justify-between gap-4 mb-4">
                     <h2 className="font-display text-xl font-semibold text-richblack-5">AI usage / cost monitor</h2>
                     <ExportButton
                         onClick={() => downloadCsv(`ai-usage-${Date.now()}.csv`, toCsv(aiLogs, AI_LOGS_CSV_COLUMNS))}
                         disabled={aiLogs.length === 0}
                     />
                 </div>
+
+                <div className="flex flex-wrap items-center gap-3 mb-4">
+                    <div className="relative flex-1 min-w-[200px] max-w-xs">
+                        <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-richblack-500" size={12} />
+                        <input
+                            value={aiUserSearch}
+                            onChange={(e) => { setAiUserSearch(e.target.value); setAiPage(1) }}
+                            placeholder="Search by user name or email..."
+                            className="w-full bg-surface border border-border-soft text-richblack-5 text-sm rounded-md pl-8 pr-3 py-1.5 outline-none focus:border-yellow-50 transition-colors"
+                        />
+                    </div>
+                    <select
+                        value={aiModel}
+                        onChange={(e) => { setAiModel(e.target.value); setAiPage(1) }}
+                        className="bg-surface-hover border border-border-soft text-richblack-200 text-sm rounded-md px-3 py-1.5 outline-none focus:border-yellow-50"
+                    >
+                        <option value="">All models</option>
+                        {aiModelOptions.map((m) => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <div className="flex gap-1.5">
+                        {['all', 'true', 'false'].map((s) => (
+                            <button
+                                key={s}
+                                onClick={() => { setAiSuccess(s); setAiPage(1) }}
+                                className={`text-sm rounded-md px-3 py-1.5 cursor-pointer transition-colors ${aiSuccess === s ? "bg-yellow-50 text-richblack-900" : "bg-surface-hover text-richblack-200 border border-border-soft hover:border-yellow-50"}`}
+                            >
+                                {s === 'all' ? 'All' : s === 'true' ? 'OK' : 'Failed'}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 <div className="border border-border-soft bg-surface rounded-lg overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
