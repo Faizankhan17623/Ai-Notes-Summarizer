@@ -1,5 +1,6 @@
 import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
+import { showAiErrorToast } from "../../utils/creditErrorToast.jsx"
 import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { StudyKitData } from "../Apis/StudyKitApi.js"
 import { setFlashcards, setDueFlashcards, setQuizzes, setActiveQuiz, setLoading } from "../../Slices/studyKitSlice.js"
@@ -28,7 +29,7 @@ export function GenerateFlashcards(noteId, count, token) {
             dispatch(GetFlashcardsForNote(noteId, token))
         } catch (error) {
             logError("Error generating flashcards", error)
-            toast.error(error?.response?.data?.message || "Could not generate flashcards")
+            showAiErrorToast(error, "Could not generate flashcards")
         } finally {
             dispatch(setLoading(false))
             toast.dismiss(toastId)
@@ -204,7 +205,7 @@ export function GenerateQuiz(noteId, count, token) {
             dispatch(GetQuizzesForNote(noteId, token))
         } catch (error) {
             logError("Error generating quiz", error)
-            toast.error(error?.response?.data?.message || "Could not generate the quiz")
+            showAiErrorToast(error, "Could not generate the quiz")
         } finally {
             dispatch(setLoading(false))
             toast.dismiss(toastId)

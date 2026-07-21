@@ -1,11 +1,38 @@
 import { useEffect } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { FaHome, FaPlus, FaHistory, FaClipboardCheck, FaComments, FaUserCog, FaLink, FaLock } from 'react-icons/fa'
 import Navbar from '../Home/Navbar.jsx'
 import AnimatedOutlet from '../extra/AnimatedOutlet.jsx'
 import BannedNotice from './BannedNotice.jsx'
 import { GetProfile } from '../../Services/operations/Auth.js'
+
+// same 0.7/0.9 thresholds sir as the reactive credit-limit toast (see creditErrorToast.js) —
+// bar turns warn/danger before the user actually gets blocked, not just after
+const usageBarColor = (used, limit) => {
+    if (limit === null) return 'bg-yellow-50'
+    const pct = limit === 0 ? 1 : used / limit
+    if (pct >= 0.9) return 'bg-danger-soft'
+    if (pct >= 0.7) return 'bg-warn'
+    return 'bg-yellow-50'
+}
+
+const UsageBar = ({ label, used, limit }) => (
+    <div>
+        <div className="flex justify-between text-xs text-richblack-400 mb-1.5">
+            <span>{label}</span>
+            <span className="font-mono">{limit === null ? 'Unlimited' : `${used} / ${limit}`}</span>
+        </div>
+        {limit !== null && (
+            <div className="h-1.5 rounded-full bg-border-soft overflow-hidden">
+                <div
+                    className={`h-full rounded-full transition-colors duration-300 ${usageBarColor(used, limit)}`}
+                    style={{ width: `${Math.min((used / limit) * 100, 100)}%` }}
+                />
+            </div>
+        )}
+    </div>
+)
 
 const navItems = [
     { to: '/Dashboard', label: 'Overview', icon: FaHome, end: true },
@@ -72,40 +99,23 @@ const DashboardLayout = () => {
 
                     {!isBanned && plan && (
                         <div className="mt-auto border border-border-soft rounded-lg p-3 bg-surface space-y-3">
-                            <div>
-                                <div className="flex justify-between text-xs text-richblack-400 mb-1.5">
-                                    <span>Credits</span>
-                                    <span className="font-mono">{plan.creditsLimit === null ? 'Unlimited' : `${plan.creditsUsed} / ${plan.creditsLimit}`}</span>
-                                </div>
-                                {plan.creditsLimit !== null && (
-                                    <div className="h-1.5 rounded-full bg-border-soft overflow-hidden">
-                                        <div
-                                            className="h-full bg-yellow-50 rounded-full"
-                                            style={{ width: `${Math.min((plan.creditsUsed / plan.creditsLimit) * 100, 100)}%` }}
-                                        />
-                                    </div>
-                                )}
-                            </div>
+                            <UsageBar label="Credits" used={plan.creditsUsed} limit={plan.creditsLimit} />
+
+                            {plan.creditsLimit !== null && plan.creditsUsed / plan.creditsLimit >= 0.9 && (
+                                <p className="text-xs text-danger-soft leading-snug">
+                                    Almost out of credits —{' '}
+                                    <Link to="/Pricing" className="underline hover:text-danger-soft/80">
+                                        upgrade or top up
+                                    </Link>
+                                </p>
+                            )}
 
                             {plan.features && [
                                 ['Document summaries', plan.features.docSummary],
                                 ['Bulk uploads', plan.features.bulkSummary],
                                 ['Audio summaries', plan.features.audioSummary],
                             ].map(([label, usage]) => usage && (
-                                <div key={label}>
-                                    <div className="flex justify-between text-xs text-richblack-400 mb-1.5">
-                                        <span>{label}</span>
-                                        <span className="font-mono">{usage.limit === null ? 'Unlimited' : `${usage.used} / ${usage.limit}`}</span>
-                                    </div>
-                                    {usage.limit !== null && (
-                                        <div className="h-1.5 rounded-full bg-border-soft overflow-hidden">
-                                            <div
-                                                className="h-full bg-yellow-50 rounded-full"
-                                                style={{ width: `${Math.min((usage.used / usage.limit) * 100, 100)}%` }}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
+                                <UsageBar key={label} label={label} used={usage.used} limit={usage.limit} />
                             ))}
 
                             <p className="text-xs text-richblack-400">{plan.name} plan</p>

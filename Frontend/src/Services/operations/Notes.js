@@ -1,5 +1,6 @@
 import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
+import { showAiErrorToast } from "../../utils/creditErrorToast.jsx"
 import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { NotesData } from "../Apis/NotesApi.js"
 import { setAllNotes, setCurrentNote, setTagsAndFolders, setRelatedNotes, setLoading } from "../../Slices/notesSlice.js"
@@ -27,7 +28,7 @@ export function SummarizeNotes(payload, token, navigate) {
             if (navigate) navigate(`/Dashboard/Note/${response.data.noteId}`)
         } catch (error) {
             logError("Error summarizing notes", error)
-            toast.error(error?.response?.data?.message || "Could not summarize your notes")
+            showAiErrorToast(error, "Could not summarize your notes")
         } finally {
             dispatch(setLoading(false))
             toast.dismiss(toastId)
@@ -67,7 +68,7 @@ export function BulkSummarizeNotes(formData, token, onDone) {
             if (onDone) onDone(results)
         } catch (error) {
             logError("Error bulk summarizing notes", error)
-            toast.error(error?.response?.data?.message || "Could not summarize those files")
+            showAiErrorToast(error, "Could not summarize those files")
         } finally {
             dispatch(setLoading(false))
             toast.dismiss(toastId)

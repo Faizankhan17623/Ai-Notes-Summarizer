@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
-import { FaRupeeSign, FaCheckCircle, FaTimesCircle, FaReceipt, FaUndo } from 'react-icons/fa'
+import { FaRupeeSign, FaCheckCircle, FaTimesCircle, FaReceipt, FaUndo, FaDownload } from 'react-icons/fa'
 import {
     ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
     CartesianGrid, Tooltip, Cell, LabelList,
@@ -9,6 +9,19 @@ import {
 import Swal from 'sweetalert2'
 import { GetPayments, RefundPayment } from '../../Services/operations/Admin.js'
 import StatusBadge from './StatusBadge.jsx'
+import { toCsv, downloadCsv } from '../../utils/csv.js'
+
+const PAYMENTS_CSV_COLUMNS = [
+    { label: 'User', get: (p) => `${p.user?.firstName || ''} ${p.user?.lastName || ''}`.trim() },
+    { label: 'Email', key: 'user.email' },
+    { label: 'Plan', key: 'plan' },
+    { label: 'Amount', key: 'amount' },
+    { label: 'Status', key: 'status' },
+    { label: 'Order ID', key: 'razorpayOrderId' },
+    { label: 'Payment ID', key: 'razorpayPaymentId' },
+    { label: 'Credits granted', key: 'creditsGranted' },
+    { label: 'Date', get: (p) => p.createdAt ? new Date(p.createdAt).toISOString() : '' },
+]
 
 const STATUS_TONE = {
     paid: 'good',
@@ -333,6 +346,15 @@ const Payments = () => {
                         >
                             {plans.map((p) => <option key={p} value={p}>{p === 'all' ? 'All plans' : p}</option>)}
                         </select>
+                        {/* exports whatever the current status/plan filters show sir, not a
+                            silent full-table dump */}
+                        <button
+                            onClick={() => downloadCsv(`payments-${Date.now()}.csv`, toCsv(filtered, PAYMENTS_CSV_COLUMNS))}
+                            disabled={filtered.length === 0}
+                            className="flex items-center gap-1.5 text-sm rounded-md px-3 py-1.5 border border-border-soft text-richblack-200 hover:border-yellow-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200"
+                        >
+                            <FaDownload size={11} /> Export CSV
+                        </button>
                     </div>
 
                     {filtered.length === 0 ? (

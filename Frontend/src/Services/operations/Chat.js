@@ -1,5 +1,6 @@
 import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
+import { showAiErrorToast } from "../../utils/creditErrorToast.jsx"
 import { apiConnector } from "../apiConnector.js"
 import { setAllChats, setCurrentChat, setLoading, setReplying } from "../../Slices/chatSlice.js"
 import { ChatData } from "../Apis/ChatApi.js"
@@ -104,7 +105,7 @@ export function SendMessage(chatId, message, token, currentChat) {
             }))
         } catch (error) {
             logError("Error sending the message", error)
-            toast.error(error?.response?.data?.message || "Could not send the message")
+            showAiErrorToast(error, "Could not send the message")
             // roll the optimistic bubble back sir
             dispatch(setCurrentChat(currentChat))
         } finally {
@@ -139,7 +140,7 @@ export function RegenerateReply(chatId, token, currentChat) {
             }))
         } catch (error) {
             logError("Error regenerating the reply", error)
-            toast.error(error?.response?.data?.message || "Could not regenerate the reply")
+            showAiErrorToast(error, "Could not regenerate the reply")
             // roll back to the original reply sir
             dispatch(setCurrentChat(currentChat))
         } finally {
