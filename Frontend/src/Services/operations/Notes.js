@@ -166,6 +166,50 @@ export function DeleteNote(noteId, token, navigate) {
     }
 }
 
+// bulk variants sir — same shape as BulkBanUsers/BulkSetRole in Services/operations/Admin.js,
+// just an array body + summary toast + onSettled so History.jsx can clear its selection
+// state regardless of whether the batch fully or partially succeeded
+export function BulkDeleteNotes(noteIds, token, onSettled) {
+    return async (dispatch) => {
+        const toastId = toast.loading(`Deleting ${noteIds.length} note${noteIds.length === 1 ? '' : 's'}...`)
+        try {
+            const response = await apiConnector("DELETE", `${deleteNote}/bulk`, { noteIds }, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success(response.data.message)
+            dispatch(GetAllNotes(token))
+        } catch (error) {
+            logError("Error bulk deleting notes", error)
+            toast.error(error?.response?.data?.message || "Could not run the bulk delete")
+        } finally {
+            toast.dismiss(toastId)
+            if (onSettled) onSettled()
+        }
+    }
+}
+
+export function BulkAddTag(noteIds, tag, token, onSettled) {
+    return async (dispatch) => {
+        const toastId = toast.loading(`Tagging ${noteIds.length} note${noteIds.length === 1 ? '' : 's'}...`)
+        try {
+            const response = await apiConnector("PATCH", `${organizeNote}/bulk-tag`, { noteIds, tag }, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success(response.data.message)
+            dispatch(GetAllNotes(token))
+            dispatch(GetTagsAndFolders(token))
+        } catch (error) {
+            logError("Error bulk tagging notes", error)
+            toast.error(error?.response?.data?.message || "Could not run the bulk tag update")
+        } finally {
+            toast.dismiss(toastId)
+            if (onSettled) onSettled()
+        }
+    }
+}
+
 export function GetTagsAndFolders(token) {
     return async (dispatch) => {
         try {

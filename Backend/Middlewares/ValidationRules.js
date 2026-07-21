@@ -53,6 +53,17 @@ exports.organizeNoteRules = [
     body('pinned').optional().isBoolean(),
 ]
 
+// capped at 100 sir — same reasoning as bulkBanUsersRules below, bounds one request's DB work
+exports.bulkDeleteNotesRules = [
+    body('noteIds').isArray({ min: 1, max: 100 }),
+    body('noteIds.*').isMongoId(),
+]
+exports.bulkAddTagRules = [
+    body('noteIds').isArray({ min: 1, max: 100 }),
+    body('noteIds.*').isMongoId(),
+    body('tag').trim().notEmpty().isLength({ max: 40 }),
+]
+
 // accepts EITHER a subscription plan OR a credit-pack key sir — createOrder branches on which one is present
 exports.createOrderRules = [
     body('plan').optional().isIn(['Pro', 'ProMax']),

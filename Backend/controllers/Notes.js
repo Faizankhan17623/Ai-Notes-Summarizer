@@ -294,3 +294,70 @@ exports.deleteNote = async (req, res) => {
         })
     }
 }
+
+// DELETE /notes/bulk sir — loops the exact same single-delete logic above per id (not a
+// bulk Mongo op) so each note's Chat/Flashcard/Quiz cascade and User.Notes/Chats pull still
+// happen correctly; a bad id in the batch is skipped and reported, not a hard failure
+exports.bulkDeleteNotes = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteIds } = req.body
+
+        const deleted = []
+        const failed = []
+        for (const noteId of noteIds) {
+            try {
+                if (!mongoose.isValidObjectId(noteId)) {
+                    failed.push({ noteId, message: 'Invalid note id' })
+                    continue
+                }
+                const note = await Note.findOneAndDelete({ _id: noteId, user: id })
+                if (!note) {
+                    failed.push({ noteId, message: 'Note not found' })
+                    continue
+                }
+                const orphanedChats = await Chat.find({ note: note._id }).select('_id')
+                await Promise.all([
+                    Chat.deleteMany({ note: note._id }),
+                    Flashcard.deleteMany({ note: note._id }),
+                    Quiz.deleteMany({ note: note._id }),
+                ])
+                await User.findByIdAndUpdate(id, {
+                    $pull: { Notes: note._id, Chats: { $in: orphanedChats.map((c) => c._id) } }
+                })
+                deleted.push(noteId)
+            } catch {
+                failed.push({ noteId, message: 'Failed to delete this note' })
+            }
+        }
+
+        return res.status(200).json({ success: true, message: `Deleted ${deleted.length} of ${noteIds.length} notes`, deleted, failed })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to run the bulk delete' })
+    }
+}
+
+// PATCH /notes/bulk-tag sir — $addToSet, not a full tags replace like organizeNote above,
+// so bulk-adding one tag never touches a note's other existing tags
+exports.bulkAddTag = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteIds, tag } = req.body
+
+        const trimmedTag = String(tag).trim().slice(0, 40)
+        if (!trimmedTag) {
+            return res.status(400).json({ success: false, message: 'Tag cannot be empty' })
+        }
+
+        const result = await Note.updateMany(
+            { _id: { $in: noteIds }, user: id },
+            { $addToSet: { tags: trimmedTag } }
+        )
+
+        return res.status(200).json({ success: true, message: `Tagged ${result.modifiedCount} of ${noteIds.length} notes` })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to run the bulk tag update' })
+    }
+}

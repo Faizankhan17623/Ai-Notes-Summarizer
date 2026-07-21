@@ -5,7 +5,7 @@ const { Auth, blockIfBanned } = require('../Middlewares/Auth.js')
 const { aiLimiter } = require('../Middlewares/RateLimit.js')
 const { doubleCsrfProtection } = require('../Middlewares/Csrf.js')
 const { validate } = require('../Middlewares/Validate.js')
-const { organizeNoteRules, summarizeRules } = require('../Middlewares/ValidationRules.js')
+const { organizeNoteRules, summarizeRules, bulkDeleteNotesRules, bulkAddTagRules } = require('../Middlewares/ValidationRules.js')
 const {
     getNotes,
     getTags,
@@ -16,6 +16,8 @@ const {
     disableShare,
     getSharedNote,
     getRelatedNotes,
+    bulkDeleteNotes,
+    bulkAddTag,
 } = require('../controllers/Notes.js')
 const { exportNote } = require('../controllers/Export.js')
 
@@ -29,6 +31,10 @@ route.get('/shared/:shareId', getSharedNote)
 route.get('/notes', Auth, blockIfBanned, getNotes)
 // must come before /notes/:noteId sir — same reason as above, "tags" would otherwise be read as a noteId
 route.get('/notes/tags', Auth, blockIfBanned, getTags)
+// bulk routes sir — same ordering requirement as /notes/tags above, "bulk"/"bulk-tag" would
+// otherwise be read as a noteId by the :noteId route below
+route.delete('/notes/bulk', doubleCsrfProtection, bulkDeleteNotesRules, validate, Auth, blockIfBanned, bulkDeleteNotes)
+route.patch('/notes/bulk-tag', doubleCsrfProtection, bulkAddTagRules, validate, Auth, blockIfBanned, bulkAddTag)
 route.get('/notes/:noteId', Auth, blockIfBanned, getNote)
 route.get('/notes/:noteId/related', Auth, blockIfBanned, getRelatedNotes)
 route.delete('/notes/:noteId', doubleCsrfProtection, Auth, blockIfBanned, deleteNote)
