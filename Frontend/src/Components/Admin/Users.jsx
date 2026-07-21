@@ -1,10 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
-import { FaSearch, FaChevronLeft, FaChevronRight, FaUserShield, FaUserClock } from 'react-icons/fa'
+import { FaSearch, FaChevronLeft, FaChevronRight, FaUserShield, FaUserClock, FaDownload } from 'react-icons/fa'
 import Swal from 'sweetalert2'
-import { GetUsers, BanUser, UnbanUser, DenyAppeal, SetRole } from '../../Services/operations/Admin.js'
+import { GetUsers, BanUser, UnbanUser, DenyAppeal, SetRole, BulkBanUsers, BulkSetRole } from '../../Services/operations/Admin.js'
 import StatusBadge from './StatusBadge.jsx'
+import { toCsv, downloadCsv } from '../../utils/csv.js'
+
+const USERS_CSV_COLUMNS = [
+    { label: 'First name', key: 'firstName' },
+    { label: 'Last name', key: 'lastName' },
+    { label: 'Email', key: 'email' },
+    { label: 'Role', key: 'role' },
+    { label: 'Plan', key: 'SubType' },
+    { label: 'Banned', get: (u) => u.isBanned ? 'yes' : 'no' },
+    { label: 'Ban reason', key: 'banReason' },
+    { label: 'Appeal status', key: 'appealStatus' },
+    { label: 'Locked until', get: (u) => u.lockUntil ? new Date(u.lockUntil).toISOString() : '' },
+    { label: 'Joined', get: (u) => u.createdAt ? new Date(u.createdAt).toISOString() : '' },
+]
 
 const ROLE_TONE = {
     Admin: 'bg-yellow-50/10 text-yellow-50',
@@ -35,6 +49,7 @@ const Users = () => {
     const [search, setSearch] = useState('')
     const [roleFilter, setRoleFilter] = useState('all')
     const [page, setPage] = useState(1)
+    const [selectedIds, setSelectedIds] = useState(new Set())
     // ban/unban and role changes are Admin-only sir — Support can look users up to help them,
     // but the backend 403s these calls for Support too, so hide the controls rather than let
     // them click something that just fails
@@ -58,6 +73,25 @@ const Users = () => {
     const lockedCount = users.filter((u) => u.lockUntil && new Date(u.lockUntil) > new Date()).length
     const bannedCount = users.filter((u) => u.isBanned).length
 
+    // the Admin row is never a valid bulk target sir (can't be banned or role-changed here,
+    // same rule the single-row controls already enforce) — banEligible additionally excludes
+    // already-banned rows since "bulk ban" only makes sense on active accounts
+    const banEligibleUsers = useMemo(() => visibleUsers.filter((u) => u.role !== 'Admin' && !u.isBanned), [visibleUsers])
+    const selectedCount = selectedIds.size
+    const allBanEligibleSelected = banEligibleUsers.length > 0 && banEligibleUsers.every((u) => selectedIds.has(u._id))
+
+    const toggleSelectAll = () => {
+        setSelectedIds(allBanEligibleSelected ? new Set() : new Set(banEligibleUsers.map((u) => u._id)))
+    }
+
+    const toggleRow = (userId) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev)
+            next.has(userId) ? next.delete(userId) : next.add(userId)
+            return next
+        })
+    }
+
     const handleBan = async (userId) => {
         const { value: banReason } = await Swal.fire({
             title: 'Ban this user?',
@@ -71,6 +105,27 @@ const Users = () => {
         if (banReason !== undefined) {
             dispatch(BanUser(userId, banReason, token))
         }
+    }
+
+    const handleBulkBan = async () => {
+        const ids = [...selectedIds]
+        const { value: banReason } = await Swal.fire({
+            title: `Ban ${ids.length} user${ids.length === 1 ? '' : 's'}?`,
+            input: 'text',
+            inputPlaceholder: 'Reason (optional, applied to all)',
+            showCancelButton: true,
+            confirmButtonText: 'Ban all',
+            background: 'var(--color-surface-raised)',
+            color: 'var(--color-richblack-5)',
+        })
+        if (banReason !== undefined) {
+            dispatch(BulkBanUsers(ids, banReason, token, () => setSelectedIds(new Set())))
+        }
+    }
+
+    const handleBulkRole = (role) => {
+        if (!role) return
+        dispatch(BulkSetRole([...selectedIds], role, token, () => setSelectedIds(new Set())))
     }
 
     return (
@@ -89,7 +144,7 @@ const Users = () => {
                     <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-richblack-500" size={13} />
                     <input
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => { setSearch(e.target.value); setSelectedIds(new Set()) }}
                         placeholder="Search by name or email..."
                         className="w-full bg-surface border border-border-soft text-richblack-5 rounded-md pl-9 pr-4 py-2 outline-none focus:border-yellow-50 transition-colors"
                     />
@@ -98,14 +153,55 @@ const Users = () => {
                     {['all', 'User', 'Support', 'Admin'].map((r) => (
                         <button
                             key={r}
-                            onClick={() => setRoleFilter(r)}
+                            onClick={() => { setRoleFilter(r); setSelectedIds(new Set()) }}
                             className={`text-sm rounded-md px-3 py-1.5 cursor-pointer transition-colors ${roleFilter === r ? "bg-yellow-50 text-richblack-900" : "bg-surface-hover text-richblack-200 border border-border-soft hover:border-yellow-50"}`}
                         >
                             {r === 'all' ? 'All roles' : r}
                         </button>
                     ))}
                 </div>
+                {/* exports the currently visible page/filter only sir — matches what the admin
+                    is looking at, not a silent full-table dump they didn't ask for */}
+                <button
+                    onClick={() => downloadCsv(`users-page${usersPage}-${Date.now()}.csv`, toCsv(visibleUsers, USERS_CSV_COLUMNS))}
+                    disabled={visibleUsers.length === 0}
+                    className="flex items-center gap-1.5 text-sm rounded-md px-3 py-1.5 border border-border-soft text-richblack-200 hover:border-yellow-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                >
+                    <FaDownload size={11} /> Export CSV
+                </button>
             </div>
+
+            {/* only shown once something's selected sir — same fade-in treatment as the
+                animated filter/action bars elsewhere in Admin, so it doesn't feel bolted on */}
+            {isAdmin && selectedCount > 0 && (
+                <div
+                    style={{ '--delay': '0ms' }}
+                    className="flex flex-wrap items-center gap-3 mb-4 px-4 py-2.5 border border-yellow-50/30 bg-yellow-50/5 rounded-lg animate-fade-in-up"
+                >
+                    <span className="text-sm text-richblack-5 font-medium">{selectedCount} selected</span>
+                    <button
+                        onClick={handleBulkBan}
+                        className="text-xs font-medium rounded-md px-3 py-1.5 bg-danger-soft/10 text-danger-soft hover:bg-danger-soft/20 cursor-pointer transition-colors"
+                    >
+                        Ban selected
+                    </button>
+                    <select
+                        defaultValue=""
+                        onChange={(e) => { handleBulkRole(e.target.value); e.target.value = '' }}
+                        className="text-xs font-medium rounded-md px-3 py-1.5 bg-surface-hover border border-border-soft text-richblack-200 outline-none focus:border-yellow-50 cursor-pointer transition-colors"
+                    >
+                        <option value="" disabled>Set role to...</option>
+                        <option value="User">User</option>
+                        <option value="Support">Support</option>
+                    </select>
+                    <button
+                        onClick={() => setSelectedIds(new Set())}
+                        className="text-xs text-richblack-400 hover:text-richblack-200 cursor-pointer ml-auto"
+                    >
+                        Clear
+                    </button>
+                </div>
+            )}
 
             {loading ? (
                 <div className="flex items-center justify-center py-20">
@@ -121,6 +217,18 @@ const Users = () => {
                         <table className="w-full text-sm text-left">
                             <thead>
                                 <tr className="text-richblack-400 border-b border-border-soft">
+                                    {isAdmin && (
+                                        <th className="py-3 px-4 font-medium w-8">
+                                            <input
+                                                type="checkbox"
+                                                checked={allBanEligibleSelected}
+                                                onChange={toggleSelectAll}
+                                                disabled={banEligibleUsers.length === 0}
+                                                title="Select all eligible rows"
+                                                className="cursor-pointer disabled:cursor-not-allowed"
+                                            />
+                                        </th>
+                                    )}
                                     <th className="py-3 px-4 font-medium">User</th>
                                     <th className="py-3 px-4 font-medium">Role</th>
                                     <th className="py-3 px-4 font-medium">Plan</th>
@@ -131,6 +239,18 @@ const Users = () => {
                             <tbody>
                                 {visibleUsers.map((u) => (
                                     <tr key={u._id} className="border-b border-border-soft last:border-b-0 text-richblack-200 hover:bg-surface-hover transition-colors">
+                                        {isAdmin && (
+                                            <td className="py-3 px-4">
+                                                {u.role !== 'Admin' && (
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedIds.has(u._id)}
+                                                        onChange={() => toggleRow(u._id)}
+                                                        className="cursor-pointer"
+                                                    />
+                                                )}
+                                            </td>
+                                        )}
                                         <td className="py-3 px-4">
                                             <div className="flex items-center gap-3">
                                                 <span className="w-8 h-8 rounded-full bg-yellow-50/10 text-yellow-50 flex items-center justify-center text-xs font-semibold shrink-0">
@@ -204,14 +324,14 @@ const Users = () => {
                             <p className="text-richblack-400 text-xs">Page {usersPage} of {usersPages} · {usersTotal} total</p>
                             <div className="flex gap-2">
                                 <button
-                                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                    onClick={() => { setPage((p) => Math.max(1, p - 1)); setSelectedIds(new Set()) }}
                                     disabled={usersPage <= 1}
                                     className="flex items-center gap-1 text-xs rounded-md px-3 py-1.5 border border-border-soft text-richblack-200 hover:border-yellow-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
                                 >
                                     <FaChevronLeft size={10} /> Prev
                                 </button>
                                 <button
-                                    onClick={() => setPage((p) => Math.min(usersPages, p + 1))}
+                                    onClick={() => { setPage((p) => Math.min(usersPages, p + 1)); setSelectedIds(new Set()) }}
                                     disabled={usersPage >= usersPages}
                                     className="flex items-center gap-1 text-xs rounded-md px-3 py-1.5 border border-border-soft text-richblack-200 hover:border-yellow-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
                                 >

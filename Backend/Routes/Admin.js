@@ -3,7 +3,7 @@ const route = express.Router()
 const { Auth, isAdmin, isSupport } = require('../Middlewares/Auth.js')
 const { doubleCsrfProtection } = require('../Middlewares/Csrf.js')
 const { validate } = require('../Middlewares/Validate.js')
-const { banUserRules, setRoleRules } = require('../Middlewares/ValidationRules.js')
+const { banUserRules, setRoleRules, bulkBanUsersRules, bulkSetRoleRules } = require('../Middlewares/ValidationRules.js')
 const {
     getOverview,
     getAdminAnalytics,
@@ -12,6 +12,8 @@ const {
     unbanUser,
     denyAppeal,
     setRole,
+    bulkBanUsers,
+    bulkSetRole,
     getPayments,
     refundPayment,
     getAuditLog,
@@ -52,6 +54,11 @@ route.patch('/admin/users/:userId/ban', doubleCsrfProtection, banUserRules, vali
 route.patch('/admin/users/:userId/unban', doubleCsrfProtection, Auth, isAdmin, unbanUser)
 route.patch('/admin/users/:userId/deny-appeal', doubleCsrfProtection, Auth, isAdmin, denyAppeal)
 route.patch('/admin/users/:userId/role', doubleCsrfProtection, setRoleRules, validate, Auth, isAdmin, setRole)
+// bulk variants sir — same Admin-only bar, registered before the frontend needs them since
+// :userId above would never match the literal path "bulk-ban"/"bulk-role" anyway, but kept
+// grouped here with their single-user counterparts for readability
+route.patch('/admin/users/bulk-ban', doubleCsrfProtection, bulkBanUsersRules, validate, Auth, isAdmin, bulkBanUsers)
+route.patch('/admin/users/bulk-role', doubleCsrfProtection, bulkSetRoleRules, validate, Auth, isAdmin, bulkSetRole)
 route.get('/admin/audit', Auth, isAdmin, getAuditLog)
 route.get('/admin/announcements', Auth, isAdmin, getAnnouncements)
 route.post('/admin/announcements', doubleCsrfProtection, Auth, isAdmin, createAnnouncement)

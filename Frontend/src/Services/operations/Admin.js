@@ -143,6 +143,43 @@ export function SetRole(userId, role, token) {
     }
 }
 
+// bulk variants sir — same shape as BanUser/SetRole above, just an array body and a summary
+// toast. onSettled fires whether the batch fully or partially succeeded, so Users.jsx can
+// clear its row-selection state after any outcome (not just a clean success)
+export function BulkBanUsers(userIds, banReason, token, onSettled) {
+    return async (dispatch) => {
+        const toastId = toast.loading(`Banning ${userIds.length} user${userIds.length === 1 ? '' : 's'}...`)
+        try {
+            const response = await apiConnector("PATCH", `${banUser}/bulk-ban`, { userIds, banReason }, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success(response.data.message)
+            dispatch(GetUsers(token))
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not run the bulk ban")
+        } finally {
+            toast.dismiss(toastId)
+            if (onSettled) onSettled()
+        }
+    }
+}
+
+export function BulkSetRole(userIds, role, token, onSettled) {
+    return async (dispatch) => {
+        const toastId = toast.loading(`Updating ${userIds.length} user${userIds.length === 1 ? '' : 's'}...`)
+        try {
+            const response = await apiConnector("PATCH", `${setRole}/bulk-role`, { userIds, role }, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success(response.data.message)
+            dispatch(GetUsers(token))
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not run the bulk role update")
+        } finally {
+            toast.dismiss(toastId)
+            if (onSettled) onSettled()
+        }
+    }
+}
+
 export function GetPayments(token) {
     return async (dispatch) => {
         dispatch(setLoading(true))
@@ -225,13 +262,13 @@ export function AddInternalNote(messageId, text, token) {
     }
 }
 
-export function GetAuditLog(token) {
+export function GetAuditLog(token, page = 1) {
     return async (dispatch) => {
         dispatch(setLoading(true))
         try {
-            const response = await apiConnector("GET", audit, null, { Authorization: `Bearer ${token}` })
+            const response = await apiConnector("GET", audit, null, { Authorization: `Bearer ${token}` }, { page })
             if (!response.data.success) throw new Error(response.data.message)
-            dispatch(setAuditLogs(response.data.logs))
+            dispatch(setAuditLogs({ logs: response.data.logs, total: response.data.total, page: response.data.page, pages: response.data.pages }))
         } catch (error) {
             logError("Error fetching audit log", error)
         } finally {
@@ -240,13 +277,13 @@ export function GetAuditLog(token) {
     }
 }
 
-export function GetAiLogs(token) {
+export function GetAiLogs(token, page = 1) {
     return async (dispatch) => {
         dispatch(setLoading(true))
         try {
-            const response = await apiConnector("GET", aiLogs, null, { Authorization: `Bearer ${token}` })
+            const response = await apiConnector("GET", aiLogs, null, { Authorization: `Bearer ${token}` }, { page })
             if (!response.data.success) throw new Error(response.data.message)
-            dispatch(setAiLogs(response.data.logs))
+            dispatch(setAiLogs({ logs: response.data.logs, total: response.data.total, page: response.data.page, pages: response.data.pages }))
         } catch (error) {
             logError("Error fetching AI logs", error)
         } finally {

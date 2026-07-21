@@ -287,6 +287,78 @@ exports.setRole = async (req, res) => {
     }
 }
 
+// PATCH /admin/users/bulk-ban sir — Admin only. Loops the same single-user update+audit as
+// banUser above (not updateMany) because AuditLog.target is one ObjectId per row, not an
+// array — a bulk action still needs one audit row per affected user to keep that trail
+// meaningful. Per-user failures (e.g. a bad id) are collected and reported, not thrown,
+// so one bad row in a batch doesn't silently drop the rest.
+exports.bulkBanUsers = async (req, res) => {
+    try {
+        const { userIds, banReason } = req.body
+
+        const banned = []
+        const failed = []
+        for (const userId of userIds) {
+            try {
+                const user = await User.findByIdAndUpdate(userId, { isBanned: true, banReason: banReason || '' }, { returnDocument: 'after' }).select(ADMIN_USER_FIELDS)
+                if (!user) {
+                    failed.push({ userId, message: 'User not found' })
+                    continue
+                }
+                writeAudit(req.User.id, 'ban_user', userId, banReason || '')
+                banned.push(userId)
+            } catch {
+                failed.push({ userId, message: 'Failed to ban this user' })
+            }
+        }
+
+        return res.status(200).json({ success: true, message: `Banned ${banned.length} of ${userIds.length} users`, banned, failed })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to run the bulk ban' })
+    }
+}
+
+// PATCH /admin/users/bulk-role sir — Admin only, same User/Support-only guard per user as
+// setRole above; an Admin row (or the sole Admin themselves) in the batch is skipped and
+// reported in `failed` rather than failing the whole batch.
+exports.bulkSetRole = async (req, res) => {
+    try {
+        const { userIds, role } = req.body
+
+        if (!['User', 'Support'].includes(role)) {
+            return res.status(400).json({ success: false, message: 'Invalid role' })
+        }
+
+        const updated = []
+        const failed = []
+        for (const userId of userIds) {
+            try {
+                const target = await User.findById(userId).select('role')
+                if (!target) {
+                    failed.push({ userId, message: 'User not found' })
+                    continue
+                }
+                if (target.role === 'Admin') {
+                    failed.push({ userId, message: "The Admin's role can't be changed here" })
+                    continue
+                }
+
+                await User.findByIdAndUpdate(userId, { role })
+                writeAudit(req.User.id, 'set_role', userId, role)
+                updated.push(userId)
+            } catch {
+                failed.push({ userId, message: 'Failed to update this user\'s role' })
+            }
+        }
+
+        return res.status(200).json({ success: true, message: `Updated ${updated.length} of ${userIds.length} users`, updated, failed })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to run the bulk role update' })
+    }
+}
+
 // GET /admin/payments sir
 exports.getPayments = async (req, res) => {
     try {
@@ -357,25 +429,43 @@ exports.refundPayment = async (req, res) => {
 }
 
 // GET /admin/audit sir
+// paginated the same way getUsers is sir — 20/page, capped so one request can't pull an
+// unbounded history; page/pages/total returned alongside logs so the frontend can drive
+// the same Prev/Next controls the Users table already has
 exports.getAuditLog = async (req, res) => {
     try {
-        const logs = await AuditLog.find()
-            .populate('actor', 'firstName lastName email')
-            .populate('target', 'firstName lastName email')
-            .sort({ createdAt: -1 })
-            .limit(200)
-        return res.status(200).json({ success: true, logs })
+        const page = Math.max(1, parseInt(req.query.page) || 1)
+        const limit = 20
+
+        const [logs, total] = await Promise.all([
+            AuditLog.find()
+                .populate('actor', 'firstName lastName email')
+                .populate('target', 'firstName lastName email')
+                .sort({ createdAt: -1 })
+                .skip((page - 1) * limit)
+                .limit(limit),
+            AuditLog.countDocuments(),
+        ])
+
+        return res.status(200).json({ success: true, logs, total, page, pages: Math.ceil(total / limit) })
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to load audit log' })
     }
 }
 
-// GET /admin/ai-logs sir — the cost/health monitor feed
+// GET /admin/ai-logs sir — the cost/health monitor feed, same pagination shape as above
 exports.getAiLogs = async (req, res) => {
     try {
-        const logs = await AiLog.find().populate('user', 'firstName lastName email').sort({ createdAt: -1 }).limit(200)
-        return res.status(200).json({ success: true, logs })
+        const page = Math.max(1, parseInt(req.query.page) || 1)
+        const limit = 20
+
+        const [logs, total] = await Promise.all([
+            AiLog.find().populate('user', 'firstName lastName email').sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+            AiLog.countDocuments(),
+        ])
+
+        return res.status(200).json({ success: true, logs, total, page, pages: Math.ceil(total / limit) })
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to load AI logs' })
