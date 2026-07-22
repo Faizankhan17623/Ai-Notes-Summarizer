@@ -18,7 +18,7 @@ const AnnouncementBanner = () => {
     return (
         <div className="w-full bg-yellow-50 text-richblack-900 text-sm font-medium py-2 px-4 flex items-center justify-center gap-4">
             <span>{announcement.message}</span>
-            <button onClick={() => setDismissed(true)} className="font-bold cursor-pointer">✕</button>
+            <button onClick={() => setDismissed(true)} title="Dismiss announcement" aria-label="Dismiss announcement" className="font-bold cursor-pointer">✕</button>
         </div>
     )
 }

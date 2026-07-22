@@ -146,3 +146,14 @@ body {
 * {
   box-sizing: border-box;
 }
+
+/* global keyboard-focus fallback sir — most inputs/buttons already swap border-color on
+   focus (focus:border-yellow-50 etc.), but plenty of icon-only buttons and links don't style
+   focus at all, and with outline-none used liberally across the app there was otherwise NO
+   visible focus indicator for keyboard users on those elements. Scoped to :focus-visible
+   (keyboard/programmatic focus only, not every mouse click) so it doesn't add a ring on
+   every click the way a plain :focus rule would. */
+:focus-visible {
+  outline: 2px solid var(--color-yellow-50);
+  outline-offset: 2px;
+}

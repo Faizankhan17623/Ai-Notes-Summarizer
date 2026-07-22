@@ -10,6 +10,7 @@ const AuthLayout = ({ title, subtitle, children, footer }) => {
         <button
             onClick={toggleTheme}
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             className="absolute top-4 right-4 z-10 text-richblack-100 hover:text-richblack-25 cursor-pointer p-1.5 rounded-md hover:bg-surface-hover transition-colors"
         >
             {theme === 'dark' ? <FaSun size={14} /> : <FaMoon size={14} />}

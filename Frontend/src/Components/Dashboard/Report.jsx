@@ -179,6 +179,7 @@ const Report = () => {
                                                 <button
                                                     onClick={() => dispatch(ExportFlashcardDeck(noteId, summary.title, token))}
                                                     title="Download deck as PDF"
+                                                    aria-label="Download flashcard deck as PDF"
                                                     className="text-richblack-400 hover:text-yellow-50 p-1.5 cursor-pointer rounded-md hover:bg-surface-hover transition-colors"
                                                 >
                                                     <FaDownload size={12} />
@@ -204,6 +205,7 @@ const Report = () => {
                                                 <button
                                                     onClick={() => dispatch(ExportQuiz(latestQuiz._id, summary.title, token))}
                                                     title="Download quiz as PDF"
+                                                    aria-label="Download quiz as PDF"
                                                     className="text-richblack-400 hover:text-yellow-50 p-1.5 cursor-pointer rounded-md hover:bg-surface-hover transition-colors"
                                                 >
                                                     <FaDownload size={12} />

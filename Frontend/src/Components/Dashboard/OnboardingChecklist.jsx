@@ -33,6 +33,7 @@ const OnboardingChecklist = ({ noteCount }) => {
                 <button
                     onClick={() => dispatch(CompleteOnboarding(token))}
                     title="Dismiss"
+                    aria-label="Dismiss onboarding checklist"
                     className="text-richblack-400 hover:text-richblack-5 cursor-pointer p-1 rounded-md hover:bg-surface-hover transition-colors shrink-0"
                 >
                     <FaTimes size={14} />

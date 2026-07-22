@@ -69,7 +69,7 @@ const NoteOrganizer = ({ note }) => {
                     {(note.tags || []).map((tag) => (
                         <span key={tag} className="flex items-center gap-1 text-xs bg-surface-hover text-richblack-100 border border-border-soft px-2 py-1 rounded">
                             {tag}
-                            <button onClick={() => removeTag(tag)} className="cursor-pointer hover:text-pink-200">
+                            <button onClick={() => removeTag(tag)} title={`Remove tag ${tag}`} aria-label={`Remove tag ${tag}`} className="cursor-pointer hover:text-pink-200">
                                 <FaTimes size={9} />
                             </button>
                         </span>

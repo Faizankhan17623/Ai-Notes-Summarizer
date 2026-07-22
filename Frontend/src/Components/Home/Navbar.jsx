@@ -39,6 +39,7 @@ const Navbar = ({ showMegaMenu = false }) => {
                 <button
                     onClick={toggleTheme}
                     title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                    aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                     className="text-richblack-100 hover:text-richblack-25 cursor-pointer p-1.5 rounded-md hover:bg-surface-hover transition-colors"
                 >
                     {theme === 'dark' ? <FaSun size={14} /> : <FaMoon size={14} />}

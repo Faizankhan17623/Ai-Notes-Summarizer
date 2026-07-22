@@ -32,6 +32,7 @@ const Input = ({ label, error, className = "", id, type, name, ...props }) => {
                         onClick={() => setShowPassword((s) => !s)}
                         tabIndex={-1}
                         title={showPassword ? 'Hide password' : 'Show password'}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-richblack-400 hover:text-richblack-100 cursor-pointer transition-colors"
                     >
                         {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}

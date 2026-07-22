@@ -272,13 +272,13 @@ const History = () => {
                                         )}
                                     </div>
                                     <div className="flex gap-1 shrink-0">
-                                        <button onClick={(e) => togglePin(e, note)} title={note.pinned ? "Unpin" : "Pin"} className={`p-2 cursor-pointer rounded-md hover:bg-surface-hover transition-colors ${note.pinned ? "text-yellow-50" : "text-richblack-400 hover:text-yellow-50"}`}>
+                                        <button onClick={(e) => togglePin(e, note)} title={note.pinned ? "Unpin" : "Pin"} aria-label={note.pinned ? "Unpin note" : "Pin note"} className={`p-2 cursor-pointer rounded-md hover:bg-surface-hover transition-colors ${note.pinned ? "text-yellow-50" : "text-richblack-400 hover:text-yellow-50"}`}>
                                             <FaThumbtack size={13} />
                                         </button>
-                                        <button onClick={(e) => toggleFavorite(e, note)} title={note.favorite ? "Remove favorite" : "Favorite"} className={`p-2 cursor-pointer rounded-md hover:bg-surface-hover transition-colors ${note.favorite ? "text-yellow-50" : "text-richblack-400 hover:text-yellow-50"}`}>
+                                        <button onClick={(e) => toggleFavorite(e, note)} title={note.favorite ? "Remove favorite" : "Favorite"} aria-label={note.favorite ? "Remove favorite" : "Add to favorites"} className={`p-2 cursor-pointer rounded-md hover:bg-surface-hover transition-colors ${note.favorite ? "text-yellow-50" : "text-richblack-400 hover:text-yellow-50"}`}>
                                             <FaStar size={13} />
                                         </button>
-                                        <button onClick={(e) => handleDelete(e, note._id)} className="text-richblack-400 hover:text-danger-soft p-2 cursor-pointer rounded-md hover:bg-surface-hover transition-colors">
+                                        <button onClick={(e) => handleDelete(e, note._id)} title="Delete note" aria-label="Delete note" className="text-richblack-400 hover:text-danger-soft p-2 cursor-pointer rounded-md hover:bg-surface-hover transition-colors">
                                             <FaTrash size={13} />
                                         </button>
                                     </div>

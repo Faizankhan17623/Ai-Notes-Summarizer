@@ -100,6 +100,8 @@ const Chat = () => {
                                     </Link>
                                     <button
                                         onClick={() => handleDelete(c._id)}
+                                        title="Delete chat"
+                                        aria-label="Delete chat"
                                         className="text-richblack-500 hover:text-pink-200 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0"
                                     >
                                         <FaTrash size={12} />

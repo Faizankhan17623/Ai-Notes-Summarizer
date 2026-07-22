@@ -60,6 +60,7 @@ const FlashcardDeck = ({ cards, noteId, allowDelete = false }) => {
                         disabled={index === 0}
                         className="text-richblack-400 hover:text-richblack-25 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer p-1 rounded-md hover:bg-surface-hover transition-colors"
                         title="Previous card"
+                        aria-label="Previous card"
                     >
                         <FaChevronLeft size={12} />
                     </button>
@@ -69,6 +70,7 @@ const FlashcardDeck = ({ cards, noteId, allowDelete = false }) => {
                         disabled={cards.length === 1}
                         className="text-richblack-400 hover:text-richblack-25 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer p-1 rounded-md hover:bg-surface-hover transition-colors"
                         title="Next card"
+                        aria-label="Next card"
                     >
                         <FaChevronRight size={12} />
                     </button>
@@ -79,7 +81,7 @@ const FlashcardDeck = ({ cards, noteId, allowDelete = false }) => {
                     </div>
                 </div>
                 {allowDelete && (
-                    <button onClick={handleDelete} className="text-richblack-500 hover:text-danger-soft cursor-pointer">
+                    <button onClick={handleDelete} title="Delete flashcard" aria-label="Delete flashcard" className="text-richblack-500 hover:text-danger-soft cursor-pointer">
                         <FaTrash size={12} />
                     </button>
                 )}

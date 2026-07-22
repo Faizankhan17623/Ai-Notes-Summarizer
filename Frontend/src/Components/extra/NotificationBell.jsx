@@ -44,6 +44,7 @@ const NotificationBell = () => {
             <button
                 onClick={() => setOpen((v) => !v)}
                 title="Notifications"
+                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
                 className="relative text-richblack-100 hover:text-richblack-25 cursor-pointer p-1.5 rounded-md hover:bg-surface-hover transition-colors"
             >
                 <FaBell size={14} />
