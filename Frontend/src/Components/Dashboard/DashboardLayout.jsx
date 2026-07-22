@@ -1,10 +1,11 @@
 import { useEffect } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { FaHome, FaPlus, FaHistory, FaClipboardCheck, FaComments, FaUserCog, FaLink, FaLock } from 'react-icons/fa'
+import { FaHome, FaPlus, FaHistory, FaClipboardCheck, FaComments, FaUserCog, FaLink, FaLock, FaSearch } from 'react-icons/fa'
 import Navbar from '../Home/Navbar.jsx'
 import AnimatedOutlet from '../extra/AnimatedOutlet.jsx'
 import BannedNotice from './BannedNotice.jsx'
+import ProductTour from './ProductTour.jsx'
 import { GetProfile } from '../../Services/operations/Auth.js'
 
 // same 0.7/0.9 thresholds sir as the reactive credit-limit toast (see creditErrorToast.js) —
@@ -36,11 +37,12 @@ const UsageBar = ({ label, used, limit }) => (
 
 const navItems = [
     { to: '/Dashboard', label: 'Overview', icon: FaHome, end: true },
-    { to: '/Dashboard/New-Summary', label: 'New summary', icon: FaPlus },
+    { to: '/Dashboard/New-Summary', label: 'New summary', icon: FaPlus, dataTour: 'new-summary' },
     { to: '/Dashboard/Articles', label: 'Articles', icon: FaLink },
-    { to: '/Dashboard/History', label: 'All notes', icon: FaHistory },
-    { to: '/Dashboard/Review', label: 'Review queue', icon: FaClipboardCheck },
-    { to: '/Dashboard/Chats', label: 'Chats', icon: FaComments },
+    { to: '/Dashboard/History', label: 'All notes', icon: FaHistory, dataTour: 'history' },
+    { to: '/Dashboard/Search', label: 'Search', icon: FaSearch },
+    { to: '/Dashboard/Review', label: 'Review queue', icon: FaClipboardCheck, dataTour: 'review' },
+    { to: '/Dashboard/Chats', label: 'Chats', icon: FaComments, dataTour: 'chats' },
     { to: '/Dashboard/Account', label: 'Account', icon: FaUserCog },
 ]
 
@@ -50,7 +52,7 @@ const navItems = [
 const DashboardLayout = () => {
     const dispatch = useDispatch()
     const { token, user } = useSelector((state) => state.auth)
-    const { plan } = useSelector((state) => state.profile)
+    const { plan, profile } = useSelector((state) => state.profile)
     const isBanned = !!user?.isBanned
 
     // fresh ban/appeal status on every dashboard load sir — not just right after login. This
@@ -63,11 +65,12 @@ const DashboardLayout = () => {
 
     return (
         <div className="min-h-screen bg-richblack-900">
+            {!isBanned && profile && !profile.hasCompletedOnboarding && <ProductTour token={token} />}
             <Navbar />
             <div className="flex">
                 <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border-soft bg-surface-raised px-3 py-5 min-h-[calc(100vh-73px)]">
                     <nav className="flex flex-col gap-1">
-                        {navItems.map(({ to, label, icon: Icon, end }) => (
+                        {navItems.map(({ to, label, icon: Icon, end, dataTour }) => (
                             isBanned ? (
                                 // locked sir — no href/onClick at all, just a visual list with a
                                 // lock icon in place of the usual nav icon, nothing here is clickable
@@ -85,6 +88,7 @@ const DashboardLayout = () => {
                                     key={to}
                                     to={to}
                                     end={end}
+                                    data-tour={dataTour}
                                     className={({ isActive }) =>
                                         `flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors
                                         ${isActive ? 'bg-yellow-50/10 text-richblack-5 font-semibold' : 'text-richblack-300 hover:bg-surface-hover hover:text-richblack-5'}`
@@ -98,7 +102,7 @@ const DashboardLayout = () => {
                     </nav>
 
                     {!isBanned && plan && (
-                        <div className="mt-auto border border-border-soft rounded-lg p-3 bg-surface space-y-3">
+                        <div data-tour="credits" className="mt-auto border border-border-soft rounded-lg p-3 bg-surface space-y-3">
                             <UsageBar label="Credits" used={plan.creditsUsed} limit={plan.creditsLimit} />
 
                             {plan.creditsLimit !== null && plan.creditsUsed / plan.creditsLimit >= 0.9 && (

@@ -44,4 +44,8 @@ const chatSchema = new mongoose.Schema(
     { timestamps: true }
 )
 
+// full-text search across the chat title + every message's content sir — mirrors
+// Note.js's { title, rawText } text index, powers the cross-content search endpoint
+chatSchema.index({ title: 'text', 'messages.content': 'text' })
+
 module.exports = mongoose.model('Chat', chatSchema)

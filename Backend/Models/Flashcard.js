@@ -52,5 +52,7 @@ const flashcardSchema = new mongoose.Schema(
 )
 
 flashcardSchema.index({ user: 1, dueDate: 1 })
+// full-text search across front/back sir — powers the cross-content search endpoint
+flashcardSchema.index({ front: 'text', back: 'text' })
 
 module.exports = mongoose.model('Flashcard', flashcardSchema)

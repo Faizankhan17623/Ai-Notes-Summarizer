@@ -45,6 +45,7 @@ const SharedNote = lazy(() => import('./Components/Dashboard/SharedNote'))
 const Review = lazy(() => import('./Components/Dashboard/Review'))
 const History = lazy(() => import('./Components/Dashboard/History'))
 const Chat = lazy(() => import('./Components/Dashboard/Chat'))
+const SearchResults = lazy(() => import('./Components/Dashboard/SearchResults'))
 const Account = lazy(() => import('./Components/Dashboard/Account'))
 const AdminLayout = lazy(() => import('./Components/Admin/AdminLayout'))
 const AdminOverview = lazy(() => import('./Components/Admin/Overview'))
@@ -154,6 +155,7 @@ function App() {
               <Route path="/Dashboard/History" element={<History />} />
               <Route path="/Dashboard/Chats" element={<Chat />} />
               <Route path="/Dashboard/Chat/:chatId" element={<Chat />} />
+              <Route path="/Dashboard/Search" element={<SearchResults />} />
               <Route path="/Dashboard/Account" element={<Account />} />
             </Route>
 

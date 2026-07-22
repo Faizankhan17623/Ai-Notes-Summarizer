@@ -34,4 +34,8 @@ const quizSchema = new mongoose.Schema(
     { timestamps: true }
 )
 
+// full-text search across each question's text + explanation sir — powers the
+// cross-content search endpoint
+quizSchema.index({ 'questions.question': 'text', 'questions.explanation': 'text' })
+
 module.exports = mongoose.model('Quiz', quizSchema)
