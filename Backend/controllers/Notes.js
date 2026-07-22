@@ -5,6 +5,8 @@ const Chat = require('../Models/Chat')
 const Flashcard = require('../Models/Flashcard')
 const Quiz = require('../Models/Quiz')
 const User = require('../Models/User')
+const { extractText } = require('../utils/Parsers')
+const { getEffectivePlan } = require('../utils/Plans')
 
 // GET /notes — the history list sir, rawText left out to keep the payload light
 // supports ?search=, ?tag=, ?folder=, ?pinned=true as optional filters
@@ -60,6 +62,67 @@ exports.getTags = async (req, res) => {
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to load tags' })
+    }
+}
+
+// POST /notes/import sir — creates a Note directly from pasted text or an uploaded file,
+// with NO AI call and NO credit/feature-usage spend. This is the entire point of the
+// feature: a way to add a note without touching Groq or the plan's usage caps at all.
+// Reuses extractText (utils/Parsers.js) for file uploads, same as controllers/AI.js's
+// Calling — a .pdf/.docx/.txt import goes through the identical extraction path, just
+// skips the summarize step afterward.
+exports.importNote = async (req, res) => {
+    try {
+        const id = req.User.id
+        const file = req.files?.notes
+        const pastedText = req.body?.text
+
+        let text = ''
+        let sourceType = 'import'
+
+        if (file) {
+            try {
+                const extracted = await extractText(file)
+                text = extracted.text
+            } catch (parseErr) {
+                return res.status(400).json({ success: false, message: parseErr.message })
+            }
+        } else if (pastedText && pastedText.trim()) {
+            text = pastedText.trim()
+        }
+
+        if (!text || !text.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please paste some text or upload a file to import',
+            })
+        }
+
+        // same tier badge as a summarized note would show sir (History page reads note.plan),
+        // even though no credit/feature-usage gate was actually checked here
+        const user = await User.findById(id).select('SubType SubscriptionExpires')
+        const plan = getEffectivePlan(user)
+
+        // title from the first non-empty line sir, same convention as a filename-derived
+        // title would read — falls back to the schema default if the text starts blank
+        const firstLine = text.split('\n').find((line) => line.trim())?.trim().slice(0, 80)
+
+        const note = await Note.create({
+            user: id,
+            title: firstLine || 'Imported note',
+            sourceType,
+            rawText: text,
+            plan: plan.key,
+            // minimal valid shape sir — Note.summary is schema-required, and Report.jsx
+            // already renders keyPoints/sections/keyTerms safely via optional chaining when
+            // they're absent, so this doesn't need to fabricate the full AI-summary shape
+            summary: { title: firstLine || 'Imported note', tldr: '' },
+        })
+
+        return res.status(201).json({ success: true, message: 'Note imported', noteId: note._id })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to import the note' })
     }
 }
 

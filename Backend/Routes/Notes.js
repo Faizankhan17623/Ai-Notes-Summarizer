@@ -9,6 +9,7 @@ const { organizeNoteRules, summarizeRules, bulkDeleteNotesRules, bulkAddTagRules
 const {
     getNotes,
     getTags,
+    importNote,
     getNote,
     deleteNote,
     organizeNote,
@@ -31,6 +32,10 @@ route.get('/shared/:shareId', getSharedNote)
 route.get('/notes', Auth, blockIfBanned, getNotes)
 // must come before /notes/:noteId sir — same reason as above, "tags" would otherwise be read as a noteId
 route.get('/notes/tags', Auth, blockIfBanned, getTags)
+// no aiLimiter sir — this is deliberately NOT an AI call (no Groq request, no credit/feature
+// spend), that's the entire point of import. globalLimiter is the only rate limit that applies.
+// Must come before /notes/:noteId too, same ordering reason as /notes/tags above.
+route.post('/notes/import', doubleCsrfProtection, Auth, blockIfBanned, importNote)
 // bulk routes sir — same ordering requirement as /notes/tags above, "bulk"/"bulk-tag" would
 // otherwise be read as a noteId by the :noteId route below
 route.delete('/notes/bulk', doubleCsrfProtection, bulkDeleteNotesRules, validate, Auth, blockIfBanned, bulkDeleteNotes)

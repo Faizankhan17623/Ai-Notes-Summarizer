@@ -5,9 +5,9 @@ import { Helmet } from 'react-helmet-async'
 import toast from 'react-hot-toast'
 import {
     FaFileUpload, FaKeyboard, FaLink, FaYoutube, FaVideo, FaHeadphones, FaTools, FaLayerGroup,
-    FaCheckCircle, FaTimesCircle,
+    FaCheckCircle, FaTimesCircle, FaFileImport,
 } from 'react-icons/fa'
-import { SummarizeNotes, BulkSummarizeNotes } from '../../Services/operations/Notes.js'
+import { SummarizeNotes, BulkSummarizeNotes, ImportNote } from '../../Services/operations/Notes.js'
 import MicButton from '../extra/MicButton.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
 
@@ -15,6 +15,7 @@ const TABS = [
     { key: 'text', label: 'Text', icon: FaKeyboard },
     { key: 'file', label: 'Document', icon: FaFileUpload },
     { key: 'bulk', label: 'Bulk upload', icon: FaLayerGroup },
+    { key: 'import', label: 'Import', icon: FaFileImport },
     { key: 'article', label: 'Article', icon: FaLink },
     { key: 'youtube', label: 'YouTube', icon: FaYoutube },
     { key: 'video', label: 'Video', icon: FaVideo },
@@ -51,6 +52,8 @@ const NewSummary = () => {
     const [audioFile, setAudioFile] = useState(null)
     const [bulkFiles, setBulkFiles] = useState([])
     const [bulkResults, setBulkResults] = useState(null)
+    const [importText, setImportText] = useState('')
+    const [importFile, setImportFile] = useState(null)
 
     const dispatch = useDispatch()
     const navigate = useNavigate()
@@ -105,6 +108,17 @@ const NewSummary = () => {
             return
         }
 
+        if (tab === 'import') {
+            if (importFile) {
+                const formData = new FormData()
+                formData.append('notes', importFile)
+                dispatch(ImportNote(formData, token, navigate))
+            } else if (importText.trim()) {
+                dispatch(ImportNote({ text: importText.trim() }, token, navigate))
+            }
+            return
+        }
+
         if (tab === 'article') {
             if (!articleUrl.trim()) return
             // articles get their own dashboard page sir — multi-link input, per-link status,
@@ -132,7 +146,9 @@ const NewSummary = () => {
         ? bulkFiles.length > 0
         : tab === 'file'
             ? !!file
-            : tab === 'article'
+            : tab === 'import'
+                ? !!importFile || importText.trim().length > 0
+                : tab === 'article'
                 ? articleUrl.trim().length > 0
                 : tab === 'audio'
                     ? !!audioFile
@@ -262,6 +278,39 @@ const NewSummary = () => {
                         </div>
                     )}
 
+                    {tab === 'import' && (
+                        <div>
+                            <label className="text-sm text-richblack-100 block mb-1">Import a note as-is</label>
+                            <p className="text-richblack-400 text-xs mb-3">
+                                No AI summary — saved exactly as written, doesn't use a credit or count against your plan's limits.
+                            </p>
+                            <textarea
+                                value={importText}
+                                onChange={(e) => { setImportFile(null); setImportText(e.target.value) }}
+                                rows={10}
+                                placeholder="Paste text to save as a note, or upload a file below..."
+                                className="w-full bg-transparent text-richblack-5 outline-none resize-none placeholder:text-richblack-500 border border-border-soft rounded-md p-3 focus:border-yellow-50 transition-colors"
+                            />
+                            <div className="flex items-center gap-3 my-3">
+                                <div className="flex-1 h-px bg-border-soft" />
+                                <span className="text-richblack-500 text-xs">or</span>
+                                <div className="flex-1 h-px bg-border-soft" />
+                            </div>
+                            <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-border-soft rounded-lg py-10 cursor-pointer hover:border-yellow-50 transition-all">
+                                <FaFileImport className="text-richblack-300 text-2xl" />
+                                <span className="text-richblack-300 text-sm">
+                                    {importFile ? importFile.name : "Click to choose a PDF, Word (.docx), or TXT file"}
+                                </span>
+                                <input
+                                    type="file"
+                                    accept=".pdf,.docx,.txt"
+                                    className="hidden"
+                                    onChange={(e) => { setImportText(''); setImportFile(e.target.files?.[0] || null) }}
+                                />
+                            </label>
+                        </div>
+                    )}
+
                     {tab === 'article' && (
                         <div>
                             <label className="text-sm text-richblack-100 block mb-3">Paste an article or webpage link</label>
@@ -303,7 +352,15 @@ const NewSummary = () => {
                     {tab !== 'youtube' && tab !== 'video' && (
                         <div className="mt-5">
                             <IconBtn
-                                text={loading ? "Summarizing..." : tab === 'bulk' ? `Summarize ${bulkFiles.length || ''} file${bulkFiles.length === 1 ? '' : 's'}`.trim() : "Summarize"}
+                                text={
+                                    loading
+                                        ? (tab === 'import' ? "Importing..." : "Summarizing...")
+                                        : tab === 'bulk'
+                                            ? `Summarize ${bulkFiles.length || ''} file${bulkFiles.length === 1 ? '' : 's'}`.trim()
+                                            : tab === 'import'
+                                                ? "Import note"
+                                                : "Summarize"
+                                }
                                 type="submit"
                                 disabled={loading || !canSubmit}
                             />

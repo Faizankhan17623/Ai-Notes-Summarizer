@@ -5,7 +5,37 @@ import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { NotesData } from "../Apis/NotesApi.js"
 import { setAllNotes, setCurrentNote, setTagsAndFolders, setRelatedNotes, setLoading } from "../../Slices/notesSlice.js"
 
-const { summarize, allNotes, tags, singleNote, deleteNote, organizeNote, enableShare, disableShare, sharedNote, exportNote, relatedNotes } = NotesData
+const { summarize, allNotes, tags, importNote, singleNote, deleteNote, organizeNote, enableShare, disableShare, sharedNote, exportNote, relatedNotes } = NotesData
+
+// import sir — creates a Note directly, NO AI call, NO credit/feature spend. Pass either
+// { text } or a FormData with a `notes` file field, same payload shape as SummarizeNotes
+// below just routed to a different endpoint that skips the Groq call entirely.
+export function ImportNote(payload, token, navigate) {
+    return async (dispatch) => {
+        dispatch(setLoading(true))
+        const toastId = toast.loading("Importing your note...")
+        try {
+            const isFormData = payload instanceof FormData
+            const response = await apiConnector("POST", importNote, payload, {
+                Authorization: `Bearer ${token}`,
+                ...(isFormData ? {} : { "Content-Type": "application/json" })
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            toast.success("Note imported")
+            if (navigate) navigate(`/Dashboard/Note/${response.data.noteId}`)
+        } catch (error) {
+            logError("Error importing note", error)
+            toast.error(error?.response?.data?.message || "Could not import that note")
+        } finally {
+            dispatch(setLoading(false))
+            toast.dismiss(toastId)
+        }
+    }
+}
 
 // summarize sir — pass either { notes: text, sourceType } or a FormData with a `notes` file field
 export function SummarizeNotes(payload, token, navigate) {

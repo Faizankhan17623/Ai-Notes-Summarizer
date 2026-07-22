@@ -19,7 +19,7 @@ const noteSchema = new mongoose.Schema(
         // where the raw text came from sir
         sourceType: {
             type: String,
-            enum: ['text', 'pdf', 'docx', 'txt', 'voice', 'article', 'audio'],
+            enum: ['text', 'pdf', 'docx', 'txt', 'voice', 'article', 'audio', 'import'],
             required: true
         },
         // the extracted/typed/dictated text that was actually summarized sir

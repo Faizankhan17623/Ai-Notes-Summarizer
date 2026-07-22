@@ -4,6 +4,7 @@ export const NotesData = {
     summarize: BASE_URL + "/summarize",
     allNotes: BASE_URL + "/notes",
     tags: BASE_URL + "/notes/tags",
+    importNote: BASE_URL + "/notes/import",
     singleNote: BASE_URL + "/notes",      // + /:noteId
     deleteNote: BASE_URL + "/notes",      // + /:noteId
     organizeNote: BASE_URL + "/notes",    // + /:noteId/organize
