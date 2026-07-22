@@ -4,9 +4,19 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --runInBand",
     "dev": "nodemon index.js",
     "start": "node index.js"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "globalSetup": "./jest/globalSetup.js",
+    "globalTeardown": "./jest/globalTeardown.js",
+    "setupFilesAfterEnv": ["./jest/setupAfterEnv.js"],
+    "testTimeout": 20000,
+    "moduleNameMapper": {
+      "^file-type$": "<rootDir>/__mocks__/file-type.js"
+    }
   },
   "author": "",
   "license": "ISC",
@@ -38,6 +48,9 @@
     "razorpay": "^2.9.6"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "jest": "^30.4.2",
+    "mongodb-memory-server": "^11.2.0",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2"
   }
 }
