@@ -3,7 +3,7 @@ const Groq = require('groq-sdk')
 const Note = require('../Models/Note')
 const User = require('../Models/User')
 const { consumeCredit, consumeFeatureUsage, DEFAULT_MODEL } = require('../utils/Plans')
-const { buildSummarySystemPrompt } = require('../utils/Prompts')
+const { buildSummarySystemPrompt, wrapWithTag } = require('../utils/Prompts')
 const { logAi } = require('../utils/AdminLog')
 const { extractText, extractFromUrl, extractFromAudio } = require('../utils/Parsers')
 const { recordStudyActivity } = require('../utils/Streak')
@@ -47,9 +47,13 @@ const summarizeExtractedText = async (userId, text, sourceType, feature = null, 
         throw err
     }
 
+    // same random per-request tag on both sides sir — see utils/Prompts.js's injection-guard
+    // comment for why a static "=== NOTES ===" marker was replaced with this
+    const { tag, systemPrompt } = buildSummarySystemPrompt(spend.plan)
+    const wrapped = wrapWithTag(tag, text)
     const Messages = [
-        { role: 'system', content: buildSummarySystemPrompt(spend.plan) },
-        { role: 'user', content: `Summarize the following notes.\n\n=== NOTES ===\n${text}\n\nReturn only the JSON summary.` }
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Summarize the following notes.\n\n${wrapped}\n\nReturn only the JSON summary.` }
     ]
 
     const model = spend.model || DEFAULT_MODEL
