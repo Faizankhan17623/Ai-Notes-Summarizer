@@ -48,7 +48,11 @@ const Navbar = ({ showMegaMenu = false }) => {
                 {token ? (
                     <>
                         <NotificationBell />
-                        {!showMegaMenu && !inDashboard && (
+                        {/* Pricing/plans are a User-only concern sir — Admin/Support are staff
+                            accounts that can't purchase anything (see Backend/controllers/
+                            Payment.js createOrder's role block), so the nav link is hidden
+                            for both roles, not just while inside their own dashboard shell */}
+                        {!showMegaMenu && !inDashboard && user?.role !== 'Admin' && user?.role !== 'Support' && (
                             <Link to="/Pricing" className="text-richblack-100 hover:text-richblack-25 text-sm">
                                 Pricing
                             </Link>

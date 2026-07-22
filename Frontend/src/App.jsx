@@ -10,6 +10,7 @@ import OpenRoute from './Hooks/OpenRoute'
 import PrivateRoute from './Hooks/PrivateRoute'
 import AdminRoute from './Hooks/AdminRoute'
 import SupportRoute from './Hooks/SupportRoute'
+import NoStaffRoute from './Hooks/NoStaffRoute'
 import ScrollToTop from './Components/extra/ScrollToTop'
 import AnnouncementBanner from './Components/extra/AnnouncementBanner'
 import CookieConsent from './Components/extra/CookieConsent'
@@ -127,7 +128,7 @@ function App() {
           <Routes location={location}>
             {/* Public sir */}
             <Route path="/" element={<Homelayout />} />
-            <Route path="/Pricing" element={<PageFade><Pricing /></PageFade>} />
+            <Route path="/Pricing" element={<NoStaffRoute><PageFade><Pricing /></PageFade></NoStaffRoute>} />
             <Route path="/Features" element={<PageFade><Features /></PageFade>} />
             <Route path="/Solutions" element={<PageFade><Solutions /></PageFade>} />
             <Route path="/Resources" element={<PageFade><Resources /></PageFade>} />
