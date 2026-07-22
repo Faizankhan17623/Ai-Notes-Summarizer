@@ -14,8 +14,11 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Mobile-layout screenshot tooling — local testing only, not pushed
-scripts/seedScreenshotUsers.js
+# One-off/local ops scripts — never pushed. makeAdmin.js talks straight to prod Mongo via
+# MONGO_DB_URL with no auth gate beyond having the .env, seedScreenshotUsers.js is local
+# Playwright screenshot tooling — blanket-ignoring scripts/ so a future one-off script here
+# is safe by default instead of needing a new line added every time
+scripts/
 
 # Editor directories and files
 .vscode/*
