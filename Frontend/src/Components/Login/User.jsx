@@ -1,17 +1,29 @@
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useDispatch, useSelector } from 'react-redux'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import toast from 'react-hot-toast'
 import { LoginUser } from '../../Services/operations/Auth.js'
 import AuthLayout from '../extra/AuthLayout.jsx'
 import Input from '../extra/Input.jsx'
 import Button from '../extra/Button.jsx'
+import OAuthButtons from './OAuthButtons.jsx'
 
 const User = () => {
     const { register, handleSubmit, formState: { errors } } = useForm()
     const dispatch = useDispatch()
     const navigate = useNavigate()
     const { loading } = useSelector((state) => state.auth)
+    const [searchParams] = useSearchParams()
+
+    // Backend/controllers/OAuth.js redirects failures straight here sir (a redirect can't
+    // deliver a JSON error the normal toast.error(catch) path would show)
+    useEffect(() => {
+        const oauthError = searchParams.get('oauthError')
+        if (oauthError) toast.error(oauthError)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     const onSubmit = (data) => {
         dispatch(LoginUser(data.email, data.password, navigate))
@@ -51,6 +63,8 @@ const User = () => {
                     {loading ? "Logging in..." : "Log in"}
                 </Button>
             </form>
+
+            <OAuthButtons />
         </AuthLayout>
     )
 }

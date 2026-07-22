@@ -21,10 +21,31 @@ const UserSchema = new mongoose.Schema(
             lowercase: true,
             trim: true
         },
+        // optional sir — an OAuth-only account (see controllers/OAuth.js) never sets one.
+        // loginUser's password branch only ever runs for an account that HAS one; an
+        // OAuth-only user can add a password later via a future "set a password" action
+        // if they want email/password login too, but nothing forces that today.
         password: {
             type: String,
-            required: true
         },
+        // every linked social account sir — an array (not a single field) so one User can
+        // link Google AND GitHub etc. over time. Same email across providers auto-links to
+        // this array rather than creating a second account (see controllers/OAuth.js).
+        oauthProviders: [{
+            provider: {
+                type: String,
+                enum: ['google', 'facebook', 'github', 'linkedin'],
+                required: true
+            },
+            providerId: {
+                type: String,
+                required: true
+            },
+            connectedAt: {
+                type: Date,
+                default: Date.now
+            }
+        }],
         token: {
             type: String,
         },

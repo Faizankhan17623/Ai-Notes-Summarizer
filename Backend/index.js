@@ -12,6 +12,7 @@ const Port = process.env.PORT || 4000
 
 const connectDB = require('./Installation/mongo')
 const auth = require('./Routes/Auth.js')
+const oauth = require('./Routes/OAuth.js')
 const notes = require('./Routes/Notes.js')
 const chat = require('./Routes/Chat.js')
 const studyKit = require('./Routes/StudyKit.js')
@@ -112,6 +113,7 @@ if (process.env.SCREENSHOT_MODE !== 'true') {
 }
 
 app.use('/api/v1', auth)
+app.use('/api/v1', oauth)
 app.use('/api/v1', notes)
 app.use('/api/v1', chat)
 app.use('/api/v1', studyKit)

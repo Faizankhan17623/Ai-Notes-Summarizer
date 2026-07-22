@@ -2,6 +2,7 @@ import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
 import { apiConnector, setCsrfToken } from "../apiConnector.js"
 import { UserData } from "../Apis/UserApi.js"
+import { OAuthData } from "../Apis/OAuthApi.js"
 import { setLoading, setToken, setUser, setLogin, setSignupData } from "../../Slices/authSlice.js"
 import { setProfile, setPlan, setActivity, setModelCatalog } from "../../Slices/profileSlice.js"
 
@@ -77,6 +78,24 @@ export function CreateUser(formData, navigate) {
     }
 }
 
+// shared by LoginUser (password) and CompleteOAuthLogin (social) sir — both end up with the
+// exact same {token, user} shape from the backend (see Backend/controllers/OAuth.js
+// getOAuthSession's comment), so both should apply it identically rather than duplicating
+// this dispatch/localStorage/redirect sequence
+const applySession = (dispatch, { token, user }, navigate) => {
+    dispatch(setToken(token))
+    dispatch(setUser(user))
+    dispatch(setLogin(true))
+    localStorage.setItem("token", JSON.stringify(token))
+    localStorage.setItem("user", JSON.stringify(user))
+    // the CSRF secret cookie is freshly (re)set on login sir — refresh the in-memory token to match
+    dispatch(FetchCsrfToken())
+    // each role lands on its own separate dashboard sir, never another role's
+    // (PrivateRoute/AdminRoute/SupportRoute enforce this too, this just skips the redirect flash)
+    const landingPath = user?.role === 'Admin' ? '/Admin' : user?.role === 'Support' ? '/Support' : '/Dashboard'
+    if (navigate) navigate(landingPath)
+}
+
 export function LoginUser(email, password, navigate) {
     return async (dispatch) => {
         dispatch(setLoading(true))
@@ -89,18 +108,7 @@ export function LoginUser(email, password, navigate) {
             }
 
             toast.success("Logged in")
-            dispatch(setToken(response.data.token))
-            dispatch(setUser(response.data.user))
-            dispatch(setLogin(true))
-            localStorage.setItem("token", JSON.stringify(response.data.token))
-            localStorage.setItem("user", JSON.stringify(response.data.user))
-            // the CSRF secret cookie is freshly (re)set on login sir — refresh the in-memory token to match
-            dispatch(FetchCsrfToken())
-            // each role lands on its own separate dashboard sir, never another role's
-            // (PrivateRoute/AdminRoute/SupportRoute enforce this too, this just skips the redirect flash)
-            const role = response.data.user?.role
-            const landingPath = role === 'Admin' ? '/Admin' : role === 'Support' ? '/Support' : '/Dashboard'
-            if (navigate) navigate(landingPath)
+            applySession(dispatch, response.data, navigate)
         } catch (error) {
             logError("Error logging in", error)
             toast.error(error?.response?.data?.message || "Could not log in")
@@ -108,6 +116,45 @@ export function LoginUser(email, password, navigate) {
             dispatch(setLoading(false))
             toast.dismiss(toastId)
         }
+    }
+}
+
+// GET /oauth/session sir — called once by OAuthCallback.jsx on mount. The backend's OAuth
+// callback already set the same httpOnly cookies a password login sets (see
+// Backend/controllers/OAuth.js oauthCallback), this just fetches the {token, user} JSON body
+// a redirect can't deliver, using that cookie to prove who just signed in.
+export function CompleteOAuthLogin(navigate) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", OAuthData.session)
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            toast.success("Logged in")
+            applySession(dispatch, response.data, navigate)
+            return true
+        } catch (error) {
+            logError("Error completing OAuth login", error)
+            toast.error(error?.response?.data?.message || "Could not complete sign-in")
+            if (navigate) navigate("/Login")
+            return false
+        }
+    }
+}
+
+// GET /oauth/providers sir — public, tells the Login/Signup pages which "Continue with X"
+// buttons to actually show (a provider with no configured client id/secret is hidden, not
+// a broken button — same stub-mode idea as Razorpay's isConfigured flag for payments).
+// Plain async function, not a thunk sir — it only ever returns a value, never touches Redux
+export async function GetOAuthProviders() {
+    try {
+        const response = await apiConnector("GET", OAuthData.providers)
+        return response.data?.success ? response.data.providers : []
+    } catch (error) {
+        logError("Error fetching OAuth providers", error)
+        return []
     }
 }
 

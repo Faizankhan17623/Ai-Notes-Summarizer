@@ -17,7 +17,7 @@ const { passwordResetTemplate } = require('../Templates/passwordResetTemplate.js
 const { getEffectivePlan, resetCycleIfNeeded, MODEL_CATALOG } = require('../utils/Plans.js')
 const { dayKey } = require('../utils/Streak.js')
 const { isStrongPassword } = require('../utils/PasswordPolicy.js')
-const { hashToken, signAccessToken, issueRefreshToken, REFRESH_TOKEN_TTL_MS } = require('../utils/RefreshToken.js')
+const { hashToken, signAccessToken, issueSessionCookies } = require('../utils/RefreshToken.js')
 const { sampleNoteFields } = require('../utils/SampleNote.js')
 
 // allowlist, not a blocklist, sir — '-password' alone still shipped refreshTokenHash,
@@ -253,31 +253,10 @@ exports.loginUser = async (req, res) => {
 
         // short-lived access token + a separate long-lived refresh token sir — only the refresh
         // token's SHA-256 hash is stored (mirrors the existing apiKeyHash pattern), the raw value
-        // lives only in its own httpOnly cookie, never in the JSON body or localStorage
-        const accessToken = signAccessToken(existingUser)
-        const rawRefreshToken = issueRefreshToken()
-
-        existingUser.refreshTokenHash = hashToken(rawRefreshToken)
-        existingUser.refreshTokenExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS)
-        existingUser.token = accessToken
-        await existingUser.save()
-
-        const accessCookie = cookie.serialize('token', accessToken, {
-            httpOnly: true,
-            secure: isProd,
-            sameSite: cookieSameSite,
-            maxAge: 60 * 60,
-            path: '/',
-        })
-        const refreshCookie = cookie.serialize('refreshToken', rawRefreshToken, {
-            httpOnly: true,
-            secure: isProd,
-            sameSite: cookieSameSite,
-            maxAge: 7 * 24 * 60 * 60,
-            path: '/api/v1',
-        })
-
-        res.setHeader('Set-Cookie', [accessCookie, refreshCookie])
+        // lives only in its own httpOnly cookie, never in the JSON body or localStorage. Same
+        // helper controllers/OAuth.js's callback uses, so a password login and a social login
+        // mint an identical session.
+        const accessToken = await issueSessionCookies(res, existingUser)
 
         return res.status(200).json({
             success: true,

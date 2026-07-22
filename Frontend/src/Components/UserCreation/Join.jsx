@@ -7,6 +7,7 @@ import { setSignupData } from '../../Slices/authSlice.js'
 import AuthLayout from '../extra/AuthLayout.jsx'
 import Input from '../extra/Input.jsx'
 import Button from '../extra/Button.jsx'
+import OAuthButtons from '../Login/OAuthButtons.jsx'
 
 const Join = () => {
     const { register, handleSubmit, formState: { errors }, watch } = useForm()
@@ -85,6 +86,8 @@ const Join = () => {
                     {loading ? "Sending OTP..." : "Continue"}
                 </Button>
             </form>
+
+            <OAuthButtons />
         </AuthLayout>
     )
 }
