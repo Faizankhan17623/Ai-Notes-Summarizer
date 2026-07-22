@@ -7,7 +7,7 @@ import { setUser } from "../../Slices/authSlice.js"
 import { GetProfile } from "./Auth.js"
 import { loadRazorpayScript } from "../../utils/loadRazorpay.js"
 
-const { plans, createOrder, verifyPayment, history } = PaymentData
+const { plans, createOrder, verifyPayment, history, cancelSubscription } = PaymentData
 
 export function GetPlans() {
     return async (dispatch) => {
@@ -45,6 +45,32 @@ export function GetPurchaseHistory(token) {
             dispatch(setHistory(response.data.payments))
         } catch (error) {
             logError("Error fetching purchase history", error)
+        }
+    }
+}
+
+// POST /payment/cancel sir — no recurring billing exists, so this is an early manual downgrade
+// to Basic rather than stopping a future charge (see the backend controller's comment).
+// Refetches the profile afterward so the Account page's plan card reflects Basic immediately.
+export function CancelSubscription(token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Cancelling your plan...")
+        try {
+            const response = await apiConnector("POST", cancelSubscription, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            toast.success(response.data.message)
+            dispatch(GetProfile(token))
+        } catch (error) {
+            logError("Error cancelling subscription", error)
+            toast.error(error?.response?.data?.message || "Could not cancel your plan")
+        } finally {
+            toast.dismiss(toastId)
         }
     }
 }

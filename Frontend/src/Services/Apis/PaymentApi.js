@@ -5,4 +5,5 @@ export const PaymentData = {
     createOrder: BASE_URL + "/payment/order",
     verifyPayment: BASE_URL + "/payment/verify",
     history: BASE_URL + "/payment/history",
+    cancelSubscription: BASE_URL + "/payment/cancel",
 }

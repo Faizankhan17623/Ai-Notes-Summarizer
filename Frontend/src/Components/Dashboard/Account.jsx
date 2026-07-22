@@ -2,19 +2,27 @@ import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { FaExclamationTriangle } from 'react-icons/fa'
+import { FaExclamationTriangle, FaDownload } from 'react-icons/fa'
 import Swal from 'sweetalert2'
 import toast from 'react-hot-toast'
 import {
     GetProfile, UpdateFirstName, UpdateLastName, UpdateDigestPreference, UpdateDailyGoal, UpdatePassword,
     DeleteAccount, RecoverAccount, LogoutUser, GetModelCatalog, UpdateModelPreference
 } from '../../Services/operations/Auth.js'
-import { GetPlans, GetPurchaseHistory, StartCreditPackCheckout } from '../../Services/operations/Payment.js'
+import { GetPlans, GetPurchaseHistory, StartCreditPackCheckout, CancelSubscription } from '../../Services/operations/Payment.js'
 import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
 import Input from '../extra/Input.jsx'
+import { toCsv, downloadCsv } from '../../utils/csv.js'
 // API access temporarily hidden from the Account page sir — component kept intact, just not rendered
 // import ApiKeySection from './ApiKeySection.jsx'
+
+const PURCHASE_HISTORY_CSV_COLUMNS = [
+    { label: 'Date', get: (p) => p.createdAt ? new Date(p.createdAt).toISOString() : '' },
+    { label: 'Item', get: (p) => p.plan === 'CreditPack' ? `Credit pack (+${p.creditsGranted} credits)` : `${p.plan} plan upgrade` },
+    { label: 'Amount', get: (p) => `${p.currency || 'INR'} ${p.amount}` },
+    { label: 'Status', key: 'status' },
+]
 
 const SectionCard = ({ title, children }) => (
     <div className="border border-border-soft bg-surface rounded-lg p-6 space-y-4">
@@ -78,6 +86,21 @@ const Account = () => {
         }
     }
 
+    const handleCancelSubscription = async () => {
+        const result = await Swal.fire({
+            title: `Cancel your ${plan?.name} plan?`,
+            text: 'You will move to the Basic plan immediately. Credits already used this cycle are not refunded.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Cancel plan',
+            background: 'var(--color-surface-raised)',
+            color: 'var(--color-richblack-5)',
+        })
+        if (result.isConfirmed) {
+            dispatch(CancelSubscription(token))
+        }
+    }
+
     if (loading || !profile) return <Loading text="Loading profile..." />
 
     return (
@@ -119,9 +142,19 @@ const Account = () => {
                             </div>
                         </div>
                         {plan.expiresAt && (
-                            <p className="text-richblack-400 text-sm mt-3 pt-3 border-t border-border-soft">
-                                Renews on {new Date(plan.expiresAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-                            </p>
+                            <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-border-soft">
+                                <p className="text-richblack-400 text-sm">
+                                    Renews on {new Date(plan.expiresAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                                </p>
+                                {plan.name !== 'Basic' && (
+                                    <button
+                                        onClick={handleCancelSubscription}
+                                        className="text-danger-soft text-xs font-medium cursor-pointer hover:underline shrink-0"
+                                    >
+                                        Cancel plan
+                                    </button>
+                                )}
+                            </div>
                         )}
                         {plan.creditsLimit !== null && plan.bonusCredits > 0 && (
                             <p className="text-richblack-400 text-sm mt-3 pt-3 border-t border-border-soft">
@@ -170,6 +203,14 @@ const Account = () => {
 
                 {history.length > 0 && (
                     <SectionCard title="Purchase history">
+                        <div className="flex justify-end -mt-2">
+                            <button
+                                onClick={() => downloadCsv(`purchase-history-${Date.now()}.csv`, toCsv(history, PURCHASE_HISTORY_CSV_COLUMNS))}
+                                className="flex items-center gap-1.5 text-xs rounded-md px-3 py-1.5 border border-border-soft text-richblack-200 hover:border-yellow-50 cursor-pointer transition-colors"
+                            >
+                                <FaDownload size={10} /> Download CSV
+                            </button>
+                        </div>
                         <div className="overflow-x-auto -mx-2">
                             <table className="w-full text-sm">
                                 <thead>

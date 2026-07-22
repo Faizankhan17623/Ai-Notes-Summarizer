@@ -225,6 +225,34 @@ exports.getPaymentHistory = async (req, res) => {
     }
 }
 
+// POST /payment/cancel sir — no recurring billing exists in this app (every upgrade is a
+// one-off manual checkout, see verifyPayment above), so "cancel" can't stop a future charge
+// that was never going to happen automatically. What it actually does: drop the user to Basic
+// RIGHT NOW instead of waiting for SubscriptionExpires to lapse naturally. Deliberately leaves
+// SubscriptionExpires and this cycle's count/bonusCredits untouched — they already paid for
+// this cycle, cancelling shouldn't claw back credits already granted.
+exports.cancelSubscription = async (req, res) => {
+    try {
+        const user = await User.findById(req.User.id).select('SubType')
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Account not found' })
+        }
+        if (user.SubType === 'Basic') {
+            return res.status(400).json({ success: false, message: 'You are already on the Basic plan' })
+        }
+
+        await User.findByIdAndUpdate(req.User.id, {
+            SubType: 'Basic',
+            Subscription: false,
+        })
+
+        return res.status(200).json({ success: true, message: 'Your plan has been cancelled — you are now on the Basic plan' })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to cancel your subscription' })
+    }
+}
+
 // GET /payment/plans — the public plan comparison table sir, always available even in stub mode
 exports.getPlans = async (req, res) => {
     return res.status(200).json({
