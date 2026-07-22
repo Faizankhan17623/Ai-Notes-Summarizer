@@ -209,6 +209,26 @@ const UserSchema = new mongoose.Schema(
             type: Date,
             default: null
         },
+        // 2FA (TOTP) sir — twoFactorEnabled gates the login-flow branch in controllers/user.js
+        // loginUser (password-verified but 2FA-required accounts get a short-lived pending
+        // token instead of a full session, see controllers/TwoFactor.js). totpSecret is the
+        // base32 secret an authenticator app was seeded with — only ever persisted AFTER
+        // /2fa/enable verifies the user actually has it working, never at /2fa/setup time.
+        twoFactorEnabled: {
+            type: Boolean,
+            default: false
+        },
+        totpSecret: {
+            type: String,
+            default: null
+        },
+        // one-time recovery codes sir — hashed with the same hashToken (SHA-256) helper the
+        // refresh token uses, never stored/shown in plaintext after generation. Each code is
+        // removed from this array the moment it's used (see verifyTwoFactor), so a stolen DB
+        // snapshot alone can't be replayed even once past the codes it captured.
+        twoFactorBackupCodes: [{
+            type: String
+        }],
         Subscription: {
             type: Boolean,
             default: false

@@ -20,6 +20,16 @@ pnpm-debug.log*
 # is safe by default instead of needing a new line added every time
 scripts/
 
+# Local-only test infrastructure — kept on disk for local development but never pushed.
+# app.local.js is the side-effect-free Express app export __tests__/ requires (mirrors
+# index.js's real wiring by hand — keep them in sync if index.js's routes/middleware change).
+# Run tests locally with: npx jest --runInBand
+__tests__/
+jest/
+__mocks__/
+app.local.js
+jest.config.js
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

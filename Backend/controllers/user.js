@@ -17,7 +17,7 @@ const { passwordResetTemplate } = require('../Templates/passwordResetTemplate.js
 const { getEffectivePlan, resetCycleIfNeeded, MODEL_CATALOG } = require('../utils/Plans.js')
 const { dayKey } = require('../utils/Streak.js')
 const { isStrongPassword } = require('../utils/PasswordPolicy.js')
-const { hashToken, signAccessToken, issueSessionCookies } = require('../utils/RefreshToken.js')
+const { hashToken, signAccessToken, issueSessionCookies, signTempTwoFactorToken } = require('../utils/RefreshToken.js')
 const { sampleNoteFields } = require('../utils/SampleNote.js')
 
 // allowlist, not a blocklist, sir — '-password' alone still shipped refreshTokenHash,
@@ -26,7 +26,7 @@ const { sampleNoteFields } = require('../utils/SampleNote.js')
 // self-service update returns exactly the shape the frontend's setProfile/setUser expect.
 const SAFE_USER_FIELDS = 'firstName lastName email role Verified Subscription SubType SubscriptionExpires ' +
     'count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount receiveDigest ' +
-    'currentStreak longestStreak dailyGoal hasCompletedOnboarding createdAt Buffer BufferTiming'
+    'currentStreak longestStreak dailyGoal hasCompletedOnboarding createdAt Buffer BufferTiming twoFactorEnabled'
 
 const isProd = process.env.NODE_ENV === 'production'
 // frontend (Vercel) and backend (Render) are different sites in prod sir, so cross-site XHR
@@ -250,6 +250,20 @@ exports.loginUser = async (req, res) => {
         }
 
         const { _id, firstName, lastName, role, SubType, isBanned, banReason, appealStatus } = existingUser
+
+        // 2FA-enabled accounts don't get a full session yet sir — password is correct, but
+        // that's only the FIRST factor. Persist the failedLoginAttempts/Buffer-recovery
+        // clearing above (it's a real password-correct event) without minting cookies, and
+        // hand back a short-lived pending token for POST /2fa/verify (controllers/TwoFactor.js)
+        // to exchange for a real session once the TOTP/backup code checks out.
+        if (existingUser.twoFactorEnabled) {
+            await existingUser.save()
+            return res.status(200).json({
+                success: true,
+                twoFactorRequired: true,
+                tempToken: signTempTwoFactorToken(existingUser),
+            })
+        }
 
         // short-lived access token + a separate long-lived refresh token sir — only the refresh
         // token's SHA-256 hash is stored (mirrors the existing apiKeyHash pattern), the raw value
@@ -936,7 +950,7 @@ exports.getProfile = async (req, res) => {
         const id = req.User.id
 
         const user = await User.findById(id)
-            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount receiveDigest currentStreak longestStreak dailyGoal hasCompletedOnboarding createdAt Buffer BufferTiming isBanned banReason appealStatus appealMessage')
+            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount receiveDigest currentStreak longestStreak dailyGoal hasCompletedOnboarding createdAt Buffer BufferTiming isBanned banReason appealStatus appealMessage twoFactorEnabled')
 
         if (!user) {
             return res.status(404).json({

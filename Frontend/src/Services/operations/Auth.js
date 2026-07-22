@@ -78,11 +78,11 @@ export function CreateUser(formData, navigate) {
     }
 }
 
-// shared by LoginUser (password) and CompleteOAuthLogin (social) sir — both end up with the
-// exact same {token, user} shape from the backend (see Backend/controllers/OAuth.js
-// getOAuthSession's comment), so both should apply it identically rather than duplicating
-// this dispatch/localStorage/redirect sequence
-const applySession = (dispatch, { token, user }, navigate) => {
+// shared by LoginUser (password), CompleteOAuthLogin (social), and VerifyTwoFactor (the 2FA
+// login continuation) sir — all three end up with the exact same {token, user} shape from
+// the backend, so all three apply it identically rather than duplicating this dispatch/
+// localStorage/redirect sequence. Exported so Services/operations/TwoFactor.js can reuse it.
+export const applySession = (dispatch, { token, user }, navigate) => {
     dispatch(setToken(token))
     dispatch(setUser(user))
     dispatch(setLogin(true))
@@ -105,6 +105,14 @@ export function LoginUser(email, password, navigate) {
 
             if (!response.data.success) {
                 throw new Error(response.data.message)
+            }
+
+            // password is correct, but this account has 2FA on sir — no session yet, hand
+            // the tempToken to /Verify-2FA which calls VerifyTwoFactor (Services/operations/
+            // TwoFactor.js) to finish the login once the code checks out
+            if (response.data.twoFactorRequired) {
+                if (navigate) navigate('/Verify-2FA', { state: { tempToken: response.data.tempToken } })
+                return
             }
 
             toast.success("Logged in")

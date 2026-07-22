@@ -14,6 +14,7 @@ import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
 import Input from '../extra/Input.jsx'
 import { toCsv, downloadCsv } from '../../utils/csv.js'
+import TwoFactorSection from './TwoFactorSection.jsx'
 // API access temporarily hidden from the Account page sir — component kept intact, just not rendered
 // import ApiKeySection from './ApiKeySection.jsx'
 
@@ -328,6 +329,8 @@ const Account = () => {
                             }}
                         />
                     </SectionCard>
+
+                    <TwoFactorSection enabled={!!profile.twoFactorEnabled} token={token} />
 
                     {/* API access temporarily hidden from the Account page sir — <ApiKeySection isPaidPlan={isPaidPlan} /> */}
 

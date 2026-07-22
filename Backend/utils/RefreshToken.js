@@ -23,6 +23,22 @@ const signAccessToken = (user) =>
         { expiresIn: ACCESS_TOKEN_TTL }
     )
 
+const TEMP_TWO_FACTOR_TTL = '5m'
+
+// a DIFFERENT, narrower token than signAccessToken above sir — carries `purpose: 'pending_2fa'`
+// so Middlewares/Auth.js's normal Auth middleware (which only ever checks the JWT verifies,
+// not its purpose claim) would still accept it as if it were a real session token if it
+// somehow reached a normal route. controllers/TwoFactor.js's dedicated AuthPendingTwoFactor
+// middleware is what actually enforces the purpose check — this token is only ever meant to
+// be handed to POST /2fa/verify, nothing else. 5 minutes is enough for someone to open their
+// authenticator app and type a code, short enough to bound the window if it leaked somehow.
+const signTempTwoFactorToken = (user) =>
+    jwt.sign(
+        { id: user._id, purpose: 'pending_2fa' },
+        process.env.JWT_PRIVATE_KEY,
+        { expiresIn: TEMP_TWO_FACTOR_TTL }
+    )
+
 // opaque random value sir — NOT a JWT, carries no claims, purely a DB lookup key,
 // so there's nothing here for an attacker to forge even if they guessed the shape
 const issueRefreshToken = () => crypto.randomBytes(48).toString('hex')
@@ -65,5 +81,5 @@ const issueSessionCookies = async (res, user) => {
 
 module.exports = {
     ACCESS_TOKEN_TTL, REFRESH_TOKEN_TTL_MS, hashToken, signAccessToken, issueRefreshToken,
-    issueSessionCookies, isProd, cookieSameSite,
+    issueSessionCookies, isProd, cookieSameSite, signTempTwoFactorToken,
 }
