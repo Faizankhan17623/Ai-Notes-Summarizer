@@ -36,7 +36,10 @@ const {
     logoutUser,
     appealBan,
 } = require('../controllers/user.js')
-const { generateApiKey, getApiKeyStatus, revokeApiKey } = require('../controllers/ApiKey.js')
+// API access temporarily disabled sir — matches the frontend half already commented out in
+// Frontend/src/Components/Dashboard/Account.jsx (ApiKeySection import/render). Controller and
+// its ApiKeyAuth middleware are left intact, ready to re-enable by uncommenting both halves.
+// const { generateApiKey, getApiKeyStatus, revokeApiKey } = require('../controllers/ApiKey.js')
 
 // authLimiter stops brute-force sir, otpLimiter stops email spam — no CSRF on these, no
 // session cookie exists yet at this point in the flow
@@ -71,9 +74,9 @@ route.patch('/profile/password', doubleCsrfProtection, updatePasswordRules, vali
 route.delete('/profile', doubleCsrfProtection, Auth, blockIfBanned, deleteAccount)
 route.post('/profile/recover', doubleCsrfProtection, Auth, blockIfBanned, recoverAccount)
 
-// Pro/ProMax API key management sir — the raw key itself is only ever returned by POST
-route.get('/api-key', Auth, blockIfBanned, getApiKeyStatus)
-route.post('/api-key', doubleCsrfProtection, Auth, blockIfBanned, generateApiKey)
-route.delete('/api-key', doubleCsrfProtection, Auth, blockIfBanned, revokeApiKey)
+// API access temporarily disabled sir — see the require() comment above
+// route.get('/api-key', Auth, blockIfBanned, getApiKeyStatus)
+// route.post('/api-key', doubleCsrfProtection, Auth, blockIfBanned, generateApiKey)
+// route.delete('/api-key', doubleCsrfProtection, Auth, blockIfBanned, revokeApiKey)
 
 module.exports = route

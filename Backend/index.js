@@ -15,7 +15,12 @@ const auth = require('./Routes/Auth.js')
 const notes = require('./Routes/Notes.js')
 const chat = require('./Routes/Chat.js')
 const studyKit = require('./Routes/StudyKit.js')
-const external = require('./Routes/External.js')
+const search = require('./Routes/Search.js')
+// API access temporarily disabled sir — /external/summarize can never succeed with the
+// /api-key routes closed in Routes/Auth.js (no key can ever be generated), so the mount below
+// is commented out too rather than leaving a route that 401s for everyone. Route file and its
+// ApiKeyAuth middleware are left intact, ready to re-enable by uncommenting both halves.
+// const external = require('./Routes/External.js')
 const payment = require('./Routes/Payment.js')
 const analytics = require('./Routes/Analytics.js')
 const admin = require('./Routes/Admin.js')
@@ -110,7 +115,8 @@ app.use('/api/v1', auth)
 app.use('/api/v1', notes)
 app.use('/api/v1', chat)
 app.use('/api/v1', studyKit)
-app.use('/api/v1', external)
+app.use('/api/v1', search)
+// app.use('/api/v1', external) — API access temporarily disabled sir, see the require() comment above
 app.use('/api/v1', payment)
 app.use('/api/v1', analytics)
 app.use('/api/v1', admin)
