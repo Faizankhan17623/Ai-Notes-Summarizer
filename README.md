@@ -204,7 +204,8 @@ SITE-WIDE / MISC UI
 - Light/dark theme toggle, persisted
 - Announcement banner (dismissible)
 - Cookie consent banner (accept once, remembered in localStorage)
-- Backend wake-up ping on page load (utils/wakeUpServer.js -> GET /health, retries, then CSRF fetch)
+- Backend wake-up ping on page load (utils/wakeUpServer.js -> GET /api/v1/status, retries, then CSRF fetch;
+  not /health, since ad-blockers commonly block that path name — /health still exists for Render's own check)
 - Navbar slims to theme/search/bell/profile/logout inside dashboard shells (sidebar handles nav there)
 - Navbar search/notification-bell/profile icons share one circular hover-highlight treatment
   (rounded-full pill background on hover, Glassdoor-style); profile icon links to Account

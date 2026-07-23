@@ -1,14 +1,16 @@
 // Render's free tier spins the backend down after ~15 min of no traffic sir, and the next
 // request then eats a 30-60s cold start. So the moment ANYONE lands on the site we fire a
-// tiny ping at /health — "hey sir, wake up, we have arrived" — so the server is already
-// booting (or booted) by the time the user actually clicks Login/Summarize/anything.
+// tiny ping at /api/v1/status — "hey sir, wake up, we have arrived" — so the server is
+// already booting (or booted) by the time the user actually clicks Login/Summarize/anything.
 //
 // Plain fetch instead of the shared axios instance on purpose sir — no cookies, no CSRF,
 // no 401-refresh interceptor; this must stay a zero-dependency fire-and-forget ping.
-
-// VITE_MAIN_BACKEND_URL ends in /api/v1 but /health lives at the server root sir
-const HEALTH_URL =
-    import.meta.env.VITE_MAIN_BACKEND_URL.replace(/\/api\/v1\/?$/, '') + '/health'
+//
+// Using /api/v1/status here, NOT /health sir — ad-blockers (uBlock, Brave Shields) commonly
+// block any request literally named /health, which silently failed this entire retry loop
+// for those visitors. /api/v1/status is the identical check, just parked at a path
+// blocklists don't recognize. Backend/index.js serves both.
+const HEALTH_URL = import.meta.env.VITE_MAIN_BACKEND_URL.replace(/\/?$/, '') + '/status'
 
 const MAX_ATTEMPTS = 4
 const RETRY_DELAY_MS = 5000

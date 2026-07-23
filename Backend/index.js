@@ -139,10 +139,17 @@ app.get('/', (req, res) => {
 })
 
 // health-check endpoint sir — point Render's "Health Check Path" at /health so a bad
-// deploy is detected and rolled back instead of serving errors
-app.get('/health', (req, res) => {
+// deploy is detected and rolled back instead of serving errors.
+// /api/v1/status is the SAME check under a different path sir — plenty of ad-blockers
+// (uBlock, Brave Shields) block any request literally named /health, so the browser-side
+// wake-up ping in Frontend/src/utils/wakeUpServer.js hits this path instead. Kept /health
+// alive too so Render's own server-side check (never blocked, it's not a browser) and any
+// existing external monitor don't need to change.
+const healthCheck = (req, res) => {
     return res.status(200).json({ success: true, uptime: process.uptime() })
-})
+}
+app.get('/health', healthCheck)
+app.get('/api/v1/status', healthCheck)
 
 
 // catches invalidCsrfTokenError (and anything else that reaches here) sir — without this,
