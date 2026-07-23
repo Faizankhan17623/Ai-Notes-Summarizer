@@ -11,7 +11,7 @@ function NoStaffRoute({ children }) {
     if (user?.role === 'Admin') {
         return <Navigate to="/Admin" />
     }
-    if (user?.role === 'Support') {
+    if (user?.role === 'Support' || user?.role === 'Billing') {
         return <Navigate to="/Support" />
     }
     return children

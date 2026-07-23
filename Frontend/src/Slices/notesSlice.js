@@ -9,6 +9,8 @@ const initialState = {
     tags: [],
     folders: [],
     relatedNotes: [],
+    // version history for whichever note the Report page currently has open sir
+    noteVersions: [],
     loading: false
 }
 
@@ -29,11 +31,14 @@ const notesSlice = createSlice({
         setRelatedNotes(state, value) {
             state.relatedNotes = value.payload
         },
+        setNoteVersions(state, value) {
+            state.noteVersions = value.payload
+        },
         setLoading(state, value) {
             state.loading = value.payload
         }
     }
 })
 
-export const { setAllNotes, setCurrentNote, setTagsAndFolders, setRelatedNotes, setLoading } = notesSlice.actions
+export const { setAllNotes, setCurrentNote, setTagsAndFolders, setRelatedNotes, setNoteVersions, setLoading } = notesSlice.actions
 export default notesSlice.reducer

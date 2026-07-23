@@ -6,6 +6,8 @@ const Announcement = require('../Models/Announcement')
 const Note = require('../Models/Note')
 const Chat = require('../Models/Chat')
 const Visit = require('../Models/Visit')
+const SavedView = require('../Models/SavedView')
+const ContactMessage = require('../Models/ContactMessage')
 const { PLANS } = require('../utils/Plans')
 const { notify } = require('./Notification')
 
@@ -261,10 +263,10 @@ exports.setRole = async (req, res) => {
         const { userId } = req.params
         const { role } = req.body
 
-        // exactly one Admin, ever, sir — this endpoint can only toggle a user between Support
-        // and User. It can't create a second Admin, and it can't touch the existing Admin's own
-        // role (that would silently leave the app with zero admins)
-        if (!['User', 'Support'].includes(role)) {
+        // exactly one Admin, ever, sir — this endpoint can only toggle a user between User,
+        // Support, and Billing. It can't create a second Admin, and it can't touch the existing
+        // Admin's own role (that would silently leave the app with zero admins)
+        if (!['User', 'Support', 'Billing'].includes(role)) {
             return res.status(400).json({ success: false, message: 'Invalid role' })
         }
 
@@ -319,14 +321,14 @@ exports.bulkBanUsers = async (req, res) => {
     }
 }
 
-// PATCH /admin/users/bulk-role sir — Admin only, same User/Support-only guard per user as
-// setRole above; an Admin row (or the sole Admin themselves) in the batch is skipped and
-// reported in `failed` rather than failing the whole batch.
+// PATCH /admin/users/bulk-role sir — Admin only, same guard per user as setRole above; an
+// Admin row (or the sole Admin themselves) in the batch is skipped and reported in `failed`
+// rather than failing the whole batch.
 exports.bulkSetRole = async (req, res) => {
     try {
         const { userIds, role } = req.body
 
-        if (!['User', 'Support'].includes(role)) {
+        if (!['User', 'Support', 'Billing'].includes(role)) {
             return res.status(400).json({ success: false, message: 'Invalid role' })
         }
 
@@ -640,5 +642,95 @@ exports.getTraffic = async (req, res) => {
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to load traffic data' })
+    }
+}
+
+// GET /admin/saved-views?page=users sir — personal to the caller, isSupport-gated same as
+// the list pages themselves (Support/Billing/Admin can all save/reuse their own filter sets)
+exports.getSavedViews = async (req, res) => {
+    try {
+        const { page } = req.query
+        if (!['users', 'payments', 'audit', 'ai-logs'].includes(page)) {
+            return res.status(400).json({ success: false, message: 'Invalid page' })
+        }
+
+        const views = await SavedView.find({ user: req.User.id, page }).sort({ createdAt: -1 })
+        return res.status(200).json({ success: true, views })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to load saved views' })
+    }
+}
+
+// POST /admin/saved-views sir — body: { page, name, filters }
+exports.createSavedView = async (req, res) => {
+    try {
+        const { page, name, filters } = req.body
+
+        if (!['users', 'payments', 'audit', 'ai-logs'].includes(page)) {
+            return res.status(400).json({ success: false, message: 'Invalid page' })
+        }
+        if (!name || !name.trim()) {
+            return res.status(400).json({ success: false, message: 'A name is required' })
+        }
+        if (!filters || typeof filters !== 'object') {
+            return res.status(400).json({ success: false, message: 'Filters are required' })
+        }
+
+        const view = await SavedView.create({ user: req.User.id, page, name: name.trim(), filters })
+        return res.status(201).json({ success: true, view })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to save the view' })
+    }
+}
+
+// DELETE /admin/saved-views/:viewId sir — scoped to the caller, one agent can't delete
+// another agent's saved view even though both are Support/Billing/Admin
+exports.deleteSavedView = async (req, res) => {
+    try {
+        const { viewId } = req.params
+        const view = await SavedView.findOneAndDelete({ _id: viewId, user: req.User.id })
+        if (!view) {
+            return res.status(404).json({ success: false, message: 'Saved view not found' })
+        }
+        return res.status(200).json({ success: true, message: 'Saved view deleted' })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to delete the saved view' })
+    }
+}
+
+// GET /admin/contact-messages/:messageId/user-activity sir — lets Support/Billing/Admin see
+// the submitter's recent AI usage + credit standing right from the ticket, instead of
+// separately searching for them on the Users/AI-logs pages. Matched by email since a contact
+// submission isn't guaranteed to come from a registered account (public, pre-account form) —
+// when there's no matching User this returns matched:false rather than a 404, since "this
+// submitter has no account" is a normal, expected outcome here, not an error.
+exports.getContactMessageUserActivity = async (req, res) => {
+    try {
+        const { messageId } = req.params
+
+        const contactMessage = await ContactMessage.findById(messageId).select('email')
+        if (!contactMessage) {
+            return res.status(404).json({ success: false, message: 'Contact message not found' })
+        }
+
+        const user = await User.findOne({ email: contactMessage.email }).select(ADMIN_USER_FIELDS)
+        if (!user) {
+            return res.status(200).json({ success: true, matched: false })
+        }
+
+        const recentAiLogs = await AiLog.find({ user: user._id }).sort({ createdAt: -1 }).limit(20)
+
+        return res.status(200).json({
+            success: true,
+            matched: true,
+            user,
+            recentAiLogs,
+        })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: "Failed to load this user's activity" })
     }
 }

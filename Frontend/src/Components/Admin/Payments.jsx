@@ -9,6 +9,7 @@ import {
 import Swal from 'sweetalert2'
 import { GetPayments, RefundPayment } from '../../Services/operations/Admin.js'
 import StatusBadge from './StatusBadge.jsx'
+import SavedViewsBar from './SavedViewsBar.jsx'
 import { toCsv, downloadCsv } from '../../utils/csv.js'
 
 const PAYMENTS_CSV_COLUMNS = [
@@ -202,9 +203,10 @@ const Payments = () => {
     const { payments, loading } = useSelector((state) => state.admin)
     const [statusFilter, setStatusFilter] = useState('all')
     const [planFilter, setPlanFilter] = useState('all')
-    // refunds are Admin-only sir — Support can see payments to help/verify, but the backend
-    // 403s a refund attempt from Support too, so hide the button rather than let it just fail
-    const isAdmin = user?.role === 'Admin'
+    // refunds are Admin/Billing-only sir — Support can see payments to help/verify, but the
+    // backend 403s a refund attempt from Support too, so hide the button rather than let it
+    // just fail. See canRefund in Backend/Middlewares/Auth.js.
+    const canRefund = user?.role === 'Admin' || user?.role === 'Billing'
 
     useEffect(() => {
         dispatch(GetPayments(token))
@@ -357,6 +359,14 @@ const Payments = () => {
                         </button>
                     </div>
 
+                    <div className="mb-6 animate-fade-in-up" style={{ '--delay': '460ms' }}>
+                        <SavedViewsBar
+                            page="payments"
+                            filters={{ statusFilter, planFilter }}
+                            onApply={(f) => { setStatusFilter(f.statusFilter || 'all'); setPlanFilter(f.planFilter || 'all') }}
+                        />
+                    </div>
+
                     {filtered.length === 0 ? (
                         <div className="border border-border-soft bg-surface rounded-lg text-center py-16 px-8 animate-fade-in-up">
                             <p className="text-richblack-300 text-sm">No payments match this filter.</p>
@@ -373,7 +383,7 @@ const Payments = () => {
                                             <th className="py-3 px-4 font-medium">Status</th>
                                             <th className="py-3 px-4 font-medium">Order / Payment ID</th>
                                             <th className="py-3 px-4 font-medium">Date</th>
-                                            {isAdmin && <th className="py-3 px-4 font-medium">Actions</th>}
+                                            {canRefund && <th className="py-3 px-4 font-medium">Actions</th>}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -396,7 +406,7 @@ const Payments = () => {
                                                     )}
                                                 </td>
                                                 <td className="py-3 px-4 text-richblack-400">{new Date(p.createdAt).toLocaleDateString()}</td>
-                                                {isAdmin && (
+                                                {canRefund && (
                                                     <td className="py-3 px-4">
                                                         {p.plan === 'CreditPack' && p.status === 'paid' && (
                                                             <button onClick={() => handleRefund(p)} className="text-danger-soft text-xs font-medium cursor-pointer hover:underline">

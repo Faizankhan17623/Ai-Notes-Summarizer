@@ -19,4 +19,7 @@ export const AdminData = {
     announcements: BASE_URL + "/admin/announcements",
     deactivateAnnouncement: BASE_URL + "/admin/announcements",  // + /:id/deactivate
     traffic: BASE_URL + "/admin/traffic",
+    savedViews: BASE_URL + "/admin/saved-views",
+    deleteSavedView: BASE_URL + "/admin/saved-views",   // + /:viewId
+    userActivity: BASE_URL + "/admin/contact-messages", // + /:messageId/user-activity
 }

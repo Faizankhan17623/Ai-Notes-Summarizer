@@ -156,10 +156,11 @@ const UserSchema = new mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Chat'
         }],
-        // RBAC sir — User is normal, Support can view/help but not destroy, Admin can do everything
+        // RBAC sir — User is normal, Support can view/help but not destroy, Billing can view/help
+        // AND refund (but not ban/role-change/announce), Admin can do everything
         role: {
             type: String,
-            enum: ['User', 'Support', 'Admin'],
+            enum: ['User', 'Support', 'Billing', 'Admin'],
             default: 'User'
         },
         // moderation sir — a banned user is blocked by the Auth middleware everywhere, instantly

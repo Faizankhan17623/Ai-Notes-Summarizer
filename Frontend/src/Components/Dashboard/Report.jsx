@@ -16,6 +16,7 @@ import QuizPlayer from './QuizPlayer.jsx'
 import NoteOrganizer from './NoteOrganizer.jsx'
 import ShareExport from './ShareExport.jsx'
 import RelatedNotes from './RelatedNotes.jsx'
+import NoteVersionHistory from './NoteVersionHistory.jsx'
 
 const Report = () => {
     const { noteId } = useParams()
@@ -233,6 +234,7 @@ const Report = () => {
                             <p className="text-xs uppercase tracking-wide text-richblack-400 font-semibold mb-4">Organize</p>
                             <NoteOrganizer note={currentNote} />
                         </div>
+                        <NoteVersionHistory note={currentNote} />
                         <div className="border border-border-soft bg-surface rounded-lg p-5">
                             <p className="text-xs uppercase tracking-wide text-richblack-400 font-semibold mb-4">Share &amp; export</p>
                             <ShareExport note={currentNote} />

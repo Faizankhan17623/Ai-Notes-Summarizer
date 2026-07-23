@@ -87,12 +87,27 @@ exports.isAdmin = (req, res, next) => {
     next()
 }
 
-// support gate sir — Support AND Admin both pass, for the view/help routes
+// support gate sir — Support, Billing, AND Admin all pass, for the view/help routes.
+// Billing inherits the view/help tier same as Support does; its extra power (refund) is
+// gated separately by canRefund below, not folded into this broader check.
 exports.isSupport = (req, res, next) => {
-    if (!['Support', 'Admin'].includes(req?.User?.role)) {
+    if (!['Support', 'Billing', 'Admin'].includes(req?.User?.role)) {
         return res.status(403).json({
             success: false,
             message: 'This route is for the support team and administrators only',
+        })
+    }
+    next()
+}
+
+// refund gate sir — Billing AND Admin both pass. Narrower than isSupport (Support itself
+// cannot refund) and narrower than isAdmin (Billing doesn't need full admin powers like
+// ban/role-change/announcements just to issue a refund)
+exports.canRefund = (req, res, next) => {
+    if (!['Billing', 'Admin'].includes(req?.User?.role)) {
+        return res.status(403).json({
+            success: false,
+            message: 'This route is for billing staff and administrators only',
         })
     }
     next()

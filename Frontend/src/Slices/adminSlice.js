@@ -20,6 +20,12 @@ const initialState = {
     aiLogsPages: 1,
     announcements: [],
     contactMessages: [],
+    // saved filter views sir — keyed by page ('users'|'payments'|'audit'|'ai-logs') so each
+    // admin list page only ever sees its own saved views, never another page's
+    savedViews: {},
+    // per-ticket user activity sir — keyed by messageId, populated on demand when a
+    // ContactMessages card is expanded to look up its submitter's AI activity
+    ticketActivity: {},
     loading: false
 }
 
@@ -66,11 +72,20 @@ const adminSlice = createSlice({
         setContactMessages(state, value) {
             state.contactMessages = value.payload
         },
+        setSavedViews(state, value) {
+            state.savedViews[value.payload.page] = value.payload.views
+        },
+        setTicketActivity(state, value) {
+            state.ticketActivity[value.payload.messageId] = value.payload.activity
+        },
         setLoading(state, value) {
             state.loading = value.payload
         }
     }
 })
 
-export const { setOverview, setAnalytics, setTraffic, setTrafficLoading, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setContactMessages, setLoading } = adminSlice.actions
+export const {
+    setOverview, setAnalytics, setTraffic, setTrafficLoading, setUsers, setPayments, setAuditLogs, setAiLogs,
+    setAnnouncements, setContactMessages, setSavedViews, setTicketActivity, setLoading,
+} = adminSlice.actions
 export default adminSlice.reducer

@@ -5,6 +5,7 @@ import { FaSearch, FaChevronLeft, FaChevronRight, FaUserShield, FaUserClock, FaD
 import Swal from 'sweetalert2'
 import { GetUsers, BanUser, UnbanUser, DenyAppeal, SetRole, BulkBanUsers, BulkSetRole } from '../../Services/operations/Admin.js'
 import StatusBadge from './StatusBadge.jsx'
+import SavedViewsBar from './SavedViewsBar.jsx'
 import { toCsv, downloadCsv } from '../../utils/csv.js'
 
 const USERS_CSV_COLUMNS = [
@@ -23,6 +24,7 @@ const USERS_CSV_COLUMNS = [
 const ROLE_TONE = {
     Admin: 'bg-yellow-50/10 text-yellow-50',
     Support: 'bg-violet-500/10 text-violet-500',
+    Billing: 'bg-good/10 text-good',
     User: 'bg-border-soft text-richblack-300',
 }
 
@@ -150,7 +152,7 @@ const Users = () => {
                     />
                 </div>
                 <div className="flex gap-1.5">
-                    {['all', 'User', 'Support', 'Admin'].map((r) => (
+                    {['all', 'User', 'Support', 'Billing', 'Admin'].map((r) => (
                         <button
                             key={r}
                             onClick={() => { setRoleFilter(r); setSelectedIds(new Set()) }}
@@ -169,6 +171,14 @@ const Users = () => {
                 >
                     <FaDownload size={11} /> Export CSV
                 </button>
+            </div>
+
+            <div className="mb-6">
+                <SavedViewsBar
+                    page="users"
+                    filters={{ search, roleFilter }}
+                    onApply={(f) => { setSearch(f.search || ''); setRoleFilter(f.roleFilter || 'all'); setSelectedIds(new Set()) }}
+                />
             </div>
 
             {/* only shown once something's selected sir — same fade-in treatment as the
@@ -193,6 +203,7 @@ const Users = () => {
                         <option value="" disabled>Set role to...</option>
                         <option value="User">User</option>
                         <option value="Support">Support</option>
+                        <option value="Billing">Billing</option>
                     </select>
                     <button
                         onClick={() => setSelectedIds(new Set())}
@@ -274,6 +285,7 @@ const Users = () => {
                                                 >
                                                     <option value="User">User</option>
                                                     <option value="Support">Support</option>
+                                                    <option value="Billing">Billing</option>
                                                 </select>
                                             ) : (
                                                 <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${ROLE_TONE[u.role] || ''}`}>{u.role}</span>

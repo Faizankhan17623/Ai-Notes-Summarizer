@@ -92,7 +92,7 @@ export const applySession = (dispatch, { token, user }, navigate) => {
     dispatch(FetchCsrfToken())
     // each role lands on its own separate dashboard sir, never another role's
     // (PrivateRoute/AdminRoute/SupportRoute enforce this too, this just skips the redirect flash)
-    const landingPath = user?.role === 'Admin' ? '/Admin' : user?.role === 'Support' ? '/Support' : '/Dashboard'
+    const landingPath = user?.role === 'Admin' ? '/Admin' : (user?.role === 'Support' || user?.role === 'Billing') ? '/Support' : '/Dashboard'
     if (navigate) navigate(landingPath)
 }
 

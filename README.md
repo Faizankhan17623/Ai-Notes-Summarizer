@@ -16,10 +16,13 @@ Turn any notes into a clear, structured summary — paste text, upload a PDF/Wor
 - **Plan-tiered summaries** — Basic (key points + structured action items: tasks/key dates/decisions), Pro (+ sections & key terms), Pro Max (+ an initial quiz & flashcard set) — with real credit gating enforced per plan, and AI-suggested tags applied automatically at creation time
 - **On-demand flashcards & quizzes** (Pro/Pro Max) — generate more of either from any note at any time; flashcards use SM-2 spaced repetition (again/hard/good/easy) with a dedicated Review page for everything due across all notes; export a full deck or quiz (with answer key) as a printable PDF
 - **Organize & find notes** — tags, folders, pin/favorite, full-text search, and a "related notes" panel based on tag overlap
+- **Edit a note's content & version history** — edit a note's title/source text after creation; every past state is snapshotted and restorable
+- **Weak-topic insights** — a dashboard widget surfaces which note tags you're struggling with, mined from flashcard ease scores and quiz results
 - **Pick your model** (Pro/Pro Max) — choose which Groq model powers your summaries/chat/study tools instead of the plan default
 - **Auth** — signup with OTP email verification, JWT (httpOnly cookie + bearer), forgot/reset password, 2-day account delete/recover buffer
 - **In-app notifications** — polled updates for things like low credits, plan expiry, and support replies
-- **Role-based Admin & Support dashboards** — Support gets a read-only/reply view (users, payments, AI logs, contact tickets — with private handoff notes on each ticket); Admin adds ban/role changes, refunds (including credit-pack refunds), audit log, and site-wide announcements
+- **Role-based Admin & Support dashboards** — Support gets a read-only/reply view (users, payments, AI logs, contact tickets — with private handoff notes and a per-ticket AI-activity lookup on each ticket); a Billing role can issue refunds without full Admin access; Admin adds ban/role changes, refunds (including credit-pack refunds), audit log, and site-wide announcements
+- **Saved admin filter views** — Support/Billing/Admin can save and reuse named filter combos on the Users, Payments, and AI-usage-log pages
 - **Payments** — Razorpay integration with plan purchases and one-time credit top-up packs
 
 ## Tech stack
@@ -94,7 +97,8 @@ AUTH & ACCOUNT SECURITY
 - Brute-force protection: per-IP rate limits (login/signup/OTP/AI) + 5-failed-logins -> 15-min self-healing lockout
 - Account ban/suspend enforced at Auth middleware
 - Soft-delete with 2-day recovery buffer, auto-recovers on login within window
-- RBAC roles: User / Support / Admin (PrivateRoute / AdminRoute / OpenRoute on frontend)
+- RBAC roles: User / Support / Billing / Admin (PrivateRoute / AdminRoute / SupportRoute on frontend;
+  Billing shares Support's dashboard shell but additionally passes canRefund on the backend)
 - CSRF double-submit cookie protection
 - Magic-byte file upload validation (PDF/DOCX/TXT), not just extension/mimetype
 
@@ -111,7 +115,13 @@ NOTES / SUMMARIZATION
 - Organize: free-form tags, single folder, pin-to-top
 - Public share links (read-only, summary only — never raw text/flashcards/quiz)
 - Export note as Markdown, PDF, or DOCX
-- Dashboard home: stat tiles (notes this week/total/credits left/streak), recent notes, activity analytics widget
+- Edit a note's title/source text after creation (PATCH /notes/:noteId/edit) — the only path that
+  changes content post-creation; every edit AND restore snapshots the note's prior state into
+  NoteVersion first, so nothing is ever destructively lost. Version history list + one-click
+  restore on the Report page (organize/tags/folder changes deliberately do NOT version — only
+  content edits do)
+- Dashboard home: stat tiles (notes this week/total/credits left/streak), recent notes, activity analytics widget,
+  weak-topics widget (see ANALYTICS below)
 
 CHAT WITH NOTES
 - Chat grounded in one specific note; AI restricted to that note's content
@@ -155,16 +165,33 @@ ACCOUNT / SETTINGS
 ANALYTICS (USER-FACING)
 - Personal activity dashboard: notes/day (30-day area chart), total notes/chats/flashcards, cards reviewed,
   quizzes attempted + average score, plan credit limit — embedded on Dashboard home
+- Weak-topic insights (GET /study/weak-topics): mines EXISTING flashcard/quiz data (no new
+  tracking, no AI call) — average SM-2 ease factor per note tag (lower ease = harder) and
+  quiz right/wrong rate per tag, merged into one 0-100 "difficulty" score, top 10 shown.
+  Requires a minimum sample per tag (3+ reviewed cards or 3+ answered questions) before it's
+  surfaced, so one hard card doesn't paint a whole topic red. Widget hides itself entirely
+  until there's enough history.
 
 ADMIN & SUPPORT PANELS (RBAC-gated, shared AdminLayout sidebar)
-- Support (isSupport — Support role AND Admin both pass): Overview, Users (read-only), Payments
-  (read-only), AI usage/cost log (read-only), Contact/ticket inbox with reply-and-resolve
+- Support (isSupport — Support, Billing, AND Admin all pass): Overview, Users (read-only), Payments
+  (read-only unless Billing/Admin, see refunds below), AI usage/cost log (read-only), Contact/ticket
+  inbox with reply-and-resolve
+- Billing (canRefund — Billing AND Admin pass, narrower than isSupport): everything Support has,
+  PLUS can issue payment refunds, without the rest of Admin's powers (no ban/role-change/
+  announcements). Shares Support's dashboard shell/nav — the refund button on Payments and the
+  Actions column are the only UI difference, gated client-side by role and re-checked server-side
 - Support ticket workflow (ContactMessage model doubles as a lightweight ticket system):
-  public contact form -> saved + emailed to site owner -> Support/Admin replies (emails the
+  public contact form -> saved + emailed to site owner -> Support/Billing/Admin replies (emails the
   submitter, marks resolved) -> private internal notes thread per ticket (text/author/timestamp,
-  Support/Admin only, never emailed or exposed publicly) for handoff context between agents
-- Admin only (isAdmin, everything above plus): ban/unban (with reason)/role change, payment
-  refunds (including credit-pack refunds, restores credits), audit log, site-wide announcements
+  Support/Billing/Admin only, never emailed or exposed publicly) for handoff context between agents
+  -> "Activity" panel per ticket (GET /admin/contact-messages/:id/user-activity) looks the
+  submitter up by email and shows their role/plan/ban status/credit usage + last 20 AiLog rows,
+  right inline on the ticket, instead of a separate trip to Users/Audit
+- Saved filter views (SavedView model, personal per-agent, GET/POST/DELETE /admin/saved-views):
+  Support/Billing/Admin can name and re-apply a filter combo on Users/Payments/AI-usage-log
+  instead of re-entering search/role/status/model filters every visit
+- Admin only (isAdmin, everything above plus): ban/unban (with reason)/role change (User <-> Support
+  <-> Billing, never touches the sole Admin), audit log, site-wide announcements
 - Overview: total users/notes/chats, AI calls & failures (24h), plan breakdown
 - Analytics: revenue by day/week/month, signups (30-day bar chart), top 20 users by usage,
   users-at-credit-limit counts, credit top-up revenue/stats
@@ -178,7 +205,9 @@ SITE-WIDE / MISC UI
 - Announcement banner (dismissible)
 - Cookie consent banner (accept once, remembered in localStorage)
 - Backend wake-up ping on page load (utils/wakeUpServer.js -> GET /health, retries, then CSRF fetch)
-- Navbar slims to theme/bell/logout inside dashboard shells (sidebar handles nav there)
+- Navbar slims to theme/search/bell/profile/logout inside dashboard shells (sidebar handles nav there)
+- Navbar search/notification-bell/profile icons share one circular hover-highlight treatment
+  (rounded-full pill background on hover, Glassdoor-style); profile icon links to Account
 - One-time ProMax plan-change notice: dismissible banner + idempotent startup bell notification
   (ProMaxPlanNotice.jsx + utils/PlanChangeNotice.js — both deletable once rollout is old news)
 - Dev/under-construction banner
@@ -204,8 +233,8 @@ BACKGROUND JOBS
   summarizes notes created/chats had/flashcards due/quizzes taken; skips empty weeks; sequential sends
 
 DATA MODELS (MongoDB / Mongoose)
-- User, Note, Flashcard, Quiz, Chat, Payment, AiLog, AuditLog, Announcement, Notification,
-  ContactMessage (incl. internalNotes subdocs), OTP
+- User, Note, NoteVersion, Flashcard, Quiz, Chat, Payment, AiLog, AuditLog, Announcement,
+  Notification, ContactMessage (incl. internalNotes subdocs), SavedView, OTP
   (see Backend/Models/*.js for full field lists)
 
 FULL FRONTEND ROUTES
@@ -222,21 +251,23 @@ FULL BACKEND API MAP (/api/v1)
   PATCH /profile/digest-preference, PATCH /profile/password, DELETE /profile, POST /profile/recover,
   GET/POST/DELETE /api-key
 - Notes: POST /summarize, GET /shared/:shareId, GET /notes, GET /notes/tags, GET /notes/:noteId,
-  DELETE /notes/:noteId, PATCH /notes/:noteId/organize, POST/DELETE /notes/:noteId/share,
-  GET /notes/:noteId/export/:format
+  DELETE /notes/:noteId, PATCH /notes/:noteId/organize, PATCH /notes/:noteId/edit,
+  GET /notes/:noteId/versions, POST /notes/:noteId/versions/:versionId/restore,
+  POST/DELETE /notes/:noteId/share, GET /notes/:noteId/export/:format
 - Study Kit: POST/GET /notes/:noteId/flashcards, GET /notes/:noteId/flashcards/export,
   GET /flashcards/due, GET /flashcards/review/export, POST /flashcards/:id/review,
   DELETE /flashcards/:id, POST/GET /notes/:noteId/quiz(zes), GET /quizzes/:quizId/export,
-  POST /quizzes/:id/attempt, DELETE /quizzes/:id
+  POST /quizzes/:id/attempt, DELETE /quizzes/:id, GET /study/weak-topics
 - Chat: POST /chat, POST /chat/:chatId/message, GET /chat, GET /chat/:chatId, DELETE /chat/:chatId
 - Payment: GET /payment/plans, POST /payment/order, POST /payment/verify
 - Analytics: GET /analytics/me
 - Notifications: GET /notifications, PATCH /notifications/:id/read, PATCH /notifications/read-all
 - Contact: POST /contact (public)
 - Admin: GET /announcements/active (public), GET /admin/overview, GET /admin/analytics, GET /admin/users,
-  PATCH /admin/users/:id/ban|unban|role, GET /admin/payments, PATCH /admin/payments/:id/refund,
-  GET /admin/audit, GET /admin/ai-logs, GET /admin/contact-messages,
+  PATCH /admin/users/:id/ban|unban|role, GET /admin/payments, PATCH /admin/payments/:id/refund (canRefund:
+  Billing or Admin), GET /admin/audit, GET /admin/ai-logs, GET /admin/contact-messages,
   POST /admin/contact-messages/:id/reply, POST /admin/contact-messages/:id/notes,
+  GET /admin/contact-messages/:id/user-activity, GET/POST/DELETE /admin/saved-views,
   GET/POST /admin/announcements, PATCH /admin/announcements/:id/deactivate
 - External: POST /external/summarize (API-key auth)
 - Misc: GET /csrf-token

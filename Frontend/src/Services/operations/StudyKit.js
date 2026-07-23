@@ -3,11 +3,12 @@ import toast from "react-hot-toast"
 import { showAiErrorToast } from "../../utils/creditErrorToast.jsx"
 import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { StudyKitData } from "../Apis/StudyKitApi.js"
-import { setFlashcards, setDueFlashcards, setQuizzes, setActiveQuiz, setLoading } from "../../Slices/studyKitSlice.js"
+import { setFlashcards, setDueFlashcards, setQuizzes, setActiveQuiz, setWeakTopics, setLoading } from "../../Slices/studyKitSlice.js"
 
 const {
     generateFlashcards, flashcardsForNote, dueFlashcards, reviewFlashcard, deleteFlashcard,
-    generateQuiz, quizzesForNote, attemptQuiz, deleteQuiz, exportReviewQueue, exportFlashcardDeck, exportQuiz
+    generateQuiz, quizzesForNote, attemptQuiz, deleteQuiz, exportReviewQueue, exportFlashcardDeck, exportQuiz,
+    weakTopics,
 } = StudyKitData
 
 // ---------- Flashcards ----------
@@ -303,6 +304,24 @@ export function DeleteQuiz(quizId, noteId, token) {
             toast.error(error?.response?.data?.message || "Could not delete the quiz")
         } finally {
             toast.dismiss(toastId)
+        }
+    }
+}
+
+// ---------- Weak-topic analytics ----------
+
+// mined from existing flashcard ease/quiz answer data sir, no AI call — quiet failure like
+// AnalyticsWidget's GetMyAnalytics, this is a nice-to-have dashboard widget, not worth a toast
+export function GetWeakTopics(token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", weakTopics, null, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setWeakTopics(response.data.weakTopics))
+        } catch (error) {
+            logError("Error fetching weak topics", error)
         }
     }
 }

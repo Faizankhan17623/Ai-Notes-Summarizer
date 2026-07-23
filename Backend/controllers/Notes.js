@@ -5,6 +5,7 @@ const Chat = require('../Models/Chat')
 const Flashcard = require('../Models/Flashcard')
 const Quiz = require('../Models/Quiz')
 const User = require('../Models/User')
+const NoteVersion = require('../Models/NoteVersion')
 const { extractText } = require('../utils/Parsers')
 const { getEffectivePlan } = require('../utils/Plans')
 
@@ -157,6 +158,119 @@ exports.organizeNote = async (req, res) => {
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to update the note' })
+    }
+}
+
+// PATCH /notes/:noteId/edit sir — the ONLY place a note's content (title/rawText/summary)
+// changes after creation. Snapshots the note's CURRENT state into NoteVersion before
+// overwriting it, so every past state stays recoverable. organizeNote above is deliberately
+// separate and does NOT version — tags/folder/pin/favorite are organization, not content.
+exports.editNote = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId } = req.params
+        const { title, rawText, summary } = req.body
+
+        if (!mongoose.isValidObjectId(noteId)) {
+            return res.status(400).json({ success: false, message: 'Invalid note id' })
+        }
+        if (title === undefined && rawText === undefined && summary === undefined) {
+            return res.status(400).json({ success: false, message: 'Nothing to update' })
+        }
+
+        const note = await Note.findOne({ _id: noteId, user: id })
+        if (!note) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        // snapshot BEFORE overwriting sir — this row is the note's state as it existed up to
+        // this moment, i.e. the version a "restore" back to would bring back
+        await NoteVersion.create({
+            note: note._id,
+            user: id,
+            title: note.title,
+            rawText: note.rawText,
+            summary: note.summary,
+        })
+
+        if (title !== undefined) note.title = String(title).trim().slice(0, 80) || note.title
+        if (rawText !== undefined) note.rawText = String(rawText)
+        if (summary !== undefined) note.summary = summary
+        await note.save()
+
+        return res.status(200).json({ success: true, note })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to update the note' })
+    }
+}
+
+// GET /notes/:noteId/versions sir — newest first, content omitted (title + timestamp only)
+// to keep the list payload light; the full snapshot is fetched per-version on demand
+exports.getNoteVersions = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId } = req.params
+
+        if (!mongoose.isValidObjectId(noteId)) {
+            return res.status(400).json({ success: false, message: 'Invalid note id' })
+        }
+
+        // ownership check via the live note sir, same pattern as getRelatedNotes — a
+        // NoteVersion carries `user` too, but re-deriving from Note keeps a single source of
+        // truth for "do I own this" rather than trusting the denormalized copy for authorization
+        const note = await Note.findOne({ _id: noteId, user: id }).select('_id')
+        if (!note) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        const versions = await NoteVersion.find({ note: noteId }).select('title createdAt').sort({ createdAt: -1 })
+        return res.status(200).json({ success: true, versions })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to load version history' })
+    }
+}
+
+// POST /notes/:noteId/versions/:versionId/restore sir — restores the note to that past
+// snapshot. Snapshots the CURRENT state first (same as editNote), so restoring is itself
+// undoable — nothing is ever destructively lost, a restore is just another edit.
+exports.restoreNoteVersion = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId, versionId } = req.params
+
+        if (!mongoose.isValidObjectId(noteId) || !mongoose.isValidObjectId(versionId)) {
+            return res.status(400).json({ success: false, message: 'Invalid id' })
+        }
+
+        const note = await Note.findOne({ _id: noteId, user: id })
+        if (!note) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        const version = await NoteVersion.findOne({ _id: versionId, note: noteId })
+        if (!version) {
+            return res.status(404).json({ success: false, message: 'Version not found' })
+        }
+
+        await NoteVersion.create({
+            note: note._id,
+            user: id,
+            title: note.title,
+            rawText: note.rawText,
+            summary: note.summary,
+        })
+
+        note.title = version.title
+        note.rawText = version.rawText
+        note.summary = version.summary
+        await note.save()
+
+        return res.status(200).json({ success: true, note })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to restore this version' })
     }
 }
 
@@ -330,12 +444,13 @@ exports.deleteNote = async (req, res) => {
             })
         }
 
-        // a note's chats/flashcards/quizzes are meaningless without it sir, clean them all up too
+        // a note's chats/flashcards/quizzes/versions are meaningless without it sir, clean them all up too
         const orphanedChats = await Chat.find({ note: note._id }).select('_id')
         await Promise.all([
             Chat.deleteMany({ note: note._id }),
             Flashcard.deleteMany({ note: note._id }),
             Quiz.deleteMany({ note: note._id }),
+            NoteVersion.deleteMany({ note: note._id }),
         ])
         await User.findByIdAndUpdate(id, {
             $pull: {
@@ -384,6 +499,7 @@ exports.bulkDeleteNotes = async (req, res) => {
                     Chat.deleteMany({ note: note._id }),
                     Flashcard.deleteMany({ note: note._id }),
                     Quiz.deleteMany({ note: note._id }),
+                    NoteVersion.deleteMany({ note: note._id }),
                 ])
                 await User.findByIdAndUpdate(id, {
                     $pull: { Notes: note._id, Chats: { $in: orphanedChats.map((c) => c._id) } }

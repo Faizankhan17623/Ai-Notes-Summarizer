@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
-import { FaSun, FaMoon } from 'react-icons/fa'
+import { FaSun, FaMoon, FaSearch } from 'react-icons/fa'
 import { LogoutUser } from '../../Services/operations/Auth.js'
 import useTheme from '../../Hooks/useTheme.js'
 import NavMegaMenu from './NavMegaMenu.jsx'
 import NotificationBell from '../extra/NotificationBell.jsx'
+import ProfileMenu from '../extra/ProfileMenu.jsx'
 import { NAV_MENUS } from './navMenuData.js'
 
 const Navbar = ({ showMegaMenu = false }) => {
@@ -47,27 +48,42 @@ const Navbar = ({ showMegaMenu = false }) => {
 
                 {token ? (
                     <>
+                        {/* search/profile are a plain-User concern sir — Admin/Support/Billing
+                            don't have a /Dashboard/Search or /Dashboard/Account (PrivateRoute
+                            would just bounce them), same role check as the Pricing link below */}
+                        {!['Admin', 'Support', 'Billing'].includes(user?.role) && (
+                            <Link
+                                to="/Dashboard/Search"
+                                title="Search"
+                                aria-label="Search"
+                                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-hover transition-colors duration-150 text-richblack-100 hover:text-richblack-25"
+                            >
+                                <FaSearch size={14} />
+                            </Link>
+                        )}
                         <NotificationBell />
-                        {/* Pricing/plans are a User-only concern sir — Admin/Support are staff
-                            accounts that can't purchase anything (see Backend/controllers/
+                        {!['Admin', 'Support', 'Billing'].includes(user?.role) && <ProfileMenu />}
+                        {/* Pricing/plans are a User-only concern sir — Admin/Support/Billing are
+                            staff accounts that can't purchase anything (see Backend/controllers/
                             Payment.js createOrder's role block), so the nav link is hidden
-                            for both roles, not just while inside their own dashboard shell */}
-                        {!showMegaMenu && !inDashboard && user?.role !== 'Admin' && user?.role !== 'Support' && (
+                            for all three roles, not just while inside their own dashboard shell */}
+                        {!showMegaMenu && !inDashboard && !['Admin', 'Support', 'Billing'].includes(user?.role) && (
                             <Link to="/Pricing" className="text-richblack-100 hover:text-richblack-25 text-sm">
                                 Pricing
                             </Link>
                         )}
-                        {/* Admin and Support each have their own separate dashboard sir — the normal
-                            user Dashboard/Review links would just bounce them via PrivateRoute, so
-                            show only the link to whichever dashboard this role actually owns. Label
-                            always reads "Dashboard" (not "Admin"/"Support") so the main site nav
-                            looks the same regardless of role — only the destination differs */}
+                        {/* Admin and Support/Billing each have their own separate dashboard sir —
+                            the normal user Dashboard/Review links would just bounce them via
+                            PrivateRoute, so show only the link to whichever dashboard this role
+                            actually owns. Label always reads "Dashboard" (not "Admin"/"Support")
+                            so the main site nav looks the same regardless of role — only the
+                            destination differs */}
                         {!inDashboard && (
                             user?.role === 'Admin' ? (
                                 <Link to="/Admin" className="text-richblack-100 hover:text-richblack-25 text-sm">
                                     Dashboard
                                 </Link>
-                            ) : user?.role === 'Support' ? (
+                            ) : (user?.role === 'Support' || user?.role === 'Billing') ? (
                                 <Link to="/Support" className="text-richblack-100 hover:text-richblack-25 text-sm">
                                     Dashboard
                                 </Link>

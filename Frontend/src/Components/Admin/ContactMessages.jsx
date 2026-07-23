@@ -1,11 +1,56 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
-import { FaEnvelopeOpenText, FaReply, FaLock } from 'react-icons/fa'
-import { GetContactMessages, ReplyToContactMessage, AddInternalNote } from '../../Services/operations/Admin.js'
+import { FaEnvelopeOpenText, FaReply, FaLock, FaChartLine } from 'react-icons/fa'
+import { GetContactMessages, ReplyToContactMessage, AddInternalNote, GetTicketUserActivity } from '../../Services/operations/Admin.js'
 import StatusBadge from './StatusBadge.jsx'
 
 const STATUS_TONE = { open: 'neutral', resolved: 'good' }
+
+// lets Support/Billing/Admin see the submitter's recent AI usage right from the ticket sir,
+// instead of separately searching for them on Users/Audit. Matched by email server-side —
+// the submitter isn't guaranteed to have an account (public, pre-account form), so
+// matched:false is a normal outcome here, not an error.
+const UserActivityPanel = ({ messageId, token, dispatch }) => {
+    const activity = useSelector((state) => state.admin.ticketActivity[messageId])
+
+    useEffect(() => {
+        if (activity === undefined) dispatch(GetTicketUserActivity(messageId, token))
+    }, [dispatch, messageId, token, activity])
+
+    if (!activity) {
+        return <p className="text-richblack-500 text-xs px-1 py-2">Loading activity...</p>
+    }
+    if (!activity.matched) {
+        return <p className="text-richblack-500 text-xs px-1 py-2">No account found for this email — likely a pre-signup visitor.</p>
+    }
+
+    const { user, recentAiLogs } = activity
+    return (
+        <div className="space-y-2.5">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-richblack-200">{user.role} · {user.SubType}</span>
+                <StatusBadge tone={user.isBanned ? 'danger' : 'good'}>{user.isBanned ? 'Banned' : 'Active'}</StatusBadge>
+                <span className="text-richblack-500">{user.count} credits used this cycle</span>
+            </div>
+            {recentAiLogs.length === 0 ? (
+                <p className="text-richblack-500 text-xs">No AI activity recorded yet.</p>
+            ) : (
+                <ul className="space-y-1.5">
+                    {recentAiLogs.slice(0, 8).map((log) => (
+                        <li key={log._id} className="flex items-center justify-between gap-2 bg-surface-hover rounded-md px-3 py-1.5">
+                            <span className="text-richblack-200 text-xs">
+                                {log.type} · {log.model || '—'}
+                                {!log.success && <span className="text-danger-soft ml-1.5">failed</span>}
+                            </span>
+                            <span className="text-richblack-500 text-xs shrink-0">{new Date(log.createdAt).toLocaleDateString()}</span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    )
+}
 
 // one row, expands into a reply form sir — the whole "ticket" fits in a single card since this
 // is a lightweight system (reply = resolve, no back-and-forth thread), not a full helpdesk
@@ -16,6 +61,7 @@ const MessageCard = ({ message, token, dispatch }) => {
     const [noteText, setNoteText] = useState('')
     const [notesOpen, setNotesOpen] = useState(false)
     const [addingNote, setAddingNote] = useState(false)
+    const [activityOpen, setActivityOpen] = useState(false)
 
     const handleReply = async (e) => {
         e.preventDefault()
@@ -48,6 +94,12 @@ const MessageCard = ({ message, token, dispatch }) => {
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                     <button
+                        onClick={() => setActivityOpen((v) => !v)}
+                        className="flex items-center gap-1.5 text-xs font-medium text-richblack-300 cursor-pointer hover:underline"
+                    >
+                        <FaChartLine size={9} /> Activity
+                    </button>
+                    <button
                         onClick={() => setNotesOpen((v) => !v)}
                         className="flex items-center gap-1.5 text-xs font-medium text-richblack-300 cursor-pointer hover:underline"
                     >
@@ -70,6 +122,12 @@ const MessageCard = ({ message, token, dispatch }) => {
                         Replied by {message.repliedBy?.firstName} {message.repliedBy?.lastName} · {new Date(message.repliedAt).toLocaleString()}
                     </p>
                     <p className="text-richblack-200 text-sm whitespace-pre-wrap">{message.replyMessage}</p>
+                </div>
+            )}
+
+            {activityOpen && (
+                <div className="mt-3 pt-3 border-t border-dashed border-border-soft">
+                    <UserActivityPanel messageId={message._id} token={token} dispatch={dispatch} />
                 </div>
             )}
 

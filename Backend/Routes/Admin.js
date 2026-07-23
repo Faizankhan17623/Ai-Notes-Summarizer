@@ -1,9 +1,9 @@
 const express = require('express')
 const route = express.Router()
-const { Auth, isAdmin, isSupport } = require('../Middlewares/Auth.js')
+const { Auth, isAdmin, isSupport, canRefund } = require('../Middlewares/Auth.js')
 const { doubleCsrfProtection } = require('../Middlewares/Csrf.js')
 const { validate } = require('../Middlewares/Validate.js')
-const { banUserRules, setRoleRules, bulkBanUsersRules, bulkSetRoleRules } = require('../Middlewares/ValidationRules.js')
+const { banUserRules, setRoleRules, bulkBanUsersRules, bulkSetRoleRules, createSavedViewRules, deleteSavedViewRules, userActivityRules } = require('../Middlewares/ValidationRules.js')
 const {
     getOverview,
     getAdminAnalytics,
@@ -23,6 +23,10 @@ const {
     createAnnouncement,
     deactivateAnnouncement,
     getTraffic,
+    getSavedViews,
+    createSavedView,
+    deleteSavedView,
+    getContactMessageUserActivity,
 } = require('../controllers/Admin.js')
 const { getContactMessages, replyToContactMessage, addInternalNote } = require('../controllers/Contact.js')
 
@@ -42,6 +46,16 @@ route.post('/admin/contact-messages/:messageId/reply', doubleCsrfProtection, Aut
 // private handoff notes sir — same isSupport gate as reply above, never visible to the
 // submitter, only ever read back through this same Support/Admin-gated list endpoint
 route.post('/admin/contact-messages/:messageId/notes', doubleCsrfProtection, Auth, isSupport, addInternalNote)
+// this ticket's submitter's recent AI activity sir — same isSupport gate, view-only, no
+// side effects, matches the "help" tier the rest of the ticket routes sit at
+route.get('/admin/contact-messages/:messageId/user-activity', userActivityRules, validate, Auth, isSupport, getContactMessageUserActivity)
+
+// saved filter views sir — personal to whoever created them, same isSupport gate as the
+// list pages they apply to (a saved view is just a shortcut back into a page this role can
+// already see, never a new capability)
+route.get('/admin/saved-views', Auth, isSupport, getSavedViews)
+route.post('/admin/saved-views', doubleCsrfProtection, createSavedViewRules, validate, Auth, isSupport, createSavedView)
+route.delete('/admin/saved-views/:viewId', doubleCsrfProtection, deleteSavedViewRules, validate, Auth, isSupport, deleteSavedView)
 
 // everything below is Admin only sir — either destructive (ban/unban/role change), a
 // site-wide write (announcements), or oversight OF admins themselves (audit log/analytics)
@@ -49,7 +63,8 @@ route.get('/admin/analytics', Auth, isAdmin, getAdminAnalytics)
 // unique-visitor/traffic dashboard sir — reads raw ipHash rows, Admin only (not Support)
 // same bar as analytics/audit above
 route.get('/admin/traffic', Auth, isAdmin, getTraffic)
-route.patch('/admin/payments/:paymentId/refund', doubleCsrfProtection, Auth, isAdmin, refundPayment)
+// Billing OR Admin sir — see canRefund in Middlewares/Auth.js
+route.patch('/admin/payments/:paymentId/refund', doubleCsrfProtection, Auth, canRefund, refundPayment)
 route.patch('/admin/users/:userId/ban', doubleCsrfProtection, banUserRules, validate, Auth, isAdmin, banUser)
 route.patch('/admin/users/:userId/unban', doubleCsrfProtection, Auth, isAdmin, unbanUser)
 route.patch('/admin/users/:userId/deny-appeal', doubleCsrfProtection, Auth, isAdmin, denyAppeal)

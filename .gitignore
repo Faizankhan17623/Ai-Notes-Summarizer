@@ -1,0 +1,8 @@
+.vercel
+.env*
+
+# internal reference doc, not for the public repo
+FEATURES.md
+
+# Claude Code local session/config data — never pushed
+.claude/

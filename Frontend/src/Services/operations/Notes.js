@@ -3,9 +3,9 @@ import toast from "react-hot-toast"
 import { showAiErrorToast } from "../../utils/creditErrorToast.jsx"
 import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { NotesData } from "../Apis/NotesApi.js"
-import { setAllNotes, setCurrentNote, setTagsAndFolders, setRelatedNotes, setLoading } from "../../Slices/notesSlice.js"
+import { setAllNotes, setCurrentNote, setTagsAndFolders, setRelatedNotes, setNoteVersions, setLoading } from "../../Slices/notesSlice.js"
 
-const { summarize, allNotes, tags, importNote, singleNote, deleteNote, organizeNote, enableShare, disableShare, sharedNote, exportNote, relatedNotes } = NotesData
+const { summarize, allNotes, tags, importNote, singleNote, deleteNote, organizeNote, enableShare, disableShare, sharedNote, exportNote, relatedNotes, editNote, noteVersions, restoreVersion } = NotesData
 
 // import sir — creates a Note directly, NO AI call, NO credit/feature spend. Pass either
 // { text } or a FormData with a `notes` file field, same payload shape as SummarizeNotes
@@ -276,6 +276,70 @@ export function OrganizeNote(noteId, updates, token) {
         } catch (error) {
             logError("Error organizing note", error)
             toast.error(error?.response?.data?.message || "Could not update the note")
+        }
+    }
+}
+
+// content edit sir — the ONLY place title/rawText/summary change after creation. Backend
+// snapshots the note's pre-edit state into NoteVersion automatically, this thunk just needs
+// to refresh the version list afterward so the Report page's history panel stays current.
+// updates: { title?, rawText? } — summary editing isn't exposed in the UI yet, only title/text
+export function EditNote(noteId, updates, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Saving changes...")
+        try {
+            const response = await apiConnector("PATCH", `${editNote}/${noteId}/edit`, updates, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setCurrentNote(response.data.note))
+            dispatch(GetNoteVersions(noteId, token))
+            toast.success("Note updated")
+            return true
+        } catch (error) {
+            logError("Error editing note", error)
+            toast.error(error?.response?.data?.message || "Could not save your changes")
+            return false
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+export function GetNoteVersions(noteId, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", `${noteVersions}/${noteId}/versions`, null, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setNoteVersions(response.data.versions))
+        } catch (error) {
+            logError("Error fetching note versions", error)
+        }
+    }
+}
+
+// restoring snapshots the CURRENT state first (see backend restoreNoteVersion) sir, so this
+// is itself just another undoable edit, never destructive
+export function RestoreNoteVersion(noteId, versionId, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Restoring version...")
+        try {
+            const response = await apiConnector("POST", `${restoreVersion}/${noteId}/versions/${versionId}/restore`, null, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setCurrentNote(response.data.note))
+            dispatch(GetNoteVersions(noteId, token))
+            toast.success("Version restored")
+            return true
+        } catch (error) {
+            logError("Error restoring note version", error)
+            toast.error(error?.response?.data?.message || "Could not restore that version")
+            return false
+        } finally {
+            toast.dismiss(toastId)
         }
     }
 }

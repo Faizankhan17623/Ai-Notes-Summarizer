@@ -8,6 +8,7 @@ import { GetAllNotes } from '../../Services/operations/Notes.js'
 import { GetProfile } from '../../Services/operations/Auth.js'
 import { fadeUp, staggerContainer } from '../extra/motionVariants.js'
 import AnalyticsWidget from './AnalyticsWidget.jsx'
+import WeakTopicsWidget from './WeakTopicsWidget.jsx'
 import OnboardingChecklist from './OnboardingChecklist.jsx'
 
 // small icon chip by sourceType sir — same idea as the mockup's ftype chip, using the
@@ -162,7 +163,10 @@ const DashboardHome = () => {
                     )}
                 </div>
 
-                <AnalyticsWidget />
+                <div>
+                    <AnalyticsWidget />
+                    <WeakTopicsWidget />
+                </div>
             </div>
         </div>
     )

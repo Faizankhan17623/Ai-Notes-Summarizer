@@ -15,6 +15,7 @@ const {
     getQuizzesForNote,
     attemptQuiz,
     deleteQuiz,
+    getWeakTopics,
 } = require('../controllers/StudyKit.js')
 const { exportReviewQueue, exportFlashcardDeck, exportQuiz } = require('../controllers/Export.js')
 
@@ -37,5 +38,8 @@ route.get('/notes/:noteId/quizzes', Auth, blockIfBanned, getQuizzesForNote)
 route.get('/quizzes/:quizId/export', Auth, blockIfBanned, exportQuiz)
 route.post('/quizzes/:id/attempt', doubleCsrfProtection, attemptQuizRules, validate, Auth, blockIfBanned, attemptQuiz)
 route.delete('/quizzes/:id', doubleCsrfProtection, Auth, blockIfBanned, deleteQuiz)
+
+// weak-topic analytics sir — mined from existing flashcard/quiz data, no AI call, no credit spend
+route.get('/study/weak-topics', Auth, blockIfBanned, getWeakTopics)
 
 module.exports = route

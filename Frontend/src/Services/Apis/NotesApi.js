@@ -13,4 +13,7 @@ export const NotesData = {
     sharedNote: BASE_URL + "/shared",     // + /:shareId
     exportNote: BASE_URL + "/notes",      // + /:noteId/export/:format
     relatedNotes: BASE_URL + "/notes",    // + /:noteId/related
+    editNote: BASE_URL + "/notes",        // + /:noteId/edit
+    noteVersions: BASE_URL + "/notes",    // + /:noteId/versions
+    restoreVersion: BASE_URL + "/notes",  // + /:noteId/versions/:versionId/restore
 }

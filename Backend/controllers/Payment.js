@@ -16,10 +16,10 @@ const PRICE_INR = {
 // accepts EITHER { plan } (existing subscription upgrade flow) OR { packKey } (one-time credit top-up)
 exports.createOrder = async (req, res) => {
     try {
-        // Admin AND Support accounts are internal/staff accounts sir — neither should be
-        // spending real money through the app, so purchases are blocked at the point of
-        // order creation for both roles, not just Admin
-        if (req.User.role === 'Admin' || req.User.role === 'Support') {
+        // Admin, Support, AND Billing accounts are internal/staff accounts sir — none of them
+        // should be spending real money through the app, so purchases are blocked at the point
+        // of order creation for all three roles, not just Admin
+        if (['Admin', 'Support', 'Billing'].includes(req.User.role)) {
             return res.status(403).json({
                 success: false,
                 message: 'Staff accounts cannot make purchases',

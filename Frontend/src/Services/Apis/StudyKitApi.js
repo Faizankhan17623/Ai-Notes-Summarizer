@@ -14,4 +14,6 @@ export const StudyKitData = {
     attemptQuiz: BASE_URL + "/quizzes",          // + /:id/attempt
     deleteQuiz: BASE_URL + "/quizzes",           // + /:id
     exportQuiz: BASE_URL + "/quizzes",           // + /:quizId/export
+
+    weakTopics: BASE_URL + "/study/weak-topics",
 }

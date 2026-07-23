@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async'
 import { FaDownload, FaChevronLeft, FaChevronRight, FaSearch } from 'react-icons/fa'
 import { GetAuditLog, GetAiLogs } from '../../Services/operations/Admin.js'
 import StatusBadge from './StatusBadge.jsx'
+import SavedViewsBar from './SavedViewsBar.jsx'
 import { toCsv, downloadCsv } from '../../utils/csv.js'
 
 const AUDIT_CSV_COLUMNS = [
@@ -185,6 +186,19 @@ const Audit = () => {
                             </button>
                         ))}
                     </div>
+                </div>
+
+                <div className="mb-4">
+                    <SavedViewsBar
+                        page="ai-logs"
+                        filters={{ aiUserSearch, aiModel, aiSuccess }}
+                        onApply={(f) => {
+                            setAiUserSearch(f.aiUserSearch || '')
+                            setAiModel(f.aiModel || '')
+                            setAiSuccess(f.aiSuccess || 'all')
+                            setAiPage(1)
+                        }}
+                    />
                 </div>
 
                 <div className="border border-border-soft bg-surface rounded-lg overflow-hidden">

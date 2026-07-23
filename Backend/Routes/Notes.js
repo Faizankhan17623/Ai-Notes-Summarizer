@@ -5,7 +5,7 @@ const { Auth, blockIfBanned } = require('../Middlewares/Auth.js')
 const { aiLimiter } = require('../Middlewares/RateLimit.js')
 const { doubleCsrfProtection } = require('../Middlewares/Csrf.js')
 const { validate } = require('../Middlewares/Validate.js')
-const { organizeNoteRules, summarizeRules, bulkDeleteNotesRules, bulkAddTagRules } = require('../Middlewares/ValidationRules.js')
+const { organizeNoteRules, summarizeRules, bulkDeleteNotesRules, bulkAddTagRules, editNoteRules, getNoteVersionsRules, restoreNoteVersionRules } = require('../Middlewares/ValidationRules.js')
 const {
     getNotes,
     getTags,
@@ -13,6 +13,9 @@ const {
     getNote,
     deleteNote,
     organizeNote,
+    editNote,
+    getNoteVersions,
+    restoreNoteVersion,
     enableShare,
     disableShare,
     getSharedNote,
@@ -44,6 +47,9 @@ route.get('/notes/:noteId', Auth, blockIfBanned, getNote)
 route.get('/notes/:noteId/related', Auth, blockIfBanned, getRelatedNotes)
 route.delete('/notes/:noteId', doubleCsrfProtection, Auth, blockIfBanned, deleteNote)
 route.patch('/notes/:noteId/organize', doubleCsrfProtection, organizeNoteRules, validate, Auth, blockIfBanned, organizeNote)
+route.patch('/notes/:noteId/edit', doubleCsrfProtection, editNoteRules, validate, Auth, blockIfBanned, editNote)
+route.get('/notes/:noteId/versions', getNoteVersionsRules, validate, Auth, blockIfBanned, getNoteVersions)
+route.post('/notes/:noteId/versions/:versionId/restore', doubleCsrfProtection, restoreNoteVersionRules, validate, Auth, blockIfBanned, restoreNoteVersion)
 route.post('/notes/:noteId/share', doubleCsrfProtection, Auth, blockIfBanned, enableShare)
 route.delete('/notes/:noteId/share', doubleCsrfProtection, Auth, blockIfBanned, disableShare)
 route.get('/notes/:noteId/export/:format', Auth, blockIfBanned, exportNote)

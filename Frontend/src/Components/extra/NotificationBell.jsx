@@ -45,9 +45,9 @@ const NotificationBell = () => {
                 onClick={() => setOpen((v) => !v)}
                 title="Notifications"
                 aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
-                className="relative text-richblack-100 hover:text-richblack-25 cursor-pointer p-1.5 rounded-md hover:bg-surface-hover transition-colors"
+                className="relative text-richblack-100 hover:text-richblack-25 cursor-pointer w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-hover transition-colors duration-150"
             >
-                <FaBell size={14} />
+                <FaBell size={15} />
                 {unreadCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 bg-danger-soft text-richblack-900 text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
                         {unreadCount > 9 ? '9+' : unreadCount}

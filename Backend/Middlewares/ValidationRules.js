@@ -53,6 +53,14 @@ exports.organizeNoteRules = [
     body('pinned').optional().isBoolean(),
 ]
 
+exports.editNoteRules = [
+    param('noteId').isMongoId(),
+    body('title').optional().isString().trim().isLength({ max: 80 }),
+    body('rawText').optional().isString().trim().notEmpty(),
+]
+exports.getNoteVersionsRules = [param('noteId').isMongoId()]
+exports.restoreNoteVersionRules = [param('noteId').isMongoId(), param('versionId').isMongoId()]
+
 // capped at 100 sir — same reasoning as bulkBanUsersRules below, bounds one request's DB work
 exports.bulkDeleteNotesRules = [
     body('noteIds').isArray({ min: 1, max: 100 }),
@@ -82,7 +90,7 @@ exports.verifyPaymentRules = [
 ]
 
 exports.banUserRules = [param('userId').isMongoId(), body('banReason').optional().trim().isLength({ max: 300 })]
-exports.setRoleRules = [param('userId').isMongoId(), body('role').isIn(['User', 'Support'])]
+exports.setRoleRules = [param('userId').isMongoId(), body('role').isIn(['User', 'Support', 'Billing'])]
 
 // capped at 100 sir — a Support/Admin triage batch is never realistically bigger than a
 // page or two of the Users table; the cap just bounds one request's DB work, matching how
@@ -95,8 +103,16 @@ exports.bulkBanUsersRules = [
 exports.bulkSetRoleRules = [
     body('userIds').isArray({ min: 1, max: 100 }),
     body('userIds.*').isMongoId(),
-    body('role').isIn(['User', 'Support']),
+    body('role').isIn(['User', 'Support', 'Billing']),
 ]
+
+exports.createSavedViewRules = [
+    body('page').isIn(['users', 'payments', 'audit', 'ai-logs']),
+    body('name').trim().notEmpty().isLength({ max: 60 }),
+    body('filters').custom((v) => typeof v === 'object' && v !== null).withMessage('Filters are required'),
+]
+exports.deleteSavedViewRules = [param('viewId').isMongoId()]
+exports.userActivityRules = [param('messageId').isMongoId()]
 
 exports.createChatRules = [body('noteId').isMongoId()]
 exports.sendMessageRules = [param('chatId').isMongoId(), body('message').trim().notEmpty().isLength({ max: 4000 })]

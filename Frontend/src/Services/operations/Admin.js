@@ -2,11 +2,12 @@ import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
 import { apiConnector } from "../apiConnector.js"
 import { AdminData } from "../Apis/AdminApi.js"
-import { setOverview, setAnalytics, setTraffic, setTrafficLoading, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setContactMessages, setLoading } from "../../Slices/adminSlice.js"
+import { setOverview, setAnalytics, setTraffic, setTrafficLoading, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setContactMessages, setSavedViews, setTicketActivity, setLoading } from "../../Slices/adminSlice.js"
 
 const {
     overview, analytics, traffic, users, banUser, unbanUser, denyAppeal, setRole, payments, refundPayment, contactMessages,
-    replyToContactMessage, addInternalNote, audit, aiLogs, activeAnnouncement, announcements, deactivateAnnouncement
+    replyToContactMessage, addInternalNote, audit, aiLogs, activeAnnouncement, announcements, deactivateAnnouncement,
+    savedViews, deleteSavedView, userActivity,
 } = AdminData
 
 export function GetOverview(token) {
@@ -349,6 +350,61 @@ export function DeactivateAnnouncement(id, token) {
             toast.error(error?.response?.data?.message || "Could not deactivate announcement")
         } finally {
             toast.dismiss(toastId)
+        }
+    }
+}
+
+// saved filter views sir — page is one of 'users'|'payments'|'audit'|'ai-logs'
+export function GetSavedViews(page, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", savedViews, null, { Authorization: `Bearer ${token}` }, { page })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setSavedViews({ page, views: response.data.views }))
+        } catch (error) {
+            logError("Error fetching saved views", error)
+        }
+    }
+}
+
+export function CreateSavedView(page, name, filters, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Saving view...")
+        try {
+            const response = await apiConnector("POST", savedViews, { page, name, filters }, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success("View saved")
+            dispatch(GetSavedViews(page, token))
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not save this view")
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+export function DeleteSavedView(viewId, page, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("DELETE", `${deleteSavedView}/${viewId}`, null, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(GetSavedViews(page, token))
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not delete this view")
+        }
+    }
+}
+
+// a ticket's submitter's recent AI activity sir — quiet failure like the read-only stat
+// widgets elsewhere, this is a "help" panel, not a page anchor
+export function GetTicketUserActivity(messageId, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", `${userActivity}/${messageId}/user-activity`, null, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setTicketActivity({ messageId, activity: response.data }))
+        } catch (error) {
+            logError("Error fetching ticket user activity", error)
         }
     }
 }
