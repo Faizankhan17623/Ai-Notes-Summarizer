@@ -16,4 +16,5 @@ export const NotesData = {
     editNote: BASE_URL + "/notes",        // + /:noteId/edit
     noteVersions: BASE_URL + "/notes",    // + /:noteId/versions
     restoreVersion: BASE_URL + "/notes",  // + /:noteId/versions/:versionId/restore
+    checkDuplicate: BASE_URL + "/notes/check-duplicate",
 }

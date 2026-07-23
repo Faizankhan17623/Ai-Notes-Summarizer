@@ -54,7 +54,7 @@ const Navbar = ({ showMegaMenu = false }) => {
                         {!['Admin', 'Support', 'Billing'].includes(user?.role) && (
                             <Link
                                 to="/Dashboard/Search"
-                                title="Search"
+                                title="Search (or press Ctrl/Cmd+K for quick nav)"
                                 aria-label="Search"
                                 className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-hover transition-colors duration-150 text-richblack-100 hover:text-richblack-25"
                             >

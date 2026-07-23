@@ -17,6 +17,7 @@ import NoteOrganizer from './NoteOrganizer.jsx'
 import ShareExport from './ShareExport.jsx'
 import RelatedNotes from './RelatedNotes.jsx'
 import NoteVersionHistory from './NoteVersionHistory.jsx'
+import { formatReadingTime } from '../../utils/readingTime.js'
 
 const Report = () => {
     const { noteId } = useParams()
@@ -68,7 +69,10 @@ const Report = () => {
                 <div className="flex items-start justify-between gap-4 mb-8">
                     <div className="min-w-0">
                         <h1 className="font-display text-3xl font-semibold text-richblack-5 truncate">{summary.title}</h1>
-                        <p className="text-richblack-400 text-sm mt-1.5">{new Date(currentNote.createdAt).toLocaleString()}</p>
+                        <p className="text-richblack-400 text-sm mt-1.5">
+                            {new Date(currentNote.createdAt).toLocaleString()}
+                            {currentNote.rawText && <> · {formatReadingTime(currentNote.rawText)}</>}
+                        </p>
                     </div>
                     <div className="flex gap-2 shrink-0">
                         <IconBtn text="Chat" outline onclick={() => dispatch(CreateChat(noteId, token, navigate))}>

@@ -1,13 +1,13 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import toast from 'react-hot-toast'
 import {
     FaFileUpload, FaKeyboard, FaLink, FaYoutube, FaVideo, FaHeadphones, FaTools, FaLayerGroup,
-    FaCheckCircle, FaTimesCircle, FaFileImport,
+    FaCheckCircle, FaTimesCircle, FaFileImport, FaExclamationTriangle,
 } from 'react-icons/fa'
-import { SummarizeNotes, BulkSummarizeNotes, ImportNote } from '../../Services/operations/Notes.js'
+import { SummarizeNotes, BulkSummarizeNotes, ImportNote, CheckDuplicateNote } from '../../Services/operations/Notes.js'
 import MicButton from '../extra/MicButton.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
 
@@ -54,11 +54,28 @@ const NewSummary = () => {
     const [bulkResults, setBulkResults] = useState(null)
     const [importText, setImportText] = useState('')
     const [importFile, setImportFile] = useState(null)
+    // advisory only sir — never blocks submit, just a heads-up before spending a credit on
+    // something that's a near-duplicate of a note already summarized (see utils/Similarity.js)
+    const [duplicate, setDuplicate] = useState(null)
 
     const dispatch = useDispatch()
     const navigate = useNavigate()
     const { token } = useSelector((state) => state.auth)
     const { loading } = useSelector((state) => state.notes)
+
+    // debounced 500ms sir, same idea as Audit.jsx's AI-log user search — a pure text-similarity
+    // check (no AI call), only runs on the Text tab where free-typing makes accidental
+    // re-pasting most likely. Only fetches while there's actually text to check; the render
+    // below additionally gates showing the banner on tab==='text' so a stale result from a
+    // moment ago never flashes if the user switches tabs before the debounce fires.
+    useEffect(() => {
+        if (!text.trim()) return
+        const handle = setTimeout(async () => {
+            const result = await CheckDuplicateNote(text, token)
+            setDuplicate(result)
+        }, 500)
+        return () => clearTimeout(handle)
+    }, [text, token])
 
     // the mic feeds its growing transcript straight into the same textarea sir
     const handleTranscript = useCallback((transcript) => {
@@ -195,6 +212,18 @@ const NewSummary = () => {
                             <div className="flex items-center justify-between pt-3 mt-3 border-t border-border-soft">
                                 <p className="text-richblack-400 text-xs font-mono">{text.trim().length} characters</p>
                             </div>
+                            {tab === 'text' && duplicate && (
+                                <div className="flex items-start gap-2.5 mt-3 bg-yellow-50/5 border border-yellow-50/30 rounded-md px-3 py-2.5">
+                                    <FaExclamationTriangle className="text-yellow-50 shrink-0 mt-0.5" size={12} />
+                                    <p className="text-richblack-200 text-xs leading-relaxed">
+                                        This looks similar to{' '}
+                                        <Link to={`/Dashboard/Note/${duplicate.noteId}`} target="_blank" className="text-yellow-50 hover:underline font-medium">
+                                            {duplicate.title}
+                                        </Link>{' '}
+                                        ({new Date(duplicate.createdAt).toLocaleDateString()}) — summarizing anyway still uses a credit.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
 

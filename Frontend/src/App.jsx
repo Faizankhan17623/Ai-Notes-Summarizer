@@ -15,6 +15,7 @@ import ScrollToTop from './Components/extra/ScrollToTop'
 import AnnouncementBanner from './Components/extra/AnnouncementBanner'
 import CookieConsent from './Components/extra/CookieConsent'
 import ProMaxPlanNotice from './Components/extra/ProMaxPlanNotice'
+import CommandPalette from './Components/extra/CommandPalette'
 import { pageTransition } from './Components/extra/motionVariants.js'
 import { FetchCsrfToken } from './Services/operations/Auth.js'
 import { wakeUpServer } from './utils/wakeUpServer.js'
@@ -122,6 +123,7 @@ function App() {
       <AnnouncementBanner />
       <ProMaxPlanNotice />
       <CookieConsent />
+      <CommandPalette />
       <ScrollToTop />
       <Suspense fallback={<PageLoader />}>
         <AnimatePresence mode="wait" initial={false}>

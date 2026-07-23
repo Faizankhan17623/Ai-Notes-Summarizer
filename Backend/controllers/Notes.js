@@ -8,6 +8,7 @@ const User = require('../Models/User')
 const NoteVersion = require('../Models/NoteVersion')
 const { extractText } = require('../utils/Parsers')
 const { getEffectivePlan } = require('../utils/Plans')
+const { shingles, jaccardSimilarity } = require('../utils/Similarity')
 
 // GET /notes — the history list sir, rawText left out to keep the payload light
 // supports ?search=, ?tag=, ?folder=, ?pinned=true as optional filters
@@ -63,6 +64,52 @@ exports.getTags = async (req, res) => {
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to load tags' })
+    }
+}
+
+// similarity above this is flagged as a likely duplicate sir — tuned by hand: two genuinely
+// different notes on the same topic rarely clear ~0.35 Jaccard over 5-word shingles, but a
+// pasted-again note (even lightly re-formatted) almost always does
+const DUPLICATE_THRESHOLD = 0.35
+// only the user's most recent notes are checked sir — bounds the cost of shingling every
+// comparison note on every debounced keystroke; a near-duplicate of something from months
+// and hundreds of notes ago is a much weaker signal anyway (recency matters for this use case)
+const DUPLICATE_CHECK_POOL = 30
+// no point shingling a one-line fragment sir — too short to mean anything, and avoids
+// flagging e.g. two notes that both start "Meeting notes:" as false-positive duplicates
+const MIN_TEXT_LENGTH_FOR_CHECK = 40
+
+// GET /notes/check-duplicate?text=... sir — pure text-similarity check (Jaccard over 5-word
+// shingles, see utils/Similarity.js), NO AI call, run client-side (debounced) while the user
+// types in New-Summary so they can catch "didn't I already summarize this?" before spending
+// a credit. Advisory only — never blocks the actual /summarize or /notes/import call.
+exports.checkDuplicateNote = async (req, res) => {
+    try {
+        const id = req.User.id
+        const text = (req.query.text || '').toString().slice(0, 20000)
+
+        if (text.trim().length < MIN_TEXT_LENGTH_FOR_CHECK) {
+            return res.status(200).json({ success: true, duplicate: null })
+        }
+
+        const candidates = await Note.find({ user: id })
+            .select('title rawText createdAt')
+            .sort({ createdAt: -1 })
+            .limit(DUPLICATE_CHECK_POOL)
+
+        const targetShingles = shingles(text)
+        let best = null
+        for (const note of candidates) {
+            const score = jaccardSimilarity(targetShingles, shingles(note.rawText))
+            if (score >= DUPLICATE_THRESHOLD && (!best || score > best.score)) {
+                best = { score, noteId: note._id, title: note.title, createdAt: note.createdAt }
+            }
+        }
+
+        return res.status(200).json({ success: true, duplicate: best })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to check for duplicates' })
     }
 }
 

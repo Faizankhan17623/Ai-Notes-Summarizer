@@ -9,6 +9,8 @@ import { GetProfile } from '../../Services/operations/Auth.js'
 import { fadeUp, staggerContainer } from '../extra/motionVariants.js'
 import AnalyticsWidget from './AnalyticsWidget.jsx'
 import WeakTopicsWidget from './WeakTopicsWidget.jsx'
+import StudyHeatmap from './StudyHeatmap.jsx'
+import BestTimeWidget from './BestTimeWidget.jsx'
 import OnboardingChecklist from './OnboardingChecklist.jsx'
 
 // small icon chip by sourceType sir — same idea as the mockup's ftype chip, using the
@@ -26,6 +28,10 @@ const DashboardHome = () => {
     const { token, user } = useSelector((state) => state.auth)
     const { allNotes } = useSelector((state) => state.notes)
     const { plan, activity, profile } = useSelector((state) => state.profile)
+    // AnalyticsWidget triggers the GetMyAnalytics fetch itself on mount sir (same as before
+    // this change) — these two new widgets just read the same already-fetched payload
+    // rather than firing a second identical request
+    const analyticsData = useSelector((state) => state.analytics.data)
 
     useEffect(() => {
         dispatch(GetAllNotes(token))
@@ -165,9 +171,12 @@ const DashboardHome = () => {
 
                 <div>
                     <AnalyticsWidget />
+                    <BestTimeWidget bestTime={analyticsData?.bestTime} />
                     <WeakTopicsWidget />
                 </div>
             </div>
+
+            <StudyHeatmap heatmap={analyticsData?.heatmap} />
         </div>
     )
 }

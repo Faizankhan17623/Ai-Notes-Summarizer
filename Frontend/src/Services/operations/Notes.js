@@ -5,7 +5,7 @@ import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { NotesData } from "../Apis/NotesApi.js"
 import { setAllNotes, setCurrentNote, setTagsAndFolders, setRelatedNotes, setNoteVersions, setLoading } from "../../Slices/notesSlice.js"
 
-const { summarize, allNotes, tags, importNote, singleNote, deleteNote, organizeNote, enableShare, disableShare, sharedNote, exportNote, relatedNotes, editNote, noteVersions, restoreVersion } = NotesData
+const { summarize, allNotes, tags, importNote, singleNote, deleteNote, organizeNote, enableShare, disableShare, sharedNote, exportNote, relatedNotes, editNote, noteVersions, restoreVersion, checkDuplicate } = NotesData
 
 // import sir — creates a Note directly, NO AI call, NO credit/feature spend. Pass either
 // { text } or a FormData with a `notes` file field, same payload shape as SummarizeNotes
@@ -127,6 +127,22 @@ export async function SummarizeArticleLink(url, token) {
             rateLimited: error?.response?.status === 429,
             message: error?.response?.data?.message || "Could not summarize that article"
         }
+    }
+}
+
+// not a thunk sir — same pattern as SummarizeArticleLink above, the caller (New-Summary,
+// debounced) owns its own local state and just awaits a plain value. Quiet failure: this is
+// an advisory nice-to-have, never worth surfacing a toast for a failed background check.
+export async function CheckDuplicateNote(text, token) {
+    try {
+        const response = await apiConnector("GET", checkDuplicate, null, {
+            Authorization: `Bearer ${token}`
+        }, { text })
+        if (!response.data.success) return null
+        return response.data.duplicate
+    } catch (error) {
+        logError("Error checking for duplicate note", error)
+        return null
     }
 }
 
