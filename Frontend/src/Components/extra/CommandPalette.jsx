@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import {
     FaSearch, FaPlus, FaHistory, FaComments, FaLayerGroup, FaUser, FaSun, FaMoon,
-    FaChartLine, FaUsers, FaCreditCard,
+    FaChartLine, FaUsers, FaCreditCard, FaCalendarCheck,
 } from 'react-icons/fa'
 import useTheme from '../../Hooks/useTheme.js'
 
@@ -15,6 +15,7 @@ const buildCommands = (role, toggleTheme, theme) => {
         { id: 'new-summary', label: 'New summary', icon: FaPlus, to: '/Dashboard/New-Summary', keywords: 'create summarize' },
         { id: 'history', label: 'History', icon: FaHistory, to: '/Dashboard/History', keywords: 'notes list' },
         { id: 'review', label: 'Review', icon: FaLayerGroup, to: '/Dashboard/Review', keywords: 'flashcards spaced repetition' },
+        { id: 'study-plan', label: 'Study plan', icon: FaCalendarCheck, to: '/Dashboard/StudyPlan', keywords: 'ai plan today schedule' },
         { id: 'chats', label: 'Chats', icon: FaComments, to: '/Dashboard/Chats', keywords: 'chat ai' },
         { id: 'search', label: 'Search', icon: FaSearch, to: '/Dashboard/Search', keywords: 'find' },
         { id: 'account', label: 'Account', icon: FaUser, to: '/Dashboard/Account', keywords: 'profile settings billing password' },

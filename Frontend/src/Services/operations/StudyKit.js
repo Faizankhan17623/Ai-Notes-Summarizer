@@ -3,12 +3,12 @@ import toast from "react-hot-toast"
 import { showAiErrorToast } from "../../utils/creditErrorToast.jsx"
 import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { StudyKitData } from "../Apis/StudyKitApi.js"
-import { setFlashcards, setDueFlashcards, setQuizzes, setActiveQuiz, setWeakTopics, setLoading } from "../../Slices/studyKitSlice.js"
+import { setFlashcards, setDueFlashcards, setQuizzes, setActiveQuiz, setWeakTopics, setStudyPlan, setPlanLoading, setLoading } from "../../Slices/studyKitSlice.js"
 
 const {
     generateFlashcards, flashcardsForNote, dueFlashcards, reviewFlashcard, deleteFlashcard,
     generateQuiz, quizzesForNote, attemptQuiz, deleteQuiz, exportReviewQueue, exportFlashcardDeck, exportQuiz,
-    weakTopics,
+    weakTopics, generateStudyPlan, todayStudyPlan, toggleStudyPlanItem,
 } = StudyKitData
 
 // ---------- Flashcards ----------
@@ -322,6 +322,73 @@ export function GetWeakTopics(token) {
             dispatch(setWeakTopics(response.data.weakTopics))
         } catch (error) {
             logError("Error fetching weak topics", error)
+        }
+    }
+}
+
+// ---------- AI study plan ----------
+
+// quiet on load sir — same "no toast" treatment as GetWeakTopics/GetMyAnalytics, this just
+// checks whether today's plan already exists so the page can show it without user action
+export function GetTodayStudyPlan(token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", todayStudyPlan, null, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setStudyPlan(response.data.plan))
+        } catch (error) {
+            logError("Error fetching today's study plan", error)
+        }
+    }
+}
+
+// user-triggered sir — costs a credit, so this DOES toast like GenerateFlashcards/GenerateQuiz
+export function GenerateStudyPlan(token) {
+    return async (dispatch) => {
+        dispatch(setPlanLoading(true))
+        const toastId = toast.loading("Building your study plan...")
+        try {
+            const response = await apiConnector("POST", generateStudyPlan, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            if (!response.data.plan) {
+                toast(response.data.message || "Nothing due today")
+            } else {
+                dispatch(setStudyPlan(response.data.plan))
+                if (!response.data.reused) toast.success("Your study plan is ready")
+            }
+        } catch (error) {
+            logError("Error generating the study plan", error)
+            showAiErrorToast(error, "Could not build your study plan")
+        } finally {
+            dispatch(setPlanLoading(false))
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+export function ToggleStudyPlanItem(planId, itemId, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("PATCH", `${toggleStudyPlanItem}/${planId}/items/${itemId}`, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            dispatch(setStudyPlan(response.data.plan))
+        } catch (error) {
+            logError("Error updating the study plan item", error)
+            toast.error(error?.response?.data?.message || "Could not update that item")
         }
     }
 }

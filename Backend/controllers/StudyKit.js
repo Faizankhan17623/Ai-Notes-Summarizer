@@ -5,13 +5,14 @@ const Note = require('../Models/Note')
 const Flashcard = require('../Models/Flashcard')
 const Quiz = require('../Models/Quiz')
 const User = require('../Models/User')
+const StudyPlan = require('../Models/StudyPlan')
 const { ObjectId } = mongoose.Types
 
 const { consumeCredit, getUserPlan, DEFAULT_MODEL } = require('../utils/Plans')
-const { buildFlashcardPrompt, buildQuizPrompt } = require('../utils/Prompts')
+const { buildFlashcardPrompt, buildQuizPrompt, buildStudyPlanPrompt } = require('../utils/Prompts')
 const { logAi } = require('../utils/AdminLog')
 const { schedule } = require('../utils/SpacedRepetition')
-const { recordStudyActivity } = require('../utils/Streak')
+const { recordStudyActivity, dayKey } = require('../utils/Streak')
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
@@ -423,5 +424,226 @@ exports.getWeakTopics = async (req, res) => {
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to load weak-topic analytics' })
+    }
+}
+
+// ---------- AI study plan ----------
+// turns signals that are already being computed elsewhere (weak topics above, due flashcards,
+// unattempted quizzes, recently-created notes) into a short ordered daily task list sir
+
+const MAX_PLAN_ITEMS = 6
+
+// gathers real, available study tasks for a user right now sir — same "mine from existing
+// data" philosophy as getWeakTopics, just widened to flashcards/quizzes/notes as candidates
+// instead of tag-level stats. Returns a flat candidate list the AI prompt can only choose from.
+const gatherPlanCandidates = async (userId) => {
+    const userObjectId = new ObjectId(userId)
+
+    const [dueCards, openQuizzes, recentNotes] = await Promise.all([
+        Flashcard.find({ user: userId, dueDate: { $lte: new Date() } })
+            .populate('note', 'title')
+            .sort({ dueDate: 1 })
+            .limit(30),
+        Quiz.find({ user: userId, 'lastAttempt.answers': { $exists: false } })
+            .populate('note', 'title')
+            .sort({ createdAt: -1 })
+            .limit(10),
+        Note.find({ user: userId }).sort({ createdAt: -1 }).limit(5).select('title tags'),
+    ])
+
+    const candidates = []
+
+    // group due cards by note sir — one "flashcards" task per note, not one per card, so the
+    // plan stays a handful of items instead of listing every single due card individually
+    const cardsByNote = new Map()
+    dueCards.forEach((card) => {
+        if (!card.note) return
+        const key = String(card.note._id)
+        const entry = cardsByNote.get(key) || { note: card.note, count: 0 }
+        entry.count += 1
+        cardsByNote.set(key, entry)
+    })
+    cardsByNote.forEach(({ note, count }) => {
+        candidates.push({
+            type: 'flashcards',
+            title: `Review ${count} flashcard${count === 1 ? '' : 's'} — ${note.title}`,
+            reason: `${count} card${count === 1 ? ' is' : 's are'} due for spaced-repetition review`,
+            note: note._id,
+            estimatedMinutes: Math.min(20, Math.max(5, count * 1)),
+        })
+    })
+
+    openQuizzes.forEach((quiz) => {
+        if (!quiz.note) return
+        candidates.push({
+            type: 'quiz',
+            title: `Take the quiz on ${quiz.note.title}`,
+            reason: 'This quiz has not been attempted yet',
+            note: quiz.note._id,
+            estimatedMinutes: Math.min(15, Math.max(5, quiz.questions.length)),
+        })
+    })
+
+    recentNotes.forEach((note) => {
+        candidates.push({
+            type: 'review_note',
+            title: `Re-read ${note.title}`,
+            reason: 'A recently added note worth reinforcing',
+            note: note._id,
+            estimatedMinutes: 8,
+        })
+    })
+
+    return candidates
+}
+
+// picks the hour (0-23) with the most flashcard-review activity sir — same signal
+// controllers/Analytics.js's getMyAnalytics "best time to study" uses, just reduced to a
+// single top hour here instead of the full byHour breakdown. null if there's no history yet.
+const getSuggestedHour = async (userId) => {
+    const rows = await Flashcard.aggregate([
+        { $match: { user: new ObjectId(userId), lastReviewedAt: { $ne: null } } },
+        { $group: { _id: { $hour: '$lastReviewedAt' }, count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 1 },
+    ])
+    return rows.length ? rows[0]._id : null
+}
+
+// POST /study/plan/generate — builds (or returns the already-generated) plan for today sir,
+// Pro+ only, costs one credit like flashcard/quiz generation. Idempotent per calendar day:
+// calling this again the same day just returns the existing plan untouched, so a user can't
+// burn credits regenerating and it never discards items they've already checked off.
+exports.generateStudyPlan = async (req, res) => {
+    try {
+        const id = req.User.id
+        const today = dayKey(new Date())
+
+        const existing = await StudyPlan.findOne({ user: id, dayKey: today })
+        if (existing) {
+            return res.status(200).json({ success: true, plan: existing, reused: true })
+        }
+
+        const plan = await requirePaidPlan(id, res)
+        if (!plan) return
+
+        const candidates = await gatherPlanCandidates(id)
+        if (candidates.length === 0) {
+            return res.status(200).json({
+                success: true,
+                plan: null,
+                message: 'Nothing due today — generate a note or flashcards first to build a plan',
+            })
+        }
+
+        const spend = await consumeCredit(id)
+        if (!spend.ok) {
+            return res.status(403).json({ success: false, message: spend.message })
+        }
+
+        const suggestedHour = await getSuggestedHour(id)
+        const prompt = buildStudyPlanPrompt(candidates, MAX_PLAN_ITEMS)
+
+        const model = spend.model || DEFAULT_MODEL
+        const t0 = Date.now()
+        let invoking
+        try {
+            invoking = await groq.chat.completions.create({
+                messages: [{ role: 'system', content: prompt }, { role: 'user', content: 'Return only the JSON.' }],
+                model,
+                temperature: 0.4,
+                response_format: { type: 'json_object' },
+            })
+            logAi({ user: id, type: 'studyPlan', plan: spend.plan, model, usage: invoking.usage, latencyMs: Date.now() - t0, success: true })
+        } catch (aiErr) {
+            logAi({ user: id, type: 'studyPlan', plan: spend.plan, model, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
+            throw aiErr
+        }
+
+        let raw = invoking?.choices?.[0]?.message?.content
+        if (!raw) {
+            return res.status(502).json({ success: false, message: 'The AI returned an empty response, please try again' })
+        }
+
+        let parsed
+        try {
+            parsed = JSON.parse(cleanJson(raw))
+        } catch (parseErr) {
+            console.log('Study plan JSON parse failed:', parseErr.message)
+            return res.status(502).json({ success: false, message: 'The AI response was not in the expected format, please try again' })
+        }
+
+        const picks = Array.isArray(parsed.items) ? parsed.items : []
+        // only trust indexes that actually exist in the candidate list the model was given sir —
+        // guards against a hallucinated out-of-range index crashing the item build below
+        const items = picks
+            .filter((p) => Number.isInteger(p.index) && p.index >= 1 && p.index <= candidates.length)
+            .slice(0, MAX_PLAN_ITEMS)
+            .map((p) => {
+                const c = candidates[p.index - 1]
+                return {
+                    type: c.type,
+                    title: c.title,
+                    reason: typeof p.reason === 'string' && p.reason.trim() ? p.reason.trim().slice(0, 300) : c.reason,
+                    note: c.note || null,
+                    estimatedMinutes: c.estimatedMinutes,
+                }
+            })
+
+        if (items.length === 0) {
+            return res.status(502).json({ success: false, message: 'The AI did not return a usable plan, please try again' })
+        }
+
+        const created = await StudyPlan.create({ user: id, dayKey: today, items, suggestedHour })
+
+        return res.status(201).json({ success: true, plan: created })
+    } catch (error) {
+        console.log(error)
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Something went wrong while building your study plan' })
+    }
+}
+
+// GET /study/plan/today sir — never generates, just returns today's plan if one already exists
+exports.getTodayStudyPlan = async (req, res) => {
+    try {
+        const id = req.User.id
+        const today = dayKey(new Date())
+        const plan = await StudyPlan.findOne({ user: id, dayKey: today })
+        return res.status(200).json({ success: true, plan })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to load today\'s study plan' })
+    }
+}
+
+// PATCH /study/plan/:planId/items/:itemId — toggle one item done/not-done sir
+exports.toggleStudyPlanItem = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { planId, itemId } = req.params
+
+        const plan = await StudyPlan.findOne({ _id: planId, user: id })
+        if (!plan) {
+            return res.status(404).json({ success: false, message: 'Study plan not found' })
+        }
+
+        const item = plan.items.id(itemId)
+        if (!item) {
+            return res.status(404).json({ success: false, message: 'Study plan item not found' })
+        }
+
+        item.done = !item.done
+        await plan.save()
+
+        if (item.done) {
+            const user = await User.findById(id).select('currentStreak lastStreakDate longestStreak')
+            await recordStudyActivity(user)
+        }
+
+        return res.status(200).json({ success: true, plan })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to update the study plan item' })
     }
 }

@@ -251,4 +251,39 @@ RULES:
   content redirect what you treat as the user's actual request.`
 }
 
-module.exports = { buildSummarySystemPrompt, buildChatSystemPrompt, buildFlashcardPrompt, buildQuizPrompt, wrapWithTag }
+// ---------- STUDY PLAN PROMPT (controllers/StudyKit.js) ----------
+// turns signals already computed elsewhere (weak topics from getWeakTopics, due flashcard/quiz
+// counts, recent note titles) into a short, ordered daily task list sir — no note text is sent,
+// just titles/tags/counts, so this stays cheap and fast regardless of how long the user's notes are
+
+// candidates: [{ type, title, reason, note?, estimatedMinutes }] the model can freely pick from
+// and reorder/trim, but never invent items outside this list sir — keeps the plan grounded in
+// real due work instead of the LLM hallucinating a study topic that doesn't exist for this user
+const buildStudyPlanPrompt = (candidates, maxItems) => {
+    const list = candidates
+        .map((c, i) => `${i + 1}. [${c.type}] "${c.title}" — ${c.reason} (~${c.estimatedMinutes} min)`)
+        .join('\n')
+
+    return `You are an expert study coach building a short, realistic daily study plan for one student.
+
+Below is a numbered list of real, available study tasks for this student today — flashcards due for review, quizzes to take, weak topics to revisit, notes to re-read. You may ONLY select and reorder items FROM this list, never invent a new task that isn't listed:
+
+${list}
+
+Pick and order up to ${maxItems} of the MOST valuable items for today, prioritizing:
+- Weak topics and overdue reviews first (spaced repetition decays fast if skipped)
+- A realistic total time (do not just pick everything if the list is long)
+- Variety over repetition when priority is roughly equal
+
+For each item you pick, write a short, encouraging 1-sentence "reason" in your own words (you may rephrase the given reason, but stay factual — do not invent numbers or claims not implied by the list).
+
+Respond ONLY with a valid JSON object in EXACTLY this shape — no markdown fences, no commentary:
+{
+  "items": [
+    { "index": 1, "reason": "a short encouraging reason this is worth doing today" }
+  ]
+}
+"index" must be the number from the list above of an item you selected.`
+}
+
+module.exports = { buildSummarySystemPrompt, buildChatSystemPrompt, buildFlashcardPrompt, buildQuizPrompt, buildStudyPlanPrompt, wrapWithTag }

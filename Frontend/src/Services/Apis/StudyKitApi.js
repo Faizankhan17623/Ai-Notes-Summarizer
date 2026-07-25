@@ -16,4 +16,8 @@ export const StudyKitData = {
     exportQuiz: BASE_URL + "/quizzes",           // + /:quizId/export
 
     weakTopics: BASE_URL + "/study/weak-topics",
+
+    generateStudyPlan: BASE_URL + "/study/plan/generate",
+    todayStudyPlan: BASE_URL + "/study/plan/today",
+    toggleStudyPlanItem: BASE_URL + "/study/plan",   // + /:planId/items/:itemId
 }

@@ -16,6 +16,9 @@ const {
     attemptQuiz,
     deleteQuiz,
     getWeakTopics,
+    generateStudyPlan,
+    getTodayStudyPlan,
+    toggleStudyPlanItem,
 } = require('../controllers/StudyKit.js')
 const { exportReviewQueue, exportFlashcardDeck, exportQuiz } = require('../controllers/Export.js')
 
@@ -41,5 +44,10 @@ route.delete('/quizzes/:id', doubleCsrfProtection, Auth, blockIfBanned, deleteQu
 
 // weak-topic analytics sir — mined from existing flashcard/quiz data, no AI call, no credit spend
 route.get('/study/weak-topics', Auth, blockIfBanned, getWeakTopics)
+
+// AI study plan sir — generation hits Groq so it gets the AI rate limit + costs a credit, Pro+ only
+route.post('/study/plan/generate', aiLimiter, doubleCsrfProtection, Auth, blockIfBanned, generateStudyPlan)
+route.get('/study/plan/today', Auth, blockIfBanned, getTodayStudyPlan)
+route.patch('/study/plan/:planId/items/:itemId', doubleCsrfProtection, Auth, blockIfBanned, toggleStudyPlanItem)
 
 module.exports = route
