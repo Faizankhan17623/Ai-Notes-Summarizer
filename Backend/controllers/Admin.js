@@ -15,6 +15,8 @@ const SavedView = require('../Models/SavedView')
 const ContactMessage = require('../Models/ContactMessage')
 const { PLANS } = require('../utils/Plans')
 const { notify } = require('./Notification')
+const mailSender = require('../utils/Nodemailer')
+const { roleChangedEmail } = require('../Templates/RoleChanged')
 
 const writeAudit = (actor, action, target, details) => {
     AuditLog.create({ actor, action, target, details }).catch((err) => console.log('AuditLog write failed:', err.message))
@@ -426,7 +428,7 @@ exports.setRole = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid role' })
         }
 
-        const target = await User.findById(userId).select('role')
+        const target = await User.findById(userId).select('role SubType')
         if (!target) {
             return res.status(404).json({ success: false, message: 'User not found' })
         }
@@ -434,9 +436,28 @@ exports.setRole = async (req, res) => {
             return res.status(400).json({ success: false, message: "The Admin's role can't be changed here" })
         }
 
-        const user = await User.findByIdAndUpdate(userId, { role }, { returnDocument: 'after' }).select(ADMIN_USER_FIELDS)
+        // Support is a staff role sir — same "no paid plan" rule createOrder already enforces
+        // going forward (Payment.js blocks Admin/Support from buying), applied retroactively
+        // here too: promoting a Pro/ProMax User to Support forces them back to Basic instead
+        // of quietly letting them keep a paid plan's perks on a staff account that never
+        // needed them and was never billed for them
+        const update = { role }
+        if (role === 'Support' && target.SubType !== 'Basic') {
+            update.SubType = 'Basic'
+            update.Subscription = false
+        }
+
+        const user = await User.findByIdAndUpdate(userId, update, { returnDocument: 'after' }).select(ADMIN_USER_FIELDS)
 
         writeAudit(req.User.id, 'set_role', userId, role)
+
+        // best-effort sir, same pattern as deleteAccount's mail send in controllers/user.js —
+        // a mail failure shouldn't undo or fail the role change itself, just gets logged
+        try {
+            await mailSender(user.email, 'Your account role has changed', roleChangedEmail(user.firstName, user.lastName, role))
+        } catch (mailError) {
+            console.log('Role-change mail failed:', mailError.message)
+        }
 
         return res.status(200).json({ success: true, message: 'Role updated', user })
     } catch (error) {
@@ -580,7 +601,7 @@ exports.bulkSetRole = async (req, res) => {
         const failed = []
         for (const userId of userIds) {
             try {
-                const target = await User.findById(userId).select('role')
+                const target = await User.findById(userId).select('role SubType')
                 if (!target) {
                     failed.push({ userId, message: 'User not found' })
                     continue
@@ -590,9 +611,24 @@ exports.bulkSetRole = async (req, res) => {
                     continue
                 }
 
-                await User.findByIdAndUpdate(userId, { role })
+                // same "Support can't hold a paid plan" reset as the single-user setRole above sir
+                const update = { role }
+                if (role === 'Support' && target.SubType !== 'Basic') {
+                    update.SubType = 'Basic'
+                    update.Subscription = false
+                }
+
+                const user = await User.findByIdAndUpdate(userId, update, { returnDocument: 'after' }).select('firstName lastName email')
                 writeAudit(req.User.id, 'set_role', userId, role)
                 updated.push(userId)
+
+                // best-effort sir, same as setRole's single-user path above — a mail failure
+                // doesn't roll back the role change or fail the rest of this batch
+                try {
+                    await mailSender(user.email, 'Your account role has changed', roleChangedEmail(user.firstName, user.lastName, role))
+                } catch (mailError) {
+                    console.log('Role-change mail failed:', mailError.message)
+                }
             } catch {
                 failed.push({ userId, message: 'Failed to update this user\'s role' })
             }
