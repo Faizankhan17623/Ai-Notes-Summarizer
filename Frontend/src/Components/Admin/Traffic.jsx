@@ -186,7 +186,10 @@ const Traffic = () => {
                                     <tbody>
                                         {traffic.topPaths.map((row) => (
                                             <tr key={row._id} className="border-b border-border-soft last:border-b-0 text-richblack-200">
-                                                <td className="py-2 pr-4 font-mono">{row._id}</td>
+                                                {/* display-only trim sir — row._id is the raw path ("/Dashboard/New-Summary"),
+                                                    only the single leading slash is stripped here so a nested route still
+                                                    reads with its internal slashes ("Dashboard/New-Summary"), not the DB value itself */}
+                                                <td className="py-2 pr-4 font-mono">{row._id.replace(/^\//, '')}</td>
                                                 <td className="py-2 pr-4 font-mono font-semibold text-richblack-5">{row.visits}</td>
                                             </tr>
                                         ))}

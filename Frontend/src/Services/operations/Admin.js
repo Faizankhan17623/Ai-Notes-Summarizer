@@ -390,11 +390,15 @@ export function GetAnnouncements(token) {
     }
 }
 
-export function CreateAnnouncement(message, token) {
+// timed: true sends startAt/endAt sir — raw values straight from a <input type="datetime-local">
+// (see Announcements.jsx), untouched here. The backend is the only place that ever turns
+// them into real Date objects (see parseRequiredDate in Backend/controllers/Admin.js) — this
+// layer just relays what the admin picked, no date math or parsing on this side either
+export function CreateAnnouncement(message, timed, startAt, endAt, token) {
     return async (dispatch) => {
         const toastId = toast.loading("Publishing announcement...")
         try {
-            const response = await apiConnector("POST", announcements, { message }, { Authorization: `Bearer ${token}` })
+            const response = await apiConnector("POST", announcements, { message, timed, startAt, endAt }, { Authorization: `Bearer ${token}` })
             if (!response.data.success) throw new Error(response.data.message)
             toast.success("Announcement published")
             dispatch(GetAnnouncements(token))

@@ -29,14 +29,34 @@ const ADMIN_USER_FIELDS = 'firstName lastName email role SubType Subscription Su
     'appealStatus appealMessage appealSubmittedAt'
 
 // GET /admin/overview — top-line counts for the admin dashboard sir
+// stays isSupport (not isAdmin) sir — same bar as before, so this doesn't reuse
+// getAdminAnalytics's heavier data even though some of it overlaps; a few cheap extra
+// counts/aggregates here instead, so Support keeps seeing exactly what it saw before, just
+// with trend context added on top
 exports.getOverview = async (req, res) => {
     try {
-        const [userCount, noteCount, chatCount, last24hCalls, failedLast24h] = await Promise.all([
+        const dayMs = 24 * 60 * 60 * 1000
+        const since24h = new Date(Date.now() - dayMs)
+        const since7d = new Date(Date.now() - 7 * dayMs)
+
+        const [
+            userCount, noteCount, chatCount, last24hCalls, failedLast24h,
+            newUsers7d, newNotes7d, signupsByDay,
+        ] = await Promise.all([
             User.countDocuments(),
             Note.countDocuments(),
             Chat.countDocuments(),
-            AiLog.countDocuments({ createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
-            AiLog.countDocuments({ createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }, success: false }),
+            AiLog.countDocuments({ createdAt: { $gte: since24h } }),
+            AiLog.countDocuments({ createdAt: { $gte: since24h }, success: false }),
+            User.countDocuments({ createdAt: { $gte: since7d } }),
+            Note.countDocuments({ createdAt: { $gte: since7d } }),
+            // 7-day daily signup counts sir — feeds the overview page's mini sparkline,
+            // same $dateToString bucket pattern as getAdminAnalytics's revenue/signup charts
+            User.aggregate([
+                { $match: { createdAt: { $gte: since7d } } },
+                { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
+                { $sort: { _id: 1 } },
+            ]),
         ])
 
         const planBreakdown = await User.aggregate([
@@ -51,6 +71,9 @@ exports.getOverview = async (req, res) => {
                 chatCount,
                 aiCallsLast24h: last24hCalls,
                 aiFailuresLast24h: failedLast24h,
+                newUsers7d,
+                newNotes7d,
+                signupsByDay,
                 planBreakdown,
             }
         })
@@ -711,10 +734,21 @@ exports.getAiLogs = async (req, res) => {
 }
 
 // GET /admin/announcements/active — public, no auth sir (read in App.jsx banner)
-// up to MAX_ACTIVE_ANNOUNCEMENTS at once sir — see createAnnouncement's comment for why 3
+// up to MAX_ACTIVE_ANNOUNCEMENTS at once sir — see createAnnouncement's comment for why 3.
+// A timed announcement only counts as live between startAt and endAt sir — active:true alone
+// isn't enough once timing exists, since a timed one can be flagged active but not yet started
+// (Scheduled) or past its window (Expired); an untimed one (startAt: null) is live whenever
+// active:true, same as before timing was added
 exports.getActiveAnnouncement = async (req, res) => {
     try {
-        const announcements = await Announcement.find({ active: true }).sort({ createdAt: -1 })
+        const now = new Date()
+        const announcements = await Announcement.find({
+            active: true,
+            $or: [
+                { startAt: null },
+                { startAt: { $lte: now }, endAt: { $gte: now } },
+            ],
+        }).sort({ createdAt: -1 })
         return res.status(200).json({ success: true, announcements })
     } catch (error) {
         console.log(error.message)
@@ -733,21 +767,48 @@ exports.getAnnouncements = async (req, res) => {
     }
 }
 
-// up to 3 can be active at once sir — the public banner (AnnouncementBanner.jsx) stacks
-// them, so unlike the old one-active-at-a-time model this no longer auto-deactivates
-// anything on create; once 3 are active, publishing a 4th is blocked until the admin frees
-// a slot (deactivate or delete one) rather than silently bumping the oldest
+// up to 3 can occupy a "live" slot at once sir — the public banner (AnnouncementBanner.jsx)
+// stacks them, so unlike the old one-active-at-a-time model this no longer auto-deactivates
+// anything on create; once 3 slots are taken, publishing a 4th is blocked until the admin
+// frees one (deactivate/delete) rather than silently bumping the oldest. An expired timed
+// announcement (endAt already passed) does NOT hold a slot — same reasoning as
+// getActiveAnnouncement's $or above, just inverted for "did this one already finish"
 const MAX_ACTIVE_ANNOUNCEMENTS = 3
 
-// POST /admin/announcements sir
+// the timed window sir — admin picks startAt/endAt explicitly now (a datetime-local input on
+// the frontend), these two constants are just the RULES that window has to satisfy, not a
+// duration that gets auto-applied: start must be tomorrow-or-later, and start->end can't
+// exceed MAX_WINDOW_DAYS — anywhere from a few hours to the full 15 days is fine
+const DAY_MS = 24 * 60 * 60 * 1000
+const MIN_START_DELAY_MS = DAY_MS
+const MAX_WINDOW_DAYS = 15
+
+// parses a datetime-local string ("YYYY-MM-DDTHH:mm") into a real Date sir, and validates it
+// parsed to something real — `new Date(garbage)` silently yields an Invalid Date rather than
+// throwing, which is exactly the kind of string-shaped bug this app has been bitten by before,
+// so this is the one place that boundary gets checked before the string is ever trusted again
+const parseRequiredDate = (value) => {
+    if (!value) return { error: 'is required' }
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return { error: 'is not a valid date/time' }
+    return { date }
+}
+
+// POST /admin/announcements sir — accepts { message, timed, startAt, endAt }. startAt/endAt
+// are only read/validated when timed is true; an untimed announcement ignores them entirely
+// (same as before — active until manually deactivated, no window)
 exports.createAnnouncement = async (req, res) => {
     try {
-        const { message } = req.body
+        const { message, timed, startAt: startAtInput, endAt: endAtInput } = req.body
         if (!message || !message.trim()) {
             return res.status(400).json({ success: false, message: 'Message is required' })
         }
 
-        const activeCount = await Announcement.countDocuments({ active: true })
+        const now = new Date()
+        const activeCount = await Announcement.countDocuments({
+            active: true,
+            $or: [{ startAt: null }, { endAt: { $gte: now } }],
+        })
         if (activeCount >= MAX_ACTIVE_ANNOUNCEMENTS) {
             return res.status(400).json({
                 success: false,
@@ -755,7 +816,38 @@ exports.createAnnouncement = async (req, res) => {
             })
         }
 
-        const announcement = await Announcement.create({ message: message.trim(), active: true, createdBy: req.User.id })
+        const announcementDoc = { message: message.trim(), active: true, createdBy: req.User.id }
+
+        if (timed) {
+            const startResult = parseRequiredDate(startAtInput)
+            if (startResult.error) {
+                return res.status(400).json({ success: false, message: `Start date/time ${startResult.error}` })
+            }
+            const endResult = parseRequiredDate(endAtInput)
+            if (endResult.error) {
+                return res.status(400).json({ success: false, message: `End date/time ${endResult.error}` })
+            }
+            const { date: startAt } = startResult
+            const { date: endAt } = endResult
+
+            // tomorrow-or-later sir — comparing real Date <-> Date via getTime(), never string
+            // comparison (which would sort "2026-2-1" before "2026-10-1" lexicographically)
+            const earliestStart = new Date(now.getTime() + MIN_START_DELAY_MS)
+            if (startAt.getTime() < earliestStart.getTime()) {
+                return res.status(400).json({ success: false, message: 'Start date/time must be tomorrow or later' })
+            }
+            if (endAt.getTime() <= startAt.getTime()) {
+                return res.status(400).json({ success: false, message: 'End date/time must be after the start date/time' })
+            }
+            if (endAt.getTime() - startAt.getTime() > MAX_WINDOW_DAYS * DAY_MS) {
+                return res.status(400).json({ success: false, message: `The window can't be longer than ${MAX_WINDOW_DAYS} days` })
+            }
+
+            announcementDoc.startAt = startAt
+            announcementDoc.endAt = endAt
+        }
+
+        const announcement = await Announcement.create(announcementDoc)
 
         writeAudit(req.User.id, 'create_announcement', null, message.trim())
 
