@@ -30,13 +30,20 @@ const Navbar = ({ showMegaMenu = false }) => {
                     onClick={toggleTheme}
                     title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                     aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                    className="text-richblack-100 hover:text-richblack-25 cursor-pointer p-1.5 rounded-md hover:bg-surface-hover transition-colors overflow-hidden"
+                    className="relative text-richblack-100 hover:text-richblack-25 cursor-pointer w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-hover transition-colors duration-150"
                 >
-                    {theme === 'dark' ? (
-                        <FaSun key="sun" size={14} className="animate-theme-icon-in" />
-                    ) : (
-                        <FaMoon key="moon" size={14} className="animate-theme-icon-in" />
-                    )}
+                    {/* both icons stay mounted and cross-fade via CSS (see index.css) sir — keying
+                        off theme so each swap replays the animation instead of just holding end-state */}
+                    <FaSun
+                        key={`sun-${theme}`}
+                        size={14}
+                        className={`absolute ${theme === 'dark' ? 'animate-theme-icon-out' : 'animate-theme-icon-in'}`}
+                    />
+                    <FaMoon
+                        key={`moon-${theme}`}
+                        size={14}
+                        className={`absolute ${theme === 'dark' ? 'animate-theme-icon-in' : 'animate-theme-icon-out'}`}
+                    />
                 </button>
 
                 {token ? (

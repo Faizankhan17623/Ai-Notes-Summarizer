@@ -139,7 +139,7 @@ body {
    `transition: all`) so it can't fight layout/transform transitions components already use
    (e.g. hover scales, the fade-in-up entrance above) — those keep their own timing. */
 * {
-  transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease, fill 0.35s ease, stroke 0.35s ease;
+  transition: background-color 0.6s ease, border-color 0.6s ease, color 0.6s ease, fill 0.6s ease, stroke 0.6s ease;
 }
 
 /* shared entrance animation sir — used by dashboard-style cards/rows (Admin/Payments etc.)
@@ -153,16 +153,22 @@ body {
   animation-delay: var(--delay, 0s);
 }
 
-/* theme toggle icon swap sir — the sun/moon icon has a `key` prop (see Navbar.jsx) so React
-   remounts a fresh element on every toggle instead of patching the existing one in place;
-   this animation then just plays on mount, giving the icon its own little fade+rotate+scale
-   instead of snapping straight to the new glyph */
+/* theme toggle icon swap sir — both icons are always mounted (see Navbar.jsx) and cross-fade:
+   the outgoing one rotates+shrinks+fades out while the incoming one rotates+grows+fades in,
+   so the swap reads as one continuous motion instead of an instant snap or a mount-only fade */
+@keyframes theme-icon-out {
+  from { opacity: 1; transform: rotate(0deg) scale(1); }
+  to { opacity: 0; transform: rotate(90deg) scale(0.4); }
+}
 @keyframes theme-icon-in {
-  from { opacity: 0; transform: rotate(-90deg) scale(0.5); }
+  from { opacity: 0; transform: rotate(-90deg) scale(0.4); }
   to { opacity: 1; transform: rotate(0deg) scale(1); }
 }
+.animate-theme-icon-out {
+  animation: theme-icon-out 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
 .animate-theme-icon-in {
-  animation: theme-icon-in 0.35s ease both;
+  animation: theme-icon-in 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 /* Pricing page glitter sir — a soft diagonal light sweep across the Recommended plan card

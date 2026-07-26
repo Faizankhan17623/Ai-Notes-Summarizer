@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'motion/react'
-import { FaCheck, FaMinus, FaBolt } from 'react-icons/fa'
+import { FaCheck, FaBolt, FaTimes, FaHeart, FaStar } from 'react-icons/fa'
 import { GetPlans, StartCheckout } from '../../Services/operations/Payment.js'
 import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
@@ -45,8 +45,37 @@ const COMPARISON_ROWS = [
 
 const Cell = ({ value }) => {
     if (value === true) return <FaCheck className="text-good mx-auto" size={14} />
-    if (value === false) return <FaMinus className="text-richblack-500 mx-auto" size={12} />
+    if (value === false) return <FaTimes className="text-danger-soft mx-auto" size={12} />
     return <span className="text-richblack-5 text-sm font-medium">{value}</span>
+}
+
+// field COMPARISON_ROWS keys off of, per plan sir — ProMax's plan.key is "ProMax" but its
+// column in COMPARISON_ROWS is "proMax", so this can't just be a .toLowerCase()
+const COMPARISON_FIELD = { Basic: 'basic', Pro: 'pro', ProMax: 'proMax' }
+
+// card checklist rows sir — reuses COMPARISON_ROWS (the same data driving the full compare
+// table below) instead of a separate hand-maintained list, so a card can never drift out of
+// sync with the detailed comparison. Section headers are dropped; a plain "false" row here
+// renders as struck-through/greyed to show what's missing, same visual language as Resumify's
+// pricing page (every card lists every feature, not just the ones it has)
+const CARD_ROWS = COMPARISON_ROWS.filter((row) => !row.section)
+
+const CardFeatureRow = ({ label, value }) => {
+    const included = value !== false
+    return (
+        <li className={`flex items-start gap-2.5 ${included ? 'text-richblack-200' : 'text-richblack-600'}`}>
+            {value === true ? (
+                <FaCheck className="text-good mt-0.5 shrink-0" size={12} />
+            ) : value === false ? (
+                <FaTimes className="text-danger-soft mt-0.5 shrink-0" size={12} />
+            ) : (
+                <FaCheck className="text-good mt-0.5 shrink-0" size={12} />
+            )}
+            <span className={!included ? 'line-through decoration-richblack-600' : ''}>
+                {value === true || value === false ? label : `${label}: ${value}`}
+            </span>
+        </li>
+    )
 }
 
 const Pricing = () => {
@@ -93,48 +122,54 @@ const Pricing = () => {
                     className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto"
                 >
                     {plans.map((plan) => {
-                        // Pro is the recommended tier sir — best value between the free Basic
-                        // plan and the highest-allowance-but-priciest ProMax, so it gets the highlight
-                        // border + badge regardless of what the viewer is currently on
-                        const isRecommended = plan.key === 'Pro'
+                        // Pro and ProMax each get their own badge sir, Resumify-style ("Most
+                        // Popular" / "Best Value") instead of a single "Recommended" — Basic
+                        // stays unbadged since it's the free no-decision tier
+                        const isPro = plan.key === 'Pro'
+                        const isProMax = plan.key === 'ProMax'
+                        const isHighlighted = isPro || isProMax
+                        const field = COMPARISON_FIELD[plan.key]
+                        // included rows first, excluded ones after sir — Array.prototype.sort is
+                        // stable in modern JS engines, so rows keep their original relative order
+                        // within each group instead of getting shuffled
+                        const sortedRows = [...CARD_ROWS].sort(
+                            (a, b) => (a[field] === false) - (b[field] === false)
+                        )
                         return (
                             <motion.div
                                 key={plan.key}
                                 variants={fadeUp}
                                 whileHover={{ y: -6 }}
                                 transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-                                className={`relative border bg-surface rounded-lg p-6 flex flex-col overflow-hidden ${isRecommended ? 'border-yellow-50 shadow-[0_0_0_1px_rgba(255,214,10,0.3)]' : 'border-border-soft'} ${isRecommended ? 'animate-shimmer' : ''}`}
+                                className={`relative border bg-surface rounded-lg p-6 flex flex-col ${isHighlighted ? 'border-yellow-50 shadow-[0_0_0_1px_rgba(255,214,10,0.3)]' : 'border-border-soft'}`}
                             >
-                                {isRecommended && (
-                                    <span
-                                        aria-hidden
-                                        className="animate-glow-pulse absolute -top-10 left-1/2 -translate-x-1/2 w-40 h-40 bg-yellow-50/30 blur-3xl rounded-full pointer-events-none"
-                                    />
+                                {/* shimmer/glow need their own clipped layer sir — overflow-hidden can't live on
+                                    the card root anymore, since that root also hosts the badge, which is meant
+                                    to float above the top edge (-top-3) instead of getting clipped at it */}
+                                {isHighlighted && (
+                                    <div aria-hidden className="absolute inset-0 rounded-lg overflow-hidden pointer-events-none animate-shimmer">
+                                        <span className="animate-glow-pulse absolute -top-10 left-1/2 -translate-x-1/2 w-40 h-40 bg-yellow-50/30 blur-3xl rounded-full" />
+                                    </div>
                                 )}
-                                {isRecommended && (
+                                {isHighlighted && (
                                     <motion.span
                                         initial={{ opacity: 0, scale: 0.8, y: -8 }}
                                         animate={{ opacity: 1, scale: 1, y: 0 }}
                                         transition={{ delay: 0.3, type: 'spring', stiffness: 300, damping: 18 }}
-                                        className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-50 text-richblack-900 text-xs font-semibold px-3 py-1 rounded-full z-10"
+                                        className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 bg-yellow-50 text-richblack-900 text-xs font-semibold px-3 py-1 rounded-full z-10 shadow-md whitespace-nowrap"
                                     >
-                                        Recommended
+                                        {isPro ? <FaHeart size={10} /> : <FaStar size={10} />}
+                                        {isPro ? 'Most Popular' : 'Best Value'}
                                     </motion.span>
                                 )}
                                 <h2 className="text-xl font-bold text-richblack-5 mb-2">{plan.name}</h2>
                                 <p className="text-3xl font-bold text-yellow-50 mb-4">
                                     {plan.priceInr ? `₹${plan.priceInr}/mo` : "Free"}
                                 </p>
-                                <ul className="text-richblack-200 text-sm space-y-2 mb-6 flex-1">
-                                    <li>{plan.credits === null ? "Unlimited" : plan.credits} summaries / month</li>
-                                    <li>{plan.maxMessagesPerChat === null ? "Unlimited" : plan.maxMessagesPerChat} messages per chat</li>
-                                    <li>{plan.featureLimits?.docSummary === null ? "Unlimited" : plan.featureLimits?.docSummary} document summaries / month</li>
-                                    <li>{plan.featureLimits?.bulkSummary === null ? "Unlimited" : plan.featureLimits?.bulkSummary} bulk uploads / month</li>
-                                    <li>{plan.featureLimits?.audioSummary === null ? "Unlimited" : plan.featureLimits?.audioSummary} audio summaries / month</li>
-                                    <li>{plan.key === 'Basic' ? "Key points + action items" : plan.key === 'Pro' ? "+ Sections & key terms" : "+ Quiz & flashcards"}</li>
-                                    {plan.models?.length > 0 && (
-                                        <li>Choice of AI model: {plan.models.join(', ')}</li>
-                                    )}
+                                <ul className="text-sm space-y-2.5 mb-6 flex-1">
+                                    {sortedRows.map((row) => (
+                                        <CardFeatureRow key={row.label} label={row.label} value={row[field]} />
+                                    ))}
                                 </ul>
                                 <IconBtn
                                     text={plan.key === user?.SubType ? "Current plan" : plan.key === 'Basic' ? "Included free" : "Upgrade"}
