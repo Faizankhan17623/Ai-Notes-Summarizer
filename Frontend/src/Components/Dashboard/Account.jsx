@@ -335,7 +335,7 @@ const Account = () => {
                     {/* API access temporarily hidden from the Account page sir — <ApiKeySection isPaidPlan={isPaidPlan} /> */}
 
                     {!profile.Buffer && (
-                        <div className="border border-danger-soft/40 rounded-lg p-6">
+                        <div className="border border-danger-soft bg-danger-soft/10 rounded-lg p-6">
                             <h2 className="text-danger-soft font-semibold mb-2 flex items-center gap-2">
                                 <FaExclamationTriangle size={14} /> Danger zone
                             </h2>

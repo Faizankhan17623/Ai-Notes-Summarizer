@@ -455,6 +455,11 @@ export function UpdatePassword(oldPassword, newPassword, confirmNewPassword, tok
     }
 }
 
+// this schedules a 2-day-buffered soft delete sir (see controllers/user.js deleteAccount) —
+// the account itself still works during that window so a changed-their-mind user can log back
+// in and hit Recover, but the browser that JUST clicked Delete has nothing left to do in the
+// dashboard, so it logs out immediately rather than sitting on a page for an account that's
+// now in limbo. Re-logging in during the buffer window still works exactly as before.
 export function DeleteAccount(token, navigate) {
     return async (dispatch) => {
         const toastId = toast.loading("Scheduling account deletion...")
@@ -468,7 +473,7 @@ export function DeleteAccount(token, navigate) {
             }
 
             toast.success(response.data.message)
-            dispatch(GetProfile(token))
+            dispatch(LogoutUser(navigate))
         } catch (error) {
             logError("Error deleting account", error)
             toast.error(error?.response?.data?.message || "Could not delete account")
