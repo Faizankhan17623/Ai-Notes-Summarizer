@@ -605,10 +605,17 @@ exports.bulkSetRole = async (req, res) => {
     }
 }
 
-// GET /admin/payments sir
+// GET /admin/payments sir — Support-visible (isSupport route gate), so the Admin's own rows
+// (if any exist historically — Payment.js blocks staff from paying going forward, but old
+// rows can predate that) are excluded the same way getUsers already hides the Admin account
+// from Support entirely, not just from the Users list specifically
 exports.getPayments = async (req, res) => {
     try {
-        const payments = await Payment.find().populate('user', 'firstName lastName email').sort({ createdAt: -1 }).limit(100)
+        const adminIds = await User.find({ role: 'Admin' }).select('_id')
+        const payments = await Payment.find({ user: { $nin: adminIds.map((u) => u._id) } })
+            .populate('user', 'firstName lastName email')
+            .sort({ createdAt: -1 })
+            .limit(100)
         return res.status(200).json({ success: true, payments })
     } catch (error) {
         console.log(error.message)
@@ -703,17 +710,22 @@ exports.getAuditLog = async (req, res) => {
 // GET /admin/ai-logs sir — the cost/health monitor feed, same pagination shape as above
 // optional ?userSearch=, ?model=, ?success=true|false filters sir, alongside the existing
 // pagination. userSearch resolves matching User ids first (AiLog.user is a ref, not an
-// embedded name/email, so it can't be RegExp-matched directly the way getUsers' search is)
+// embedded name/email, so it can't be RegExp-matched directly the way getUsers' search is).
+// The Admin is excluded from BOTH the userSearch match-set and the base filter — this route
+// is Support-visible, and the Admin actively uses the app, so without this Support would see
+// the Admin's name/email/model/token usage on every page of this feed
 exports.getAiLogs = async (req, res) => {
     try {
         const page = Math.max(1, parseInt(req.query.page) || 1)
         const limit = 20
         const { userSearch, model, success } = req.query
 
-        const filter = {}
+        const adminIds = await User.find({ role: 'Admin' }).select('_id')
+        const filter = { user: { $nin: adminIds.map((u) => u._id) } }
         if (userSearch?.trim()) {
             const term = userSearch.trim()
             const matchingUsers = await User.find({
+                role: { $ne: 'Admin' },
                 $or: [{ email: new RegExp(term, 'i') }, { firstName: new RegExp(term, 'i') }, { lastName: new RegExp(term, 'i') }]
             }).select('_id')
             filter.user = { $in: matchingUsers.map((u) => u._id) }
@@ -1088,7 +1100,11 @@ exports.getContactMessageUserActivity = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Contact message not found' })
         }
 
-        const user = await User.findOne({ email: contactMessage.email }).select(ADMIN_USER_FIELDS)
+        // role excluded from the match sir, not just filtered after — same "Support never
+        // sees the Admin account" rule as getUsers/getPayments/getAiLogs above. If the ticket's
+        // email happens to belong to the Admin, this reports unmatched rather than resolving
+        // and handing back the Admin's profile + AI activity to a Support agent
+        const user = await User.findOne({ email: contactMessage.email, role: { $ne: 'Admin' } }).select(ADMIN_USER_FIELDS)
         if (!user) {
             return res.status(200).json({ success: true, matched: false })
         }
