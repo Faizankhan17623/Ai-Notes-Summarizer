@@ -23,6 +23,10 @@ screenshots/
 scripts/
 .env.screenshots.example
 
+# throwaway diagnostic/Playwright scripts sir — underscore-prefixed at Frontend root,
+# e.g. _toggle-check.mjs, kept local for one-off manual verification, never committed
+_*.mjs
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

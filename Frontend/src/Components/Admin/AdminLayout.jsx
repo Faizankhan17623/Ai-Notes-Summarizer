@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { FaChartLine, FaChartBar, FaUsers, FaCreditCard, FaClipboardList, FaBullhorn, FaEnvelopeOpenText, FaGlobeAmericas } from 'react-icons/fa'
+import { FaChartLine, FaChartBar, FaUsers, FaCreditCard, FaClipboardList, FaBullhorn, FaEnvelopeOpenText, FaGlobeAmericas, FaBug } from 'react-icons/fa'
 import Navbar from '../Home/Navbar.jsx'
 import AnimatedOutlet from '../extra/AnimatedOutlet.jsx'
 
@@ -12,6 +12,7 @@ const navItems = [
     { to: '/Admin/Users', label: 'Users', icon: FaUsers },
     { to: '/Admin/Payments', label: 'Payments', icon: FaCreditCard },
     { to: '/Admin/Messages', label: 'Contact messages', icon: FaEnvelopeOpenText },
+    { to: '/Admin/Feedback', label: 'Bug reports & ideas', icon: FaBug },
     { to: '/Admin/Audit', label: 'Audit log', icon: FaClipboardList },
     { to: '/Admin/Announcements', label: 'Announcements', icon: FaBullhorn },
 ]

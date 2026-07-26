@@ -2,12 +2,13 @@ import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
 import { apiConnector } from "../apiConnector.js"
 import { AdminData } from "../Apis/AdminApi.js"
-import { setOverview, setAnalytics, setTraffic, setTrafficLoading, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setContactMessages, setSavedViews, setTicketActivity, setLoading } from "../../Slices/adminSlice.js"
+import { setOverview, setAnalytics, setTraffic, setTrafficLoading, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setContactMessages, setFeedbackReports, setSavedViews, setTicketActivity, setLoading } from "../../Slices/adminSlice.js"
 
 const {
     overview, analytics, traffic, users, suspendUser, banUser, unbanUser, denyAppeal, setRole, deleteUser, payments, refundPayment, contactMessages,
     replyToContactMessage, addInternalNote, audit, aiLogs, activeAnnouncement, announcements, deactivateAnnouncement,
     savedViews, deleteSavedView, userActivity,
+    feedbackReports, replyToFeedbackReport, addFeedbackNote,
 } = AdminData
 
 export function GetOverview(token) {
@@ -323,6 +324,58 @@ export function AddInternalNote(messageId, text, token) {
             const response = await apiConnector("POST", `${addInternalNote}/${messageId}/notes`, { text }, { Authorization: `Bearer ${token}` })
             if (!response.data.success) throw new Error(response.data.message)
             dispatch(GetContactMessages(token))
+            return true
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not add the note")
+            return false
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+// type is optional sir — 'bug' | 'feature' filters server-side, omitted returns both
+export function GetFeedbackReports(token, type) {
+    return async (dispatch) => {
+        dispatch(setLoading(true))
+        try {
+            const response = await apiConnector("GET", feedbackReports, null, { Authorization: `Bearer ${token}` }, type ? { type } : undefined)
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setFeedbackReports(response.data.reports))
+        } catch (error) {
+            logError("Error fetching feedback reports", error)
+        } finally {
+            dispatch(setLoading(false))
+        }
+    }
+}
+
+export function ReplyToFeedbackReport(reportId, replyMessage, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Sending reply...")
+        try {
+            const response = await apiConnector("POST", `${replyToFeedbackReport}/${reportId}/reply`, { replyMessage }, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success("Reply sent")
+            dispatch(GetFeedbackReports(token))
+            return true
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not send reply")
+            return false
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+// private handoff note sir — same shape as AddInternalNote above, Support/Admin only
+export function AddFeedbackNote(reportId, text, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Adding note...")
+        try {
+            const response = await apiConnector("POST", `${addFeedbackNote}/${reportId}/notes`, { text }, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(GetFeedbackReports(token))
             return true
         } catch (error) {
             toast.error(error?.response?.data?.message || "Could not add the note")

@@ -15,6 +15,9 @@ export const AdminData = {
     contactMessages: BASE_URL + "/admin/contact-messages",
     replyToContactMessage: BASE_URL + "/admin/contact-messages",  // + /:messageId/reply
     addInternalNote: BASE_URL + "/admin/contact-messages",  // + /:messageId/notes
+    feedbackReports: BASE_URL + "/admin/feedback",
+    replyToFeedbackReport: BASE_URL + "/admin/feedback",  // + /:reportId/reply
+    addFeedbackNote: BASE_URL + "/admin/feedback",  // + /:reportId/notes
     audit: BASE_URL + "/admin/audit",
     aiLogs: BASE_URL + "/admin/ai-logs",
     activeAnnouncement: BASE_URL + "/announcements/active",

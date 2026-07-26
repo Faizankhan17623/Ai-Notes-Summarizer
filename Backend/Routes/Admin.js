@@ -35,6 +35,8 @@ const {
     getContactMessageUserActivity,
 } = require('../controllers/Admin.js')
 const { getContactMessages, replyToContactMessage, addInternalNote } = require('../controllers/Contact.js')
+const { getFeedbackReports, replyToFeedbackReport, addFeedbackNote } = require('../controllers/Feedback.js')
+const { feedbackReplyRules } = require('../Middlewares/ValidationRules.js')
 
 // public sir — the frontend banner reads this on every page, no login required
 route.get('/announcements/active', getActiveAnnouncement)
@@ -55,6 +57,12 @@ route.post('/admin/contact-messages/:messageId/notes', doubleCsrfProtection, Aut
 // this ticket's submitter's recent AI activity sir — same isSupport gate, view-only, no
 // side effects, matches the "help" tier the rest of the ticket routes sit at
 route.get('/admin/contact-messages/:messageId/user-activity', userActivityRules, validate, Auth, isSupport, getContactMessageUserActivity)
+
+// bug reports / feature suggestions sir — same isSupport "view/help" tier as the contact-
+// message routes right above; replying/resolving is the help action, nothing destructive here
+route.get('/admin/feedback', Auth, isSupport, getFeedbackReports)
+route.post('/admin/feedback/:reportId/reply', doubleCsrfProtection, feedbackReplyRules, validate, Auth, isSupport, replyToFeedbackReport)
+route.post('/admin/feedback/:reportId/notes', doubleCsrfProtection, Auth, isSupport, addFeedbackNote)
 
 // saved filter views sir — personal to whoever created them, same isSupport gate as the
 // list pages they apply to (a saved view is just a shortcut back into a page this role can

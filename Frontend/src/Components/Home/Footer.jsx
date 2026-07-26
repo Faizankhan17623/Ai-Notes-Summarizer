@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { FaTwitter, FaGithub, FaLinkedin, FaArrowRight } from 'react-icons/fa'
 import { NAV_MENUS } from './navMenuData.js'
@@ -18,6 +18,10 @@ const COMPANY_LINKS = [
 const SUPPORT_LINKS = [
     { title: 'Help Center', href: '/HelpCenter' },
     { title: 'FAQs', href: '/Resources' },
+    // fromRoute state (added at render time below) sir — lets the bug-report form
+    // auto-capture which page the visitor was actually on, not just wherever they clicked from
+    { title: 'Report a Bug', href: '/ReportBug', captureRoute: true },
+    { title: 'Suggest a Feature', href: '/SuggestFeature', captureRoute: true },
 ]
 
 const SOCIAL_LINKS = [
@@ -26,7 +30,7 @@ const SOCIAL_LINKS = [
     { icon: FaLinkedin, href: '#', label: 'LinkedIn' },
 ]
 
-const FooterColumn = ({ title, links }) => (
+const FooterColumn = ({ title, links, currentPath }) => (
     <div>
         <h3 className="text-richblack-5 font-semibold text-sm mb-3">{title}</h3>
         <ul className="space-y-2">
@@ -37,7 +41,11 @@ const FooterColumn = ({ title, links }) => (
                             {link.title}
                         </a>
                     ) : (
-                        <Link to={link.href} className="text-richblack-300 hover:text-richblack-5 text-sm transition-colors">
+                        <Link
+                            to={link.href}
+                            state={link.captureRoute ? { fromRoute: currentPath } : undefined}
+                            className="text-richblack-300 hover:text-richblack-5 text-sm transition-colors"
+                        >
                             {link.title}
                         </Link>
                     )}
@@ -49,6 +57,7 @@ const FooterColumn = ({ title, links }) => (
 
 const Footer = () => {
     const { token } = useSelector((state) => state.auth)
+    const { pathname } = useLocation()
     const featureLinks = NAV_MENUS.find((menu) => menu.label === 'Features').items.map((item) => ({
         title: item.title,
         href: item.href,
@@ -106,7 +115,7 @@ const Footer = () => {
                     <FooterColumn title="Features" links={featureLinks} />
                     <FooterColumn title="Solutions" links={solutionLinks} />
                     <FooterColumn title="Resources" links={resourceLinks} />
-                    <FooterColumn title="Support" links={SUPPORT_LINKS} />
+                    <FooterColumn title="Support" links={SUPPORT_LINKS} currentPath={pathname} />
                     <FooterColumn title="Company" links={COMPANY_LINKS} />
                 </div>
 

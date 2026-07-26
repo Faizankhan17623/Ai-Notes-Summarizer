@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { FaChartLine, FaUsers, FaCreditCard, FaEnvelopeOpenText } from 'react-icons/fa'
+import { FaChartLine, FaUsers, FaCreditCard, FaEnvelopeOpenText, FaBug } from 'react-icons/fa'
 import Navbar from '../Home/Navbar.jsx'
 import AnimatedOutlet from '../extra/AnimatedOutlet.jsx'
 
@@ -12,6 +12,7 @@ const navItems = [
     { to: '/Support/Users', label: 'Users', icon: FaUsers },
     { to: '/Support/Payments', label: 'Payments', icon: FaCreditCard },
     { to: '/Support/Messages', label: 'Contact messages', icon: FaEnvelopeOpenText },
+    { to: '/Support/Feedback', label: 'Bug reports & ideas', icon: FaBug },
 ]
 
 // same shell pattern as AdminLayout.jsx / Dashboard/DashboardLayout.jsx sir — one persistent

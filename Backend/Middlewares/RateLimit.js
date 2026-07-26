@@ -54,6 +54,16 @@ const contactLimiter = rateLimit({
     message: tooMany('Too many messages sent, please try again after 15 minutes'),
 })
 
+// bug/feature reports sir — same abuse profile as contactLimiter (real email, now also a
+// Cloudinary upload), same limit
+const feedbackLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: tooMany('Too many reports submitted, please try again after 15 minutes'),
+})
+
 // visit pings are cheap (one Mongo insert, no email/AI cost) but public and fired on every
 // navigation sir — generous enough for real browsing, still a ceiling against a scripted flood
 const visitLimiter = rateLimit({
@@ -64,4 +74,4 @@ const visitLimiter = rateLimit({
     message: tooMany('Too many requests, please slow down'),
 })
 
-module.exports = { globalLimiter, authLimiter, otpLimiter, aiLimiter, contactLimiter, visitLimiter }
+module.exports = { globalLimiter, authLimiter, otpLimiter, aiLimiter, contactLimiter, feedbackLimiter, visitLimiter }

@@ -28,6 +28,20 @@ exports.contactRules = [
     body('message').trim().notEmpty().isLength({ min: 10, max: 2000 }),
 ]
 
+// :type comes from the route param (/feedback/:type) sir, not the body — validated here
+// alongside title/description since it still needs to be one of the two allowed values
+// before the controller ever runs
+exports.feedbackReportRules = [
+    param('type').isIn(['bug', 'feature']),
+    body('title').trim().notEmpty().isLength({ max: 150 }),
+    body('description').trim().notEmpty().isLength({ min: 10, max: 3000 }),
+    body('route').optional({ values: 'falsy' }).trim().isLength({ max: 200 }),
+]
+
+exports.feedbackReplyRules = [
+    body('replyMessage').trim().notEmpty().isLength({ min: 1, max: 2000 }),
+]
+
 exports.resetPasswordRules = [
     body('token').trim().notEmpty(),
     body('newPassword').custom(isStrongPassword).withMessage(strongPasswordMessage),

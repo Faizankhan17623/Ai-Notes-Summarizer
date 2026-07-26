@@ -20,6 +20,7 @@ const initialState = {
     aiLogsPages: 1,
     announcements: [],
     contactMessages: [],
+    feedbackReports: [],
     // saved filter views sir — keyed by page ('users'|'payments'|'audit'|'ai-logs') so each
     // admin list page only ever sees its own saved views, never another page's
     savedViews: {},
@@ -72,6 +73,9 @@ const adminSlice = createSlice({
         setContactMessages(state, value) {
             state.contactMessages = value.payload
         },
+        setFeedbackReports(state, value) {
+            state.feedbackReports = value.payload
+        },
         setSavedViews(state, value) {
             state.savedViews[value.payload.page] = value.payload.views
         },
@@ -86,6 +90,6 @@ const adminSlice = createSlice({
 
 export const {
     setOverview, setAnalytics, setTraffic, setTrafficLoading, setUsers, setPayments, setAuditLogs, setAiLogs,
-    setAnnouncements, setContactMessages, setSavedViews, setTicketActivity, setLoading,
+    setAnnouncements, setContactMessages, setFeedbackReports, setSavedViews, setTicketActivity, setLoading,
 } = adminSlice.actions
 export default adminSlice.reducer

@@ -39,6 +39,8 @@ const HelpCenter = lazy(() => import('./Components/Home/HelpCenter'))
 const PrivacyPolicy = lazy(() => import('./Components/Home/PrivacyPolicy'))
 const TermsOfService = lazy(() => import('./Components/Home/TermsOfService'))
 const Contact = lazy(() => import('./Components/Home/Contact'))
+const ReportBug = lazy(() => import('./Components/Home/ReportBug'))
+const SuggestFeature = lazy(() => import('./Components/Home/SuggestFeature'))
 const NoteGroundedChat = lazy(() => import('./Components/Home/NoteGroundedChat'))
 const FlashcardsAndQuizzes = lazy(() => import('./Components/Home/FlashcardsAndQuizzes'))
 const SpacedRepetitionFeature = lazy(() => import('./Components/Home/SpacedRepetitionFeature'))
@@ -63,6 +65,7 @@ const AdminPayments = lazy(() => import('./Components/Admin/Payments'))
 const AdminAudit = lazy(() => import('./Components/Admin/Audit'))
 const AdminAnnouncements = lazy(() => import('./Components/Admin/Announcements'))
 const AdminContactMessages = lazy(() => import('./Components/Admin/ContactMessages'))
+const AdminFeedbackReports = lazy(() => import('./Components/Admin/FeedbackReports'))
 const SupportLayout = lazy(() => import('./Components/Support/SupportLayout'))
 
 const PageLoader = () => (
@@ -142,6 +145,8 @@ function App() {
             <Route path="/PrivacyPolicy" element={<PageFade><PrivacyPolicy /></PageFade>} />
             <Route path="/TermsOfService" element={<PageFade><TermsOfService /></PageFade>} />
             <Route path="/Contact" element={<PageFade><Contact /></PageFade>} />
+            <Route path="/ReportBug" element={<PageFade><ReportBug /></PageFade>} />
+            <Route path="/SuggestFeature" element={<PageFade><SuggestFeature /></PageFade>} />
             <Route path="/Features/Chat" element={<PageFade><NoteGroundedChat /></PageFade>} />
             <Route path="/Features/FlashcardsAndQuizzes" element={<PageFade><FlashcardsAndQuizzes /></PageFade>} />
             <Route path="/Features/SpacedRepetition" element={<PageFade><SpacedRepetitionFeature /></PageFade>} />
@@ -181,6 +186,7 @@ function App() {
               <Route path="/Admin/Users" element={<AdminUsers />} />
               <Route path="/Admin/Payments" element={<AdminPayments />} />
               <Route path="/Admin/Messages" element={<AdminContactMessages />} />
+              <Route path="/Admin/Feedback" element={<AdminFeedbackReports />} />
               <Route path="/Admin/Audit" element={<AdminAudit />} />
               <Route path="/Admin/Announcements" element={<AdminAnnouncements />} />
             </Route>
@@ -194,6 +200,7 @@ function App() {
               <Route path="/Support/Users" element={<AdminUsers />} />
               <Route path="/Support/Payments" element={<AdminPayments />} />
               <Route path="/Support/Messages" element={<AdminContactMessages />} />
+              <Route path="/Support/Feedback" element={<AdminFeedbackReports />} />
             </Route>
 
             {/* anything unknown goes home sir */}
