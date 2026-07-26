@@ -185,7 +185,7 @@ const Analytics = () => {
                                         {analytics.topUsers.map((row) => (
                                             <tr key={row.userId} className="border-b border-border-soft last:border-b-0 text-richblack-200">
                                                 <td className="py-2 pr-4">
-                                                    {row.user ? `${row.user.firstName} ${row.user.lastName}` : 'Deleted user'}
+                                                    {row.user.firstName} {row.user.lastName}
                                                 </td>
                                                 <td className="py-2 pr-4 font-mono">{row.notes}</td>
                                                 <td className="py-2 pr-4 font-mono">{row.chats}</td>

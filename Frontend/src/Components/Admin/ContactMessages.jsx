@@ -214,7 +214,7 @@ const ContactMessages = () => {
             <h1 className="font-display text-3xl font-semibold text-richblack-5 mb-6">Contact messages</h1>
 
             <div className="flex gap-1.5 mb-6">
-                {['open', 'resolved', 'all'].map((s) => (
+                {['all', 'open', 'resolved'].map((s) => (
                     <button
                         key={s}
                         onClick={() => setStatusFilter(s)}

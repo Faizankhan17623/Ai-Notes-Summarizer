@@ -25,7 +25,9 @@ const {
     getActiveAnnouncement,
     getAnnouncements,
     createAnnouncement,
+    editAnnouncement,
     deactivateAnnouncement,
+    deleteAnnouncement,
     getTraffic,
     getSavedViews,
     createSavedView,
@@ -87,6 +89,8 @@ route.delete('/admin/users/bulk-delete', doubleCsrfProtection, bulkDeleteUsersRu
 route.get('/admin/audit', Auth, isAdmin, getAuditLog)
 route.get('/admin/announcements', Auth, isAdmin, getAnnouncements)
 route.post('/admin/announcements', doubleCsrfProtection, Auth, isAdmin, createAnnouncement)
+route.patch('/admin/announcements/:id', doubleCsrfProtection, Auth, isAdmin, editAnnouncement)
 route.patch('/admin/announcements/:id/deactivate', doubleCsrfProtection, Auth, isAdmin, deactivateAnnouncement)
+route.delete('/admin/announcements/:id', doubleCsrfProtection, Auth, isAdmin, deleteAnnouncement)
 
 module.exports = route

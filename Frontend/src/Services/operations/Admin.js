@@ -368,9 +368,7 @@ export function GetActiveAnnouncement() {
         try {
             const response = await apiConnector("GET", activeAnnouncement)
             if (!response.data.success) throw new Error(response.data.message)
-            if (response.data.announcement) {
-                dispatch(setAnnouncements([response.data.announcement]))
-            }
+            dispatch(setAnnouncements(response.data.announcements))
         } catch (error) {
             logError("Error fetching active announcement", error)
         }
@@ -408,6 +406,24 @@ export function CreateAnnouncement(message, token) {
     }
 }
 
+export function EditAnnouncement(id, message, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Saving...")
+        try {
+            const response = await apiConnector("PATCH", `${announcements}/${id}`, { message }, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success("Announcement updated")
+            dispatch(GetAnnouncements(token))
+            return true
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not update announcement")
+            return false
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
 export function DeactivateAnnouncement(id, token) {
     return async (dispatch) => {
         const toastId = toast.loading("Deactivating...")
@@ -418,6 +434,22 @@ export function DeactivateAnnouncement(id, token) {
             dispatch(GetAnnouncements(token))
         } catch (error) {
             toast.error(error?.response?.data?.message || "Could not deactivate announcement")
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+export function DeleteAnnouncement(id, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Deleting...")
+        try {
+            const response = await apiConnector("DELETE", `${announcements}/${id}`, null, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success("Announcement deleted")
+            dispatch(GetAnnouncements(token))
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not delete announcement")
         } finally {
             toast.dismiss(toastId)
         }

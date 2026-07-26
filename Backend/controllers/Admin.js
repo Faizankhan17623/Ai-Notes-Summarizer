@@ -110,14 +110,19 @@ exports.getAdminAnalytics = async (req, res) => {
         bump(topByChats, 'chats')
         bump(topByAiCalls, 'aiCalls')
 
-        const topUsersRaw = Array.from(usageMap.values())
+        const usageRanked = Array.from(usageMap.values())
             .map((u) => ({ ...u, total: u.notes + u.chats + u.aiCalls }))
             .sort((a, b) => b.total - a.total)
-            .slice(0, 20)
 
-        const topUserDocs = await User.find({ _id: { $in: topUsersRaw.map((u) => u.userId) } }).select('firstName lastName email SubType')
+        // fetch docs for everyone with usage first sir, THEN slice to 20 — a deleted user (their
+        // Notes/Chats/AiLog rows outlive the account) would otherwise still consume a top-20 slot
+        // and bump out a real active user, on top of rendering as a dead "Deleted user" row
+        const topUserDocs = await User.find({ _id: { $in: usageRanked.map((u) => u.userId) } }).select('firstName lastName email SubType')
         const userById = new Map(topUserDocs.map((u) => [u._id.toString(), u]))
-        const topUsers = topUsersRaw.map((u) => ({ ...u, user: userById.get(u.userId.toString()) || null }))
+        const topUsers = usageRanked
+            .filter((u) => userById.has(u.userId.toString()))
+            .slice(0, 20)
+            .map((u) => ({ ...u, user: userById.get(u.userId.toString()) }))
 
         // credit/overage stats sir
         // users currently at their plan's limit sir — ProMax is capped now too (500/mo), so all
@@ -706,13 +711,14 @@ exports.getAiLogs = async (req, res) => {
 }
 
 // GET /admin/announcements/active — public, no auth sir (read in App.jsx banner)
+// up to MAX_ACTIVE_ANNOUNCEMENTS at once sir — see createAnnouncement's comment for why 3
 exports.getActiveAnnouncement = async (req, res) => {
     try {
-        const announcement = await Announcement.findOne({ active: true }).sort({ createdAt: -1 })
-        return res.status(200).json({ success: true, announcement })
+        const announcements = await Announcement.find({ active: true }).sort({ createdAt: -1 })
+        return res.status(200).json({ success: true, announcements })
     } catch (error) {
         console.log(error.message)
-        return res.status(500).json({ success: false, message: 'Failed to load announcement' })
+        return res.status(500).json({ success: false, message: 'Failed to load announcements' })
     }
 }
 
@@ -727,7 +733,13 @@ exports.getAnnouncements = async (req, res) => {
     }
 }
 
-// POST /admin/announcements sir — creating a new active one deactivates the rest
+// up to 3 can be active at once sir — the public banner (AnnouncementBanner.jsx) stacks
+// them, so unlike the old one-active-at-a-time model this no longer auto-deactivates
+// anything on create; once 3 are active, publishing a 4th is blocked until the admin frees
+// a slot (deactivate or delete one) rather than silently bumping the oldest
+const MAX_ACTIVE_ANNOUNCEMENTS = 3
+
+// POST /admin/announcements sir
 exports.createAnnouncement = async (req, res) => {
     try {
         const { message } = req.body
@@ -735,7 +747,14 @@ exports.createAnnouncement = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Message is required' })
         }
 
-        await Announcement.updateMany({}, { active: false })
+        const activeCount = await Announcement.countDocuments({ active: true })
+        if (activeCount >= MAX_ACTIVE_ANNOUNCEMENTS) {
+            return res.status(400).json({
+                success: false,
+                message: `Only ${MAX_ACTIVE_ANNOUNCEMENTS} announcements can be active at once — deactivate or delete one first`,
+            })
+        }
+
         const announcement = await Announcement.create({ message: message.trim(), active: true, createdBy: req.User.id })
 
         writeAudit(req.User.id, 'create_announcement', null, message.trim())
@@ -744,6 +763,31 @@ exports.createAnnouncement = async (req, res) => {
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to create announcement' })
+    }
+}
+
+// PATCH /admin/announcements/:id sir — edits the message text only; active/inactive still
+// goes through deactivate below (re-activating isn't supported — that'd need its own
+// MAX_ACTIVE_ANNOUNCEMENTS check, and "publish a new one" already covers that need)
+exports.editAnnouncement = async (req, res) => {
+    try {
+        const { id } = req.params
+        const { message } = req.body
+        if (!message || !message.trim()) {
+            return res.status(400).json({ success: false, message: 'Message is required' })
+        }
+
+        const announcement = await Announcement.findByIdAndUpdate(id, { message: message.trim() }, { returnDocument: 'after' })
+        if (!announcement) {
+            return res.status(404).json({ success: false, message: 'Announcement not found' })
+        }
+
+        writeAudit(req.User.id, 'edit_announcement', null, message.trim())
+
+        return res.status(200).json({ success: true, announcement })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to edit announcement' })
     }
 }
 
@@ -757,6 +801,23 @@ exports.deactivateAnnouncement = async (req, res) => {
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to deactivate announcement' })
+    }
+}
+
+// DELETE /admin/announcements/:id sir — hard delete, separate from deactivate above (that
+// just hides it from the public banner but keeps it in the admin manager's history/list)
+exports.deleteAnnouncement = async (req, res) => {
+    try {
+        const { id } = req.params
+        const announcement = await Announcement.findByIdAndDelete(id)
+        if (!announcement) {
+            return res.status(404).json({ success: false, message: 'Announcement not found' })
+        }
+        writeAudit(req.User.id, 'delete_announcement', null, announcement.message)
+        return res.status(200).json({ success: true, message: 'Announcement deleted' })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to delete announcement' })
     }
 }
 
@@ -825,9 +886,12 @@ exports.getTraffic = async (req, res) => {
                 { $group: { _id: null, totalVisits: { $sum: 1 }, uniqueVisitorIds: { $addToSet: '$visitorId' }, uniqueIps: { $addToSet: '$ipHash' }, loggedInVisits: { $sum: { $cond: [{ $ne: ['$user', null] }, 1, 0] } } } },
                 { $project: { _id: 0, totalVisits: 1, uniqueVisitors: { $size: '$uniqueVisitorIds' }, uniqueIps: { $size: '$uniqueIps' }, loggedInVisits: 1 } },
             ]),
-            // most-visited pages in the window sir — top 10, quick "what are people looking at"
+            // most-visited pages in the window sir — top 10, quick "what are people looking at".
+            // "/" is excluded too sir, not just null/empty — the homepage gets hit by every
+            // single visit before any real navigation happens, so it always wins #1 and drowns
+            // out the pages people actually chose to go to
             Visit.aggregate([
-                { $match: { ...match, path: { $nin: [null, ''] } } },
+                { $match: { ...match, path: { $nin: [null, '', '/'] } } },
                 { $group: { _id: '$path', visits: { $sum: 1 } } },
                 { $sort: { visits: -1 } },
                 { $limit: 10 },

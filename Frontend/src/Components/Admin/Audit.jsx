@@ -63,6 +63,11 @@ const Pagination = ({ page, pages, total, onPrev, onNext }) => (
     )
 )
 
+const TABS = [
+    { key: 'actions', label: 'Admin actions' },
+    { key: 'ai-usage', label: 'AI usage / cost monitor' },
+]
+
 const Audit = () => {
     const dispatch = useDispatch()
     const { token } = useSelector((state) => state.auth)
@@ -71,6 +76,9 @@ const Audit = () => {
         aiLogs, aiLogsTotal, aiLogsPage, aiLogsPages,
         loading,
     } = useSelector((state) => state.admin)
+    // two unrelated tables (staff actions vs. AI cost/latency) were competing for attention
+    // stacked on one page sir — tabbed instead, one section visible at a time, same route
+    const [activeTab, setActiveTab] = useState('actions')
     // paginated independently sir — one table's Next shouldn't page the other
     const [auditPage, setAuditPage] = useState(1)
     const [aiPage, setAiPage] = useState(1)
@@ -101,12 +109,29 @@ const Audit = () => {
     const aiModelOptions = useMemo(() => [...new Set(aiLogs.map((l) => l.model).filter(Boolean))], [aiLogs])
 
     return (
-        <div className="px-6 md:px-10 py-10 space-y-10">
+        <div className="px-6 md:px-10 py-10">
             <Helmet><title>Admin Audit — Notewise</title></Helmet>
 
+            <h1 className="font-display text-3xl font-semibold text-richblack-5 mb-6">Audit</h1>
+
+            <div className="flex gap-1.5 mb-8 border-b border-border-soft">
+                {TABS.map((tab) => (
+                    <button
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key)}
+                        className={`text-sm font-medium px-4 py-2.5 -mb-px border-b-2 cursor-pointer transition-colors ${activeTab === tab.key
+                            ? 'border-yellow-50 text-richblack-5'
+                            : 'border-transparent text-richblack-400 hover:text-richblack-200'
+                            }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {activeTab === 'actions' && (
             <div>
-                <div className="flex items-center justify-between gap-4 mb-6">
-                    <h1 className="font-display text-3xl font-semibold text-richblack-5">Admin actions</h1>
+                <div className="flex items-center justify-end gap-4 mb-6">
                     <ExportButton
                         onClick={() => downloadCsv(`admin-actions-${Date.now()}.csv`, toCsv(auditLogs, AUDIT_CSV_COLUMNS))}
                         disabled={auditLogs.length === 0}
@@ -147,10 +172,11 @@ const Audit = () => {
                     </div>
                 )}
             </div>
+            )}
 
+            {activeTab === 'ai-usage' && (
             <div>
-                <div className="flex items-center justify-between gap-4 mb-4">
-                    <h2 className="font-display text-xl font-semibold text-richblack-5">AI usage / cost monitor</h2>
+                <div className="flex items-center justify-end gap-4 mb-4">
                     <ExportButton
                         onClick={() => downloadCsv(`ai-usage-${Date.now()}.csv`, toCsv(aiLogs, AI_LOGS_CSV_COLUMNS))}
                         disabled={aiLogs.length === 0}
@@ -245,6 +271,7 @@ const Audit = () => {
                     />
                 </div>
             </div>
+            )}
         </div>
     )
 }
