@@ -27,6 +27,10 @@ const initialState = {
     // per-ticket user activity sir — keyed by messageId, populated on demand when a
     // ContactMessages card is expanded to look up its submitter's AI activity
     ticketActivity: {},
+    // system health snapshot sir — see Components/Admin/Health.jsx. Separate loading flag
+    // from the generic one above so polling this page doesn't flicker other admin views
+    health: null,
+    healthLoading: false,
     loading: false
 }
 
@@ -82,6 +86,12 @@ const adminSlice = createSlice({
         setTicketActivity(state, value) {
             state.ticketActivity[value.payload.messageId] = value.payload.activity
         },
+        setHealth(state, value) {
+            state.health = value.payload
+        },
+        setHealthLoading(state, value) {
+            state.healthLoading = value.payload
+        },
         setLoading(state, value) {
             state.loading = value.payload
         }
@@ -90,6 +100,6 @@ const adminSlice = createSlice({
 
 export const {
     setOverview, setAnalytics, setTraffic, setTrafficLoading, setUsers, setPayments, setAuditLogs, setAiLogs,
-    setAnnouncements, setContactMessages, setFeedbackReports, setSavedViews, setTicketActivity, setLoading,
+    setAnnouncements, setContactMessages, setFeedbackReports, setSavedViews, setTicketActivity, setHealth, setHealthLoading, setLoading,
 } = adminSlice.actions
 export default adminSlice.reducer

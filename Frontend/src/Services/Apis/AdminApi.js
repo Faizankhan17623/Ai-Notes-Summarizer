@@ -18,6 +18,9 @@ export const AdminData = {
     feedbackReports: BASE_URL + "/admin/feedback",
     replyToFeedbackReport: BASE_URL + "/admin/feedback",  // + /:reportId/reply
     addFeedbackNote: BASE_URL + "/admin/feedback",  // + /:reportId/notes
+    setReportStatus: BASE_URL + "/admin/reports",  // + /:reportId/status (PATCH)
+    deleteReport: BASE_URL + "/admin/reports",  // + /:reportId (DELETE, Admin only)
+    health: BASE_URL + "/admin/health",
     audit: BASE_URL + "/admin/audit",
     aiLogs: BASE_URL + "/admin/ai-logs",
     activeAnnouncement: BASE_URL + "/announcements/active",

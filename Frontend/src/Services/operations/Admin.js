@@ -2,13 +2,13 @@ import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
 import { apiConnector } from "../apiConnector.js"
 import { AdminData } from "../Apis/AdminApi.js"
-import { setOverview, setAnalytics, setTraffic, setTrafficLoading, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setContactMessages, setFeedbackReports, setSavedViews, setTicketActivity, setLoading } from "../../Slices/adminSlice.js"
+import { setOverview, setAnalytics, setTraffic, setTrafficLoading, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setContactMessages, setFeedbackReports, setSavedViews, setTicketActivity, setHealth, setHealthLoading, setLoading } from "../../Slices/adminSlice.js"
 
 const {
     overview, analytics, traffic, users, suspendUser, banUser, unbanUser, denyAppeal, setRole, deleteUser, payments, refundPayment, contactMessages,
     replyToContactMessage, addInternalNote, audit, aiLogs, activeAnnouncement, announcements, deactivateAnnouncement,
     savedViews, deleteSavedView, userActivity,
-    feedbackReports, replyToFeedbackReport, addFeedbackNote,
+    feedbackReports, replyToFeedbackReport, addFeedbackNote, setReportStatus, deleteReport, health,
 } = AdminData
 
 export function GetOverview(token) {
@@ -382,6 +382,63 @@ export function AddFeedbackNote(reportId, text, token) {
             return false
         } finally {
             toast.dismiss(toastId)
+        }
+    }
+}
+
+// status is one of 'open'|'in_progress'|'planned'|'resolved'|'declined' sir — the standalone
+// status control on the triage card, independent of the reply-to-resolve shortcut above
+export function SetReportStatus(reportId, status, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Updating status...")
+        try {
+            const response = await apiConnector("PATCH", `${setReportStatus}/${reportId}/status`, { status }, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success("Status updated")
+            dispatch(GetFeedbackReports(token))
+            return true
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not update status")
+            return false
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+// Admin only sir — backend re-checks the role, this is a hard delete with no recovery buffer
+export function DeleteReport(reportId, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Deleting report...")
+        try {
+            const response = await apiConnector("DELETE", `${deleteReport}/${reportId}`, null, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success("Report deleted")
+            dispatch(GetFeedbackReports(token))
+            return true
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not delete report")
+            return false
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+// system health for the Admin Health page sir — DB, Groq, mail relay, event-loop lag, env
+// sanity, all in one payload (the backend response is cached ~30s server-side, so polling
+// this from the dashboard doesn't burn real Groq/mail quota)
+export function GetHealth(token) {
+    return async (dispatch) => {
+        dispatch(setHealthLoading(true))
+        try {
+            const response = await apiConnector("GET", health, null, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setHealth(response.data.health))
+        } catch (error) {
+            logError("Error fetching health", error)
+        } finally {
+            dispatch(setHealthLoading(false))
         }
     }
 }

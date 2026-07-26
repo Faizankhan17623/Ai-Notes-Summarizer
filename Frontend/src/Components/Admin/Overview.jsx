@@ -6,7 +6,7 @@ import { motion } from 'motion/react'
 import { ResponsiveContainer, AreaChart, Area } from 'recharts'
 import {
     FaUsers, FaStickyNote, FaComments, FaBolt, FaExclamationTriangle,
-    FaArrowRight, FaMoneyBillWave, FaClipboardList, FaBullhorn,
+    FaArrowRight, FaMoneyBillWave, FaClipboardList, FaBullhorn, FaHeartbeat,
 } from 'react-icons/fa'
 import { GetOverview } from '../../Services/operations/Admin.js'
 import { fadeUp, staggerContainer } from '../extra/motionVariants.js'
@@ -72,6 +72,7 @@ const SHORTCUTS = [
     { to: '/Admin/Payments', label: 'View payments', icon: FaMoneyBillWave },
     { to: '/Admin/Audit', label: 'Audit log', icon: FaClipboardList },
     { to: '/Admin/Announcements', label: 'Announcements', icon: FaBullhorn },
+    { to: '/Admin/Health', label: 'System health', icon: FaHeartbeat },
 ]
 
 const Overview = () => {

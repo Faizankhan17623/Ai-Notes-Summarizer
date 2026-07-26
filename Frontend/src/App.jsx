@@ -66,6 +66,7 @@ const AdminAudit = lazy(() => import('./Components/Admin/Audit'))
 const AdminAnnouncements = lazy(() => import('./Components/Admin/Announcements'))
 const AdminContactMessages = lazy(() => import('./Components/Admin/ContactMessages'))
 const AdminFeedbackReports = lazy(() => import('./Components/Admin/FeedbackReports'))
+const AdminHealth = lazy(() => import('./Components/Admin/Health'))
 const SupportLayout = lazy(() => import('./Components/Support/SupportLayout'))
 
 const PageLoader = () => (
@@ -187,6 +188,7 @@ function App() {
               <Route path="/Admin/Payments" element={<AdminPayments />} />
               <Route path="/Admin/Messages" element={<AdminContactMessages />} />
               <Route path="/Admin/Feedback" element={<AdminFeedbackReports />} />
+              <Route path="/Admin/Health" element={<AdminHealth />} />
               <Route path="/Admin/Audit" element={<AdminAudit />} />
               <Route path="/Admin/Announcements" element={<AdminAnnouncements />} />
             </Route>

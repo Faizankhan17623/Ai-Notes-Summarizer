@@ -6,6 +6,7 @@ import Navbar from '../Home/Navbar.jsx'
 import AnimatedOutlet from '../extra/AnimatedOutlet.jsx'
 import BannedNotice from './BannedNotice.jsx'
 import ProductTour from './ProductTour.jsx'
+import QuickActionsButton from './QuickActionsButton.jsx'
 import { GetProfile } from '../../Services/operations/Auth.js'
 
 // same 0.7/0.9 thresholds sir as the reactive credit-limit toast (see creditErrorToast.js) —
@@ -132,6 +133,8 @@ const DashboardLayout = () => {
                     {isBanned ? <BannedNotice user={user} /> : <AnimatedOutlet />}
                 </main>
             </div>
+
+            {!isBanned && <QuickActionsButton />}
         </div>
     )
 }

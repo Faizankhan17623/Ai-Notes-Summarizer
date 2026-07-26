@@ -1,24 +1,29 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
-import { FaBug, FaLightbulb, FaReply, FaLock, FaImage } from 'react-icons/fa'
-import { GetFeedbackReports, ReplyToFeedbackReport, AddFeedbackNote } from '../../Services/operations/Admin.js'
+import { FaBug, FaLightbulb, FaReply, FaLock, FaImage, FaTrash } from 'react-icons/fa'
+import Swal from 'sweetalert2'
+import { GetFeedbackReports, ReplyToFeedbackReport, AddFeedbackNote, SetReportStatus, DeleteReport } from '../../Services/operations/Admin.js'
 import StatusBadge from './StatusBadge.jsx'
 
-const STATUS_TONE = { open: 'neutral', resolved: 'good' }
+const STATUS_TONE = { open: 'neutral', in_progress: 'neutral', planned: 'neutral', resolved: 'good', declined: 'danger' }
+const STATUS_LABEL = { open: 'Open', in_progress: 'In progress', planned: 'Planned', resolved: 'Resolved', declined: 'Declined' }
+const STATUSES = ['open', 'in_progress', 'planned', 'resolved', 'declined']
 const TYPE_ICON = { bug: FaBug, feature: FaLightbulb }
 const TYPE_LABEL = { bug: 'Bug', feature: 'Feature' }
 
 // one card, expands into a reply form sir — same shape as ContactMessages.jsx's MessageCard,
 // this feedback system deliberately mirrors that one closely (see Backend/Models/
 // FeedbackReport.js's comment) rather than inventing a different admin UI pattern
-const ReportCard = ({ report, token, dispatch }) => {
+const ReportCard = ({ report, token, dispatch, isAdmin }) => {
     const [expanded, setExpanded] = useState(false)
     const [reply, setReply] = useState('')
     const [sending, setSending] = useState(false)
     const [noteText, setNoteText] = useState('')
     const [notesOpen, setNotesOpen] = useState(false)
     const [addingNote, setAddingNote] = useState(false)
+    const [updatingStatus, setUpdatingStatus] = useState(false)
+    const [deleting, setDeleting] = useState(false)
 
     const TypeIcon = TYPE_ICON[report.type]
 
@@ -38,6 +43,31 @@ const ReportCard = ({ report, token, dispatch }) => {
         const ok = await dispatch(AddFeedbackNote(report._id, noteText.trim(), token))
         setAddingNote(false)
         if (ok) setNoteText('')
+    }
+
+    const handleStatusChange = async (e) => {
+        const status = e.target.value
+        if (status === report.status) return
+        setUpdatingStatus(true)
+        await dispatch(SetReportStatus(report._id, status, token))
+        setUpdatingStatus(false)
+    }
+
+    const handleDelete = async () => {
+        const result = await Swal.fire({
+            title: 'Delete this report?',
+            text: "This can't be undone.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Delete',
+            confirmButtonColor: '#ef4444',
+            background: '#161d29',
+            color: '#f1f2ff',
+        })
+        if (!result.isConfirmed) return
+        setDeleting(true)
+        await dispatch(DeleteReport(report._id, token))
+        setDeleting(false)
     }
 
     return (
@@ -69,28 +99,47 @@ const ReportCard = ({ report, token, dispatch }) => {
                     )}
                     <div className="flex items-center gap-2 mt-2">
                         <span className="text-richblack-500 text-xs">{new Date(report.createdAt).toLocaleString()}</span>
-                        <StatusBadge tone={STATUS_TONE[report.status]}>{report.status}</StatusBadge>
+                        <StatusBadge tone={STATUS_TONE[report.status]}>{STATUS_LABEL[report.status] || report.status}</StatusBadge>
                     </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
+                    <select
+                        value={report.status}
+                        onChange={handleStatusChange}
+                        disabled={updatingStatus}
+                        className="bg-surface-hover border border-border-soft text-richblack-200 text-xs rounded-md px-2 py-1.5 outline-none focus:border-yellow-50 cursor-pointer disabled:opacity-50"
+                        title="Update status"
+                    >
+                        {STATUSES.map((s) => (
+                            <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+                        ))}
+                    </select>
                     <button
                         onClick={() => setNotesOpen((v) => !v)}
                         className="flex items-center gap-1.5 text-xs font-medium text-richblack-300 cursor-pointer hover:underline"
                     >
                         <FaLock size={9} /> Notes{report.internalNotes?.length ? ` (${report.internalNotes.length})` : ''}
                     </button>
-                    {report.status === 'open' && (
+                    <button
+                        onClick={() => setExpanded((v) => !v)}
+                        className="flex items-center gap-1.5 text-xs font-medium text-yellow-50 cursor-pointer hover:underline"
+                    >
+                        <FaReply size={10} /> Reply
+                    </button>
+                    {isAdmin && (
                         <button
-                            onClick={() => setExpanded((v) => !v)}
-                            className="flex items-center gap-1.5 text-xs font-medium text-yellow-50 cursor-pointer hover:underline"
+                            onClick={handleDelete}
+                            disabled={deleting}
+                            title="Delete report"
+                            className="text-richblack-400 hover:text-danger-soft cursor-pointer disabled:opacity-50"
                         >
-                            <FaReply size={10} /> Reply
+                            <FaTrash size={11} />
                         </button>
                     )}
                 </div>
             </div>
 
-            {report.status === 'resolved' && report.replyMessage && (
+            {report.replyMessage && (
                 <div className="mt-3 pt-3 border-t border-border-soft bg-surface-hover -mx-4 -mb-4 px-4 pb-4 rounded-b-lg">
                     <p className="text-richblack-400 text-xs mb-1">
                         Replied by {report.repliedBy?.firstName} {report.repliedBy?.lastName} · {new Date(report.repliedAt).toLocaleString()}
@@ -163,10 +212,14 @@ const ReportCard = ({ report, token, dispatch }) => {
 
 const FeedbackReports = () => {
     const dispatch = useDispatch()
-    const { token } = useSelector((state) => state.auth)
+    const { token, user } = useSelector((state) => state.auth)
     const { feedbackReports, loading } = useSelector((state) => state.admin)
     const [typeFilter, setTypeFilter] = useState('all')
     const [statusFilter, setStatusFilter] = useState('open')
+    // delete is Admin-only sir — Support can triage (reply, note, change status) but the
+    // backend 403s the delete route for Support, so hide the button rather than let them
+    // click something that just fails (same pattern as Users.jsx's isAdmin gate)
+    const isAdmin = user?.role === 'Admin'
 
     useEffect(() => {
         dispatch(GetFeedbackReports(token))
@@ -197,14 +250,14 @@ const FeedbackReports = () => {
                         </button>
                     ))}
                 </div>
-                <div className="flex gap-1.5">
-                    {['all', 'open', 'resolved'].map((s) => (
+                <div className="flex flex-wrap gap-1.5">
+                    {['all', ...STATUSES].map((s) => (
                         <button
                             key={s}
                             onClick={() => setStatusFilter(s)}
-                            className={`text-sm rounded-md px-3 py-1.5 cursor-pointer transition-colors capitalize ${statusFilter === s ? "bg-yellow-50 text-richblack-900" : "bg-surface-hover text-richblack-200 border border-border-soft hover:border-yellow-50"}`}
+                            className={`text-sm rounded-md px-3 py-1.5 cursor-pointer transition-colors ${statusFilter === s ? "bg-yellow-50 text-richblack-900" : "bg-surface-hover text-richblack-200 border border-border-soft hover:border-yellow-50"}`}
                         >
-                            {s}
+                            {s === 'all' ? 'All statuses' : STATUS_LABEL[s]}
                         </button>
                     ))}
                 </div>
@@ -217,12 +270,12 @@ const FeedbackReports = () => {
             ) : filtered.length === 0 ? (
                 <div className="border border-border-soft bg-surface rounded-lg text-center py-16 px-8">
                     <FaImage className="text-richblack-600 text-3xl mx-auto mb-4" />
-                    <p className="text-richblack-300 text-sm">No {statusFilter !== 'all' ? statusFilter : ''} reports.</p>
+                    <p className="text-richblack-300 text-sm">No {statusFilter !== 'all' ? STATUS_LABEL[statusFilter]?.toLowerCase() : ''} reports.</p>
                 </div>
             ) : (
                 <div className="space-y-3">
                     {filtered.map((r) => (
-                        <ReportCard key={r._id} report={r} token={token} dispatch={dispatch} />
+                        <ReportCard key={r._id} report={r} token={token} dispatch={dispatch} isAdmin={isAdmin} />
                     ))}
                 </div>
             )}
