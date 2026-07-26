@@ -1,3 +1,4 @@
+// deploy-trigger check sir — verifying Vercel auto-deploy actually fires on a push, safe to remove
 import { lazy, Suspense, useEffect } from 'react'
 import { useDispatch } from 'react-redux'
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"
