@@ -19,7 +19,7 @@ const navItems = [
 const SupportLayout = () => {
     return (
         <div className="min-h-screen bg-richblack-900">
-            <Navbar />
+            <Navbar showMegaMenu />
             <div className="flex">
                 <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border-soft bg-surface-raised px-3 py-5 min-h-[calc(100vh-73px)]">
                     <nav className="flex flex-col gap-1">

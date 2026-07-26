@@ -2,11 +2,13 @@ import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { FaCheck, FaMinus } from 'react-icons/fa'
+import { motion } from 'motion/react'
+import { FaCheck, FaMinus, FaBolt } from 'react-icons/fa'
 import { GetPlans, StartCheckout } from '../../Services/operations/Payment.js'
 import Loading from '../extra/Loading.jsx'
 import IconBtn from '../extra/IconBtn.jsx'
 import MarketingLayout from './MarketingLayout.jsx'
+import { fadeUp, viewportFadeUp, staggerContainer } from '../extra/motionVariants.js'
 
 // mirrors Backend/utils/Plans.js (PLANS + featureLimits) and Prompts.js sir — every row
 // here reflects a real gate in the code, not aspirational copy. Update this alongside those files.
@@ -63,7 +65,7 @@ const Pricing = () => {
             return
         }
         if (planKey === 'Basic') return
-        dispatch(StartCheckout(planKey, token, user))
+        dispatch(StartCheckout(planKey, token, user, navigate))
     }
 
     if (loading) return <Loading text="Loading plans..." />
@@ -72,23 +74,52 @@ const Pricing = () => {
         <MarketingLayout>
             <div className="px-6 py-16">
                 <Helmet><title>Pricing — Notewise</title></Helmet>
-                <h1 className="text-3xl font-bold text-richblack-5 text-center mb-4">Choose your plan</h1>
-                <p className="text-richblack-300 text-center mb-12">
-                    {paymentsLive ? "Upgrade anytime — cancel whenever you like." : "Upgrades are coming soon — full plan gating is already live under the hood."}
-                </p>
+                <motion.div initial="hidden" animate="show" variants={fadeUp}>
+                    <div className="flex justify-center mb-4">
+                        <span className="inline-flex items-center gap-1.5 bg-yellow-50/10 text-yellow-50 text-xs font-semibold px-3 py-1 rounded-full">
+                            <FaBolt size={10} /> Simple, transparent pricing
+                        </span>
+                    </div>
+                    <h1 className="text-3xl font-bold text-richblack-5 text-center mb-4">Choose your plan</h1>
+                    <p className="text-richblack-300 text-center mb-12">
+                        {paymentsLive ? "Upgrade anytime — cancel whenever you like." : "Upgrades are coming soon — full plan gating is already live under the hood."}
+                    </p>
+                </motion.div>
 
-                <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                <motion.div
+                    initial="hidden"
+                    animate="show"
+                    variants={staggerContainer(0.12, 0.1)}
+                    className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto"
+                >
                     {plans.map((plan) => {
                         // Pro is the recommended tier sir — best value between the free Basic
                         // plan and the highest-allowance-but-priciest ProMax, so it gets the highlight
                         // border + badge regardless of what the viewer is currently on
                         const isRecommended = plan.key === 'Pro'
                         return (
-                            <div key={plan.key} className={`relative border bg-surface rounded-lg p-6 flex flex-col ${isRecommended ? 'border-yellow-50' : 'border-border-soft'}`}>
+                            <motion.div
+                                key={plan.key}
+                                variants={fadeUp}
+                                whileHover={{ y: -6 }}
+                                transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+                                className={`relative border bg-surface rounded-lg p-6 flex flex-col overflow-hidden ${isRecommended ? 'border-yellow-50 shadow-[0_0_0_1px_rgba(255,214,10,0.3)]' : 'border-border-soft'} ${isRecommended ? 'animate-shimmer' : ''}`}
+                            >
                                 {isRecommended && (
-                                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-50 text-richblack-900 text-xs font-semibold px-3 py-1 rounded-full">
+                                    <span
+                                        aria-hidden
+                                        className="animate-glow-pulse absolute -top-10 left-1/2 -translate-x-1/2 w-40 h-40 bg-yellow-50/30 blur-3xl rounded-full pointer-events-none"
+                                    />
+                                )}
+                                {isRecommended && (
+                                    <motion.span
+                                        initial={{ opacity: 0, scale: 0.8, y: -8 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        transition={{ delay: 0.3, type: 'spring', stiffness: 300, damping: 18 }}
+                                        className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-50 text-richblack-900 text-xs font-semibold px-3 py-1 rounded-full z-10"
+                                    >
                                         Recommended
-                                    </span>
+                                    </motion.span>
                                 )}
                                 <h2 className="text-xl font-bold text-richblack-5 mb-2">{plan.name}</h2>
                                 <p className="text-3xl font-bold text-yellow-50 mb-4">
@@ -110,13 +141,13 @@ const Pricing = () => {
                                     disabled={plan.key === user?.SubType || plan.key === 'Basic'}
                                     onclick={() => handleUpgrade(plan.key)}
                                 />
-                            </div>
+                            </motion.div>
                         )
                     })}
-                </div>
+                </motion.div>
 
                 {/* Full comparison */}
-                <div className="max-w-4xl mx-auto mt-20">
+                <motion.div {...viewportFadeUp} className="max-w-4xl mx-auto mt-20">
                     <h2 className="text-2xl font-bold text-richblack-5 text-center mb-2">Compare plans in detail</h2>
                     <p className="text-richblack-300 text-center mb-10">Exactly what's included — and what isn't — on each plan.</p>
 
@@ -150,7 +181,7 @@ const Pricing = () => {
                             </tbody>
                         </table>
                     </div>
-                </div>
+                </motion.div>
             </div>
         </MarketingLayout>
     )

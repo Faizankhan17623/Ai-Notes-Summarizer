@@ -16,6 +16,8 @@ import AnnouncementBanner from './Components/extra/AnnouncementBanner'
 import CookieConsent from './Components/extra/CookieConsent'
 import ProMaxPlanNotice from './Components/extra/ProMaxPlanNotice'
 import CommandPalette from './Components/extra/CommandPalette'
+import PaymentVerifyOverlay from './Components/extra/PaymentVerifyOverlay'
+import PaymentSuccessModal from './Components/extra/PaymentSuccessModal'
 import { pageTransition } from './Components/extra/motionVariants.js'
 import { FetchCsrfToken } from './Services/operations/Auth.js'
 import { wakeUpServer } from './utils/wakeUpServer.js'
@@ -26,8 +28,7 @@ const Join = lazy(() => import('./Components/UserCreation/Join'))
 const OTP = lazy(() => import('./Components/UserCreation/OTP'))
 const Login = lazy(() => import('./Components/Login/User'))
 const Verify2FA = lazy(() => import('./Components/Login/Verify2FA'))
-// OAuth social login temporarily disabled sir — see Login/User.jsx's same-note comment
-// const OAuthCallback = lazy(() => import('./Components/Login/OAuthCallback'))
+const OAuthCallback = lazy(() => import('./Components/Login/OAuthCallback'))
 const ForgotPassword = lazy(() => import('./Components/Login/ForgotPassword'))
 const ResetPassword = lazy(() => import('./Components/Login/ResetPassword'))
 const Pricing = lazy(() => import('./Components/Home/Pricing'))
@@ -125,6 +126,8 @@ function App() {
       <ProMaxPlanNotice />
       <CookieConsent />
       <CommandPalette />
+      <PaymentVerifyOverlay />
+      <PaymentSuccessModal />
       <ScrollToTop />
       <Suspense fallback={<PageLoader />}>
         <AnimatePresence mode="wait" initial={false}>
@@ -149,7 +152,7 @@ function App() {
             <Route path="/Verify-Otp" element={<OpenRoute><PageFade><OTP /></PageFade></OpenRoute>} />
             <Route path="/Login" element={<OpenRoute><PageFade><Login /></PageFade></OpenRoute>} />
             <Route path="/Verify-2FA" element={<OpenRoute><PageFade><Verify2FA /></PageFade></OpenRoute>} />
-            {/* <Route path="/oauth/callback" element={<OpenRoute><PageFade><OAuthCallback /></PageFade></OpenRoute>} /> — OAuth temporarily disabled sir, see Login/User.jsx */}
+            <Route path="/oauth/callback" element={<OpenRoute><PageFade><OAuthCallback /></PageFade></OpenRoute>} />
             <Route path="/forgot-password" element={<OpenRoute><PageFade><ForgotPassword /></PageFade></OpenRoute>} />
             <Route path="/reset-password/:token" element={<OpenRoute><PageFade><ResetPassword /></PageFade></OpenRoute>} />
 

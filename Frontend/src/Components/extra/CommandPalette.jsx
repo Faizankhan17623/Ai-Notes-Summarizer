@@ -9,7 +9,7 @@ import useTheme from '../../Hooks/useTheme.js'
 
 // pure frontend, no backend/API involved sir — a Cmd/Ctrl+K launcher over a fixed list of
 // destinations + actions, filtered client-side. Role-gated the same way Navbar.jsx already
-// gates Admin/Support/Billing links, so a plain User never sees Admin-only entries and vice versa.
+// gates Admin/Support links, so a plain User never sees Admin-only entries and vice versa.
 const buildCommands = (role, toggleTheme, theme) => {
     const base = [
         { id: 'new-summary', label: 'New summary', icon: FaPlus, to: '/Dashboard/New-Summary', keywords: 'create summarize' },
@@ -31,7 +31,7 @@ const buildCommands = (role, toggleTheme, theme) => {
             { id: 'admin-users', label: 'Admin users', icon: FaUsers, to: '/Admin/Users', keywords: 'admin ban role' },
             { id: 'admin-payments', label: 'Admin payments', icon: FaCreditCard, to: '/Admin/Payments', keywords: 'admin refund' },
         )
-    } else if (role === 'Support' || role === 'Billing') {
+    } else if (role === 'Support') {
         base.push(
             { id: 'support-overview', label: 'Support overview', icon: FaChartLine, to: '/Support', keywords: 'support dashboard' },
             { id: 'support-users', label: 'Support users', icon: FaUsers, to: '/Support/Users', keywords: 'support' },

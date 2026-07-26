@@ -4,10 +4,12 @@ export const AdminData = {
     overview: BASE_URL + "/admin/overview",
     analytics: BASE_URL + "/admin/analytics",
     users: BASE_URL + "/admin/users",
+    suspendUser: BASE_URL + "/admin/users",     // + /:userId/suspend
     banUser: BASE_URL + "/admin/users",         // + /:userId/ban
     unbanUser: BASE_URL + "/admin/users",       // + /:userId/unban
     denyAppeal: BASE_URL + "/admin/users",      // + /:userId/deny-appeal
     setRole: BASE_URL + "/admin/users",         // + /:userId/role
+    deleteUser: BASE_URL + "/admin/users",      // + /:userId (DELETE)
     payments: BASE_URL + "/admin/payments",
     refundPayment: BASE_URL + "/admin/payments",   // + /:paymentId/refund
     contactMessages: BASE_URL + "/admin/contact-messages",

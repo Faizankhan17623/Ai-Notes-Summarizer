@@ -3,9 +3,10 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
 import { FaSearch, FaChevronLeft, FaChevronRight, FaUserShield, FaUserClock, FaDownload } from 'react-icons/fa'
 import Swal from 'sweetalert2'
-import { GetUsers, BanUser, UnbanUser, DenyAppeal, SetRole, BulkBanUsers, BulkSetRole } from '../../Services/operations/Admin.js'
+import { GetUsers, SuspendUser, BanUser, UnbanUser, SetRole, DeleteUser, BulkSuspendUsers, BulkBanUsers, BulkDeleteUsers, BulkSetRole } from '../../Services/operations/Admin.js'
 import StatusBadge from './StatusBadge.jsx'
 import SavedViewsBar from './SavedViewsBar.jsx'
+import AppealReviewModal from './AppealReviewModal.jsx'
 import { toCsv, downloadCsv } from '../../utils/csv.js'
 
 const USERS_CSV_COLUMNS = [
@@ -15,7 +16,9 @@ const USERS_CSV_COLUMNS = [
     { label: 'Role', key: 'role' },
     { label: 'Plan', key: 'SubType' },
     { label: 'Banned', get: (u) => u.isBanned ? 'yes' : 'no' },
+    { label: 'Ban type', key: 'banType' },
     { label: 'Ban reason', key: 'banReason' },
+    { label: 'Suspensions used', key: 'suspensionCount' },
     { label: 'Appeal status', key: 'appealStatus' },
     { label: 'Locked until', get: (u) => u.lockUntil ? new Date(u.lockUntil).toISOString() : '' },
     { label: 'Joined', get: (u) => u.createdAt ? new Date(u.createdAt).toISOString() : '' },
@@ -24,7 +27,6 @@ const USERS_CSV_COLUMNS = [
 const ROLE_TONE = {
     Admin: 'bg-yellow-50/10 text-yellow-50',
     Support: 'bg-violet-500/10 text-violet-500',
-    Billing: 'bg-good/10 text-good',
     User: 'bg-border-soft text-richblack-300',
 }
 
@@ -52,6 +54,7 @@ const Users = () => {
     const [roleFilter, setRoleFilter] = useState('all')
     const [page, setPage] = useState(1)
     const [selectedIds, setSelectedIds] = useState(new Set())
+    const [reviewingUser, setReviewingUser] = useState(null)
     // ban/unban and role changes are Admin-only sir — Support can look users up to help them,
     // but the backend 403s these calls for Support too, so hide the controls rather than let
     // them click something that just fails
@@ -75,15 +78,16 @@ const Users = () => {
     const lockedCount = users.filter((u) => u.lockUntil && new Date(u.lockUntil) > new Date()).length
     const bannedCount = users.filter((u) => u.isBanned).length
 
-    // the Admin row is never a valid bulk target sir (can't be banned or role-changed here,
-    // same rule the single-row controls already enforce) — banEligible additionally excludes
-    // already-banned rows since "bulk ban" only makes sense on active accounts
-    const banEligibleUsers = useMemo(() => visibleUsers.filter((u) => u.role !== 'Admin' && !u.isBanned), [visibleUsers])
+    // the Admin row is never a valid bulk target sir (can't be banned/suspended/deleted/role-
+    // changed here, same rule the single-row controls already enforce) — selection itself is
+    // just "not Admin"; individual bulk ACTIONS (suspend vs ban vs delete) apply their own
+    // narrower eligibility below so one shared checkbox column still works for all three
+    const bulkEligibleUsers = useMemo(() => visibleUsers.filter((u) => u.role !== 'Admin'), [visibleUsers])
     const selectedCount = selectedIds.size
-    const allBanEligibleSelected = banEligibleUsers.length > 0 && banEligibleUsers.every((u) => selectedIds.has(u._id))
+    const allBulkEligibleSelected = bulkEligibleUsers.length > 0 && bulkEligibleUsers.every((u) => selectedIds.has(u._id))
 
     const toggleSelectAll = () => {
-        setSelectedIds(allBanEligibleSelected ? new Set() : new Set(banEligibleUsers.map((u) => u._id)))
+        setSelectedIds(allBulkEligibleSelected ? new Set() : new Set(bulkEligibleUsers.map((u) => u._id)))
     }
 
     const toggleRow = (userId) => {
@@ -94,18 +98,75 @@ const Users = () => {
         })
     }
 
+    // a reason is required for every suspend/ban now sir (backend rejects an empty one too,
+    // see banUserRules in Middlewares/ValidationRules.js) — inputValidator blocks the confirm
+    // click client-side so the admin gets immediate feedback instead of a round-trip 400
+    const requireReason = (value) => !value?.trim() ? 'A reason is required' : undefined
+
+    const handleSuspend = async (userId) => {
+        const { value: banReason } = await Swal.fire({
+            title: 'Suspend this user?',
+            text: 'Temporary and appealable — see the Suspensions column for how many strikes this account has left.',
+            input: 'text',
+            inputPlaceholder: 'Reason (required)',
+            inputValidator: requireReason,
+            showCancelButton: true,
+            confirmButtonText: 'Suspend',
+            background: 'var(--color-surface-raised)',
+            color: 'var(--color-richblack-5)',
+        })
+        if (banReason) {
+            dispatch(SuspendUser(userId, banReason, token))
+        }
+    }
+
     const handleBan = async (userId) => {
         const { value: banReason } = await Swal.fire({
             title: 'Ban this user?',
+            text: 'Instant and permanent — no appeal, unlike Suspend.',
             input: 'text',
-            inputPlaceholder: 'Reason (optional)',
+            inputPlaceholder: 'Reason (required)',
+            inputValidator: requireReason,
             showCancelButton: true,
             confirmButtonText: 'Ban',
             background: 'var(--color-surface-raised)',
             color: 'var(--color-richblack-5)',
         })
-        if (banReason !== undefined) {
+        if (banReason) {
             dispatch(BanUser(userId, banReason, token))
+        }
+    }
+
+    const handleDelete = async (userId, name) => {
+        const confirmed = await Swal.fire({
+            title: `Delete ${name}'s account?`,
+            text: 'This permanently removes their account and all their notes, chats, flashcards, and quizzes. This cannot be undone.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Delete permanently',
+            confirmButtonColor: 'var(--color-danger-soft)',
+            background: 'var(--color-surface-raised)',
+            color: 'var(--color-richblack-5)',
+        })
+        if (confirmed.isConfirmed) {
+            dispatch(DeleteUser(userId, token))
+        }
+    }
+
+    const handleBulkSuspend = async () => {
+        const ids = [...selectedIds]
+        const { value: banReason } = await Swal.fire({
+            title: `Suspend ${ids.length} user${ids.length === 1 ? '' : 's'}?`,
+            input: 'text',
+            inputPlaceholder: 'Reason (required, applied to all)',
+            inputValidator: requireReason,
+            showCancelButton: true,
+            confirmButtonText: 'Suspend all',
+            background: 'var(--color-surface-raised)',
+            color: 'var(--color-richblack-5)',
+        })
+        if (banReason) {
+            dispatch(BulkSuspendUsers(ids, banReason, token, () => setSelectedIds(new Set())))
         }
     }
 
@@ -113,15 +174,34 @@ const Users = () => {
         const ids = [...selectedIds]
         const { value: banReason } = await Swal.fire({
             title: `Ban ${ids.length} user${ids.length === 1 ? '' : 's'}?`,
+            text: 'Instant and permanent for all selected — no appeal, unlike Suspend.',
             input: 'text',
-            inputPlaceholder: 'Reason (optional, applied to all)',
+            inputPlaceholder: 'Reason (required, applied to all)',
+            inputValidator: requireReason,
             showCancelButton: true,
             confirmButtonText: 'Ban all',
             background: 'var(--color-surface-raised)',
             color: 'var(--color-richblack-5)',
         })
-        if (banReason !== undefined) {
+        if (banReason) {
             dispatch(BulkBanUsers(ids, banReason, token, () => setSelectedIds(new Set())))
+        }
+    }
+
+    const handleBulkDelete = async () => {
+        const ids = [...selectedIds]
+        const confirmed = await Swal.fire({
+            title: `Delete ${ids.length} user${ids.length === 1 ? '' : 's'}?`,
+            text: 'This permanently removes their accounts and all their notes, chats, flashcards, and quizzes. This cannot be undone.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Delete all permanently',
+            confirmButtonColor: 'var(--color-danger-soft)',
+            background: 'var(--color-surface-raised)',
+            color: 'var(--color-richblack-5)',
+        })
+        if (confirmed.isConfirmed) {
+            dispatch(BulkDeleteUsers(ids, token, () => setSelectedIds(new Set())))
         }
     }
 
@@ -152,7 +232,9 @@ const Users = () => {
                     />
                 </div>
                 <div className="flex gap-1.5">
-                    {['all', 'User', 'Support', 'Billing', 'Admin'].map((r) => (
+                    {/* no Admin tab sir — the backend's getUsers now excludes the Admin
+                        account from this list entirely, so it'd always be an empty/dead filter */}
+                    {['all', 'User', 'Support'].map((r) => (
                         <button
                             key={r}
                             onClick={() => { setRoleFilter(r); setSelectedIds(new Set()) }}
@@ -190,10 +272,22 @@ const Users = () => {
                 >
                     <span className="text-sm text-richblack-5 font-medium">{selectedCount} selected</span>
                     <button
+                        onClick={handleBulkSuspend}
+                        className="text-xs font-medium rounded-md px-3 py-1.5 bg-warn/10 text-warn hover:bg-warn/20 cursor-pointer transition-colors"
+                    >
+                        Suspend selected
+                    </button>
+                    <button
                         onClick={handleBulkBan}
                         className="text-xs font-medium rounded-md px-3 py-1.5 bg-danger-soft/10 text-danger-soft hover:bg-danger-soft/20 cursor-pointer transition-colors"
                     >
                         Ban selected
+                    </button>
+                    <button
+                        onClick={handleBulkDelete}
+                        className="text-xs font-medium rounded-md px-3 py-1.5 bg-danger-soft/10 text-danger-soft hover:bg-danger-soft/20 cursor-pointer transition-colors"
+                    >
+                        Delete selected
                     </button>
                     <select
                         defaultValue=""
@@ -203,7 +297,6 @@ const Users = () => {
                         <option value="" disabled>Set role to...</option>
                         <option value="User">User</option>
                         <option value="Support">Support</option>
-                        <option value="Billing">Billing</option>
                     </select>
                     <button
                         onClick={() => setSelectedIds(new Set())}
@@ -232,9 +325,9 @@ const Users = () => {
                                         <th className="py-3 px-4 font-medium w-8">
                                             <input
                                                 type="checkbox"
-                                                checked={allBanEligibleSelected}
+                                                checked={allBulkEligibleSelected}
                                                 onChange={toggleSelectAll}
-                                                disabled={banEligibleUsers.length === 0}
+                                                disabled={bulkEligibleUsers.length === 0}
                                                 title="Select all eligible rows"
                                                 className="cursor-pointer disabled:cursor-not-allowed"
                                             />
@@ -285,7 +378,6 @@ const Users = () => {
                                                 >
                                                     <option value="User">User</option>
                                                     <option value="Support">Support</option>
-                                                    <option value="Billing">Billing</option>
                                                 </select>
                                             ) : (
                                                 <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${ROLE_TONE[u.role] || ''}`}>{u.role}</span>
@@ -303,11 +395,24 @@ const Users = () => {
                                                         Locked out
                                                     </StatusBadge>
                                                 )}
-                                                {/* one-shot appeal sir — 'pending' means they're waiting on Unban/Deny below,
-                                                    'denied' means the ban is now permanent (no further appeal possible) */}
-                                                {u.isBanned && u.appealStatus === 'pending' && (
-                                                    <StatusBadge tone="neutral" title={u.appealMessage}>Appeal pending</StatusBadge>
+                                                {/* only meaningful on the suspend track sir — a direct ban's appealStatus is
+                                                    already 'denied' with nothing pending, so this only ever shows for suspensions */}
+                                                {u.isBanned && u.banType === 'suspend' && u.suspensionCount > 0 && (
+                                                    <StatusBadge tone="neutral" title="Suspensions used (2 max before Ban/Delete is required)">
+                                                        Strike {u.suspensionCount}/2
+                                                    </StatusBadge>
                                                 )}
+                                                {u.isBanned && u.appealStatus === 'pending' && (
+                                                    isAdmin ? (
+                                                        <button onClick={() => setReviewingUser(u)} className="cursor-pointer">
+                                                            <StatusBadge tone="neutral">Appeal pending</StatusBadge>
+                                                        </button>
+                                                    ) : (
+                                                        <StatusBadge tone="neutral" title={u.appealMessage}>Appeal pending</StatusBadge>
+                                                    )
+                                                )}
+                                                {/* terminal sir — strike 2 was denied (or this was a direct ban), no further
+                                                    appeal possible; the Actions cell below now shows Ban/Delete instead of Suspend */}
                                                 {u.isBanned && u.appealStatus === 'denied' && (
                                                     <StatusBadge tone="danger">Permanently banned</StatusBadge>
                                                 )}
@@ -315,14 +420,32 @@ const Users = () => {
                                         </td>
                                         <td className="py-3 px-4">
                                             {!isAdmin ? null : u.isBanned ? (
-                                                <div className="flex items-center gap-3">
-                                                    <button onClick={() => dispatch(UnbanUser(u._id, token))} className="text-good text-xs font-medium cursor-pointer hover:underline">Unban</button>
-                                                    {u.appealStatus === 'pending' && (
-                                                        <button onClick={() => dispatch(DenyAppeal(u._id, token))} className="text-danger-soft text-xs font-medium cursor-pointer hover:underline">Deny appeal</button>
+                                                <div className="flex items-center gap-3 flex-wrap">
+                                                    {/* permanently banned sir — a direct ban (appealStatus is always 'denied' for
+                                                        that track) or a strike-2-denied suspension. Neither can ever be undone
+                                                        via Unban — see the matching guard in Backend/controllers/Admin.js
+                                                        unbanUser. Only Delete (and a no-op Ban, already the state) remain. */}
+                                                    {u.appealStatus === 'denied' ? (
+                                                        <button onClick={() => handleDelete(u._id, `${u.firstName} ${u.lastName}`)} className="text-danger-soft text-xs font-medium cursor-pointer hover:underline">Delete</button>
+                                                    ) : u.appealStatus === 'pending' ? (
+                                                        /* popup (with the actual reason + all 4 actions) replaces the plain
+                                                           Unban/Deny links entirely while an appeal is pending sir — see
+                                                           AppealReviewModal.jsx */
+                                                        <button onClick={() => setReviewingUser(u)} className="text-yellow-50 text-xs font-medium cursor-pointer hover:underline">Review appeal</button>
+                                                    ) : (
+                                                        <button onClick={() => dispatch(UnbanUser(u._id, token))} className="text-good text-xs font-medium cursor-pointer hover:underline">Unban</button>
                                                     )}
                                                 </div>
                                             ) : (
-                                                <button onClick={() => handleBan(u._id)} className="text-danger-soft text-xs font-medium cursor-pointer hover:underline">Ban</button>
+                                                <div className="flex items-center gap-3">
+                                                    {/* Suspend hidden once this account has already used both strikes sir —
+                                                        matches suspendUser's backend guard (Backend/controllers/Admin.js) */}
+                                                    {u.suspensionCount < 2 && (
+                                                        <button onClick={() => handleSuspend(u._id)} className="text-warn text-xs font-medium cursor-pointer hover:underline">Suspend</button>
+                                                    )}
+                                                    <button onClick={() => handleBan(u._id)} className="text-danger-soft text-xs font-medium cursor-pointer hover:underline">Ban</button>
+                                                    <button onClick={() => handleDelete(u._id, `${u.firstName} ${u.lastName}`)} className="text-danger-soft text-xs font-medium cursor-pointer hover:underline">Delete</button>
+                                                </div>
                                             )}
                                         </td>
                                     </tr>
@@ -354,6 +477,14 @@ const Users = () => {
                     )}
                 </div>
             )}
+
+            <AppealReviewModal
+                user={reviewingUser}
+                token={token}
+                onClose={() => setReviewingUser(null)}
+                onBan={handleBan}
+                onDelete={handleDelete}
+            />
         </div>
     )
 }

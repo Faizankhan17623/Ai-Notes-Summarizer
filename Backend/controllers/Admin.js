@@ -5,6 +5,11 @@ const AuditLog = require('../Models/AuditLog')
 const Announcement = require('../Models/Announcement')
 const Note = require('../Models/Note')
 const Chat = require('../Models/Chat')
+const Flashcard = require('../Models/Flashcard')
+const Quiz = require('../Models/Quiz')
+const NoteVersion = require('../Models/NoteVersion')
+const StudyPlan = require('../Models/StudyPlan')
+const Notification = require('../Models/Notification')
 const Visit = require('../Models/Visit')
 const SavedView = require('../Models/SavedView')
 const ContactMessage = require('../Models/ContactMessage')
@@ -20,7 +25,7 @@ const writeAudit = (actor, action, target, details) => {
 // admin Users-page load. Naming exactly what the admin UI needs means a new sensitive field
 // added to the User model later doesn't silently leak until someone remembers to exclude it.
 const ADMIN_USER_FIELDS = 'firstName lastName email role SubType Subscription SubscriptionExpires ' +
-    'Verified isBanned banReason lockUntil failedLoginAttempts count bonusCredits createdAt ' +
+    'Verified isBanned banReason banType suspensionCount lockUntil failedLoginAttempts count bonusCredits createdAt ' +
     'appealStatus appealMessage appealSubmittedAt'
 
 // GET /admin/overview — top-line counts for the admin dashboard sir
@@ -166,9 +171,12 @@ exports.getUsers = async (req, res) => {
         const limit = 20
         const search = req.query.search?.trim()
 
+        // Admin is never listed here sir — there's exactly one, it can't be banned/role-changed
+        // via this page anyway (setRole above refuses to touch an Admin row), and Support
+        // shouldn't even see that account exists in the Users table
         const filter = search
-            ? { $or: [{ email: new RegExp(search, 'i') }, { firstName: new RegExp(search, 'i') }, { lastName: new RegExp(search, 'i') }] }
-            : {}
+            ? { role: { $ne: 'Admin' }, $or: [{ email: new RegExp(search, 'i') }, { firstName: new RegExp(search, 'i') }, { lastName: new RegExp(search, 'i') }] }
+            : { role: { $ne: 'Admin' } }
 
         const [users, total] = await Promise.all([
             User.find(filter).select(ADMIN_USER_FIELDS).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
@@ -182,18 +190,73 @@ exports.getUsers = async (req, res) => {
     }
 }
 
-// PATCH /admin/users/:userId/ban — sir, Admin only (route-gated)
-exports.banUser = async (req, res) => {
+// PATCH /admin/users/:userId/suspend — sir, Admin only (route-gated). The 2-strike,
+// appealable track — see suspensionCount's comment in Models/User.js for the full lifecycle.
+// Blocked once a user is already at strike 2 (denied twice): from there the Admin must
+// explicitly pick Ban or Delete on the Users page, nothing here auto-escalates further.
+exports.suspendUser = async (req, res) => {
     try {
         const { userId } = req.params
         const { banReason } = req.body
 
-        const user = await User.findByIdAndUpdate(userId, { isBanned: true, banReason: banReason || '' }, { returnDocument: 'after' }).select(ADMIN_USER_FIELDS)
-        if (!user) {
+        const target = await User.findById(userId).select('role suspensionCount isBanned')
+        if (!target) {
             return res.status(404).json({ success: false, message: 'User not found' })
         }
+        if (target.role === 'Admin') {
+            return res.status(400).json({ success: false, message: "The Admin's account can't be suspended" })
+        }
+        if (target.suspensionCount >= 2) {
+            return res.status(400).json({ success: false, message: 'This account has already used both suspensions — Ban or Delete it instead' })
+        }
 
-        writeAudit(req.User.id, 'ban_user', userId, banReason || '')
+        const user = await User.findByIdAndUpdate(
+            userId,
+            {
+                isBanned: true,
+                banReason,
+                banType: 'suspend',
+                $inc: { suspensionCount: 1 },
+                appealStatus: 'none',
+                appealMessage: '',
+                appealSubmittedAt: null,
+            },
+            { returnDocument: 'after' }
+        ).select(ADMIN_USER_FIELDS)
+
+        writeAudit(req.User.id, 'suspend_user', userId, banReason)
+
+        return res.status(200).json({ success: true, message: 'User suspended', user })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to suspend user' })
+    }
+}
+
+// PATCH /admin/users/:userId/ban — sir, Admin only (route-gated). Instant and permanent,
+// bypasses the suspend/appeal cycle entirely — never touches suspensionCount (see its comment
+// in Models/User.js), so a later Unban leaves the account at whatever strike count it already
+// had (0 if it had never been suspended before).
+exports.directBanUser = async (req, res) => {
+    try {
+        const { userId } = req.params
+        const { banReason } = req.body
+
+        const target = await User.findById(userId).select('role')
+        if (!target) {
+            return res.status(404).json({ success: false, message: 'User not found' })
+        }
+        if (target.role === 'Admin') {
+            return res.status(400).json({ success: false, message: "The Admin's account can't be banned" })
+        }
+
+        const user = await User.findByIdAndUpdate(
+            userId,
+            { isBanned: true, banReason, banType: 'direct', appealStatus: 'denied', appealMessage: '', appealSubmittedAt: null },
+            { returnDocument: 'after' }
+        ).select(ADMIN_USER_FIELDS)
+
+        writeAudit(req.User.id, 'direct_ban_user', userId, banReason)
 
         return res.status(200).json({ success: true, message: 'User banned', user })
     } catch (error) {
@@ -202,21 +265,29 @@ exports.banUser = async (req, res) => {
     }
 }
 
-// PATCH /admin/users/:userId/unban sir
+// PATCH /admin/users/:userId/unban sir — full reset, regardless of which track (suspend or
+// direct) put the account here. suspensionCount back to 0 too sir — an unban is a clean slate,
+// not just "one strike forgiven". Blocked entirely once permanently banned — a direct ban
+// (banType 'direct', appealStatus always 'denied') or a strike-2-denied suspension can ONLY be
+// resolved by Ban (already the state, no-op) or Delete (see deleteUser below), never Unban.
 exports.unbanUser = async (req, res) => {
     try {
         const { userId } = req.params
 
-        // appeal state resets to 'none' sir — a future ban on this account should start with
-        // a fresh appeal available, not inherit whatever happened on the previous ban
-        const user = await User.findByIdAndUpdate(
-            userId,
-            { isBanned: false, banReason: '', appealStatus: 'none', appealMessage: '', appealSubmittedAt: null },
-            { returnDocument: 'after' }
-        ).select(ADMIN_USER_FIELDS)
-        if (!user) {
+        const target = await User.findById(userId).select('isBanned banType suspensionCount appealStatus')
+        if (!target) {
             return res.status(404).json({ success: false, message: 'User not found' })
         }
+        const isPermanent = target.isBanned && target.appealStatus === 'denied'
+        if (isPermanent) {
+            return res.status(400).json({ success: false, message: 'This account is permanently banned and cannot be unbanned — delete it instead if needed' })
+        }
+
+        const user = await User.findByIdAndUpdate(
+            userId,
+            { isBanned: false, banReason: '', banType: null, suspensionCount: 0, appealStatus: 'none', appealMessage: '', appealSubmittedAt: null },
+            { returnDocument: 'after' }
+        ).select(ADMIN_USER_FIELDS)
 
         writeAudit(req.User.id, 'unban_user', userId)
 
@@ -227,14 +298,17 @@ exports.unbanUser = async (req, res) => {
     }
 }
 
-// PATCH /admin/users/:userId/deny-appeal sir — Admin only. Permanent: flips appealStatus to
-// 'denied', the user stays banned, and there is no path back to 'none' except a full unban
-// (which starts a fresh appeal cycle on any FUTURE ban, not this one).
+// PATCH /admin/users/:userId/deny-appeal sir — Admin only. Only valid on the suspend track
+// (a direct ban's appealStatus is already 'denied' with nothing pending to deny). Denying
+// strike 1's appeal bumps suspensionCount to 2 and reopens ONE more appeal window (resets
+// appealStatus to 'none') — the "last chance" sir asked for, no separate admin click needed
+// to get there. Denying strike 2's appeal is terminal: appealStatus stays 'denied' for good,
+// and the frontend then shows Ban/Delete instead of Suspend for this row (see Users.jsx).
 exports.denyAppeal = async (req, res) => {
     try {
         const { userId } = req.params
 
-        const target = await User.findById(userId).select('isBanned appealStatus')
+        const target = await User.findById(userId).select('isBanned appealStatus banType suspensionCount')
         if (!target) {
             return res.status(404).json({ success: false, message: 'User not found' })
         }
@@ -242,18 +316,72 @@ exports.denyAppeal = async (req, res) => {
             return res.status(400).json({ success: false, message: 'This user has no pending appeal to deny' })
         }
 
-        const user = await User.findByIdAndUpdate(
-            userId,
-            { appealStatus: 'denied' },
-            { returnDocument: 'after' }
-        ).select(ADMIN_USER_FIELDS)
+        // strike 1 denied -> reopen one more appeal window sir; strike 2 (or already maxed
+        // out) denied -> terminal, appealStatus just stays 'denied'
+        const reopening = target.banType === 'suspend' && target.suspensionCount < 2
+        const update = reopening
+            ? { suspensionCount: target.suspensionCount + 1, appealStatus: 'none', appealMessage: '', appealSubmittedAt: null }
+            : { appealStatus: 'denied' }
+
+        const user = await User.findByIdAndUpdate(userId, update, { returnDocument: 'after' }).select(ADMIN_USER_FIELDS)
 
         writeAudit(req.User.id, 'deny_appeal', userId)
 
-        return res.status(200).json({ success: true, message: 'Appeal denied — this decision is final', user })
+        return res.status(200).json({
+            success: true,
+            message: reopening ? 'Appeal denied — the user gets one more appeal window' : 'Appeal denied — this decision is final',
+            user,
+        })
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to deny the appeal' })
+    }
+}
+
+// helper sir — every place a user account is permanently removed (single or bulk delete
+// below) needs the exact same cascade: the User doc itself plus everything they own across
+// collections that reference it by `user`. Historical/audit-trail collections (AuditLog.target,
+// Payment.user, AiLog.user, Visit.user) are deliberately left alone — those already tolerate a
+// missing/deleted user (see e.g. Admin/Payments.jsx rendering `user: null` rows) and exist
+// precisely to survive the account that generated them, same as a real accounting/audit trail would.
+const cascadeDeleteUser = async (userId) => {
+    await Promise.all([
+        Note.deleteMany({ user: userId }),
+        Chat.deleteMany({ user: userId }),
+        Flashcard.deleteMany({ user: userId }),
+        Quiz.deleteMany({ user: userId }),
+        NoteVersion.deleteMany({ user: userId }),
+        StudyPlan.deleteMany({ user: userId }),
+        Notification.deleteMany({ user: userId }),
+        SavedView.deleteMany({ user: userId }),
+    ])
+    await User.findByIdAndDelete(userId)
+}
+
+// DELETE /admin/users/:userId sir — Admin only, hard delete, immediate (no recovery buffer —
+// that's the self-service deleteAccount's pattern for a user deleting their OWN account;
+// an admin-initiated delete is already a deliberate, reviewed decision, same instant-effect
+// convention as ban/unban above)
+exports.deleteUser = async (req, res) => {
+    try {
+        const { userId } = req.params
+
+        const target = await User.findById(userId).select('role email firstName lastName')
+        if (!target) {
+            return res.status(404).json({ success: false, message: 'User not found' })
+        }
+        if (target.role === 'Admin') {
+            return res.status(400).json({ success: false, message: "The Admin's account can't be deleted" })
+        }
+
+        await cascadeDeleteUser(userId)
+
+        writeAudit(req.User.id, 'delete_user', userId, `${target.firstName} ${target.lastName} <${target.email}>`)
+
+        return res.status(200).json({ success: true, message: 'User deleted' })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to delete user' })
     }
 }
 
@@ -263,10 +391,10 @@ exports.setRole = async (req, res) => {
         const { userId } = req.params
         const { role } = req.body
 
-        // exactly one Admin, ever, sir — this endpoint can only toggle a user between User,
-        // Support, and Billing. It can't create a second Admin, and it can't touch the existing
+        // exactly one Admin, ever, sir — this endpoint can only toggle a user between User
+        // and Support. It can't create a second Admin, and it can't touch the existing
         // Admin's own role (that would silently leave the app with zero admins)
-        if (!['User', 'Support', 'Billing'].includes(role)) {
+        if (!['User', 'Support'].includes(role)) {
             return res.status(400).json({ success: false, message: 'Invalid role' })
         }
 
@@ -289,12 +417,59 @@ exports.setRole = async (req, res) => {
     }
 }
 
-// PATCH /admin/users/bulk-ban sir — Admin only. Loops the same single-user update+audit as
-// banUser above (not updateMany) because AuditLog.target is one ObjectId per row, not an
-// array — a bulk action still needs one audit row per affected user to keep that trail
-// meaningful. Per-user failures (e.g. a bad id) are collected and reported, not thrown,
-// so one bad row in a batch doesn't silently drop the rest.
-exports.bulkBanUsers = async (req, res) => {
+// PATCH /admin/users/bulk-suspend sir — Admin only, bulk version of suspendUser above. Loops
+// the same single-user update+audit (not updateMany) because AuditLog.target is one ObjectId
+// per row, not an array — a bulk action still needs one audit row per affected user to keep
+// that trail meaningful. Per-user failures (Admin row, already at 2 strikes, bad id) are
+// collected and reported, not thrown, so one bad row in a batch doesn't silently drop the rest.
+exports.bulkSuspendUsers = async (req, res) => {
+    try {
+        const { userIds, banReason } = req.body
+
+        const suspended = []
+        const failed = []
+        for (const userId of userIds) {
+            try {
+                const target = await User.findById(userId).select('role suspensionCount')
+                if (!target) {
+                    failed.push({ userId, message: 'User not found' })
+                    continue
+                }
+                if (target.role === 'Admin') {
+                    failed.push({ userId, message: "The Admin's account can't be suspended" })
+                    continue
+                }
+                if (target.suspensionCount >= 2) {
+                    failed.push({ userId, message: 'Already used both suspensions — Ban or Delete instead' })
+                    continue
+                }
+
+                await User.findByIdAndUpdate(userId, {
+                    isBanned: true,
+                    banReason,
+                    banType: 'suspend',
+                    $inc: { suspensionCount: 1 },
+                    appealStatus: 'none',
+                    appealMessage: '',
+                    appealSubmittedAt: null,
+                })
+                writeAudit(req.User.id, 'suspend_user', userId, banReason)
+                suspended.push(userId)
+            } catch {
+                failed.push({ userId, message: 'Failed to suspend this user' })
+            }
+        }
+
+        return res.status(200).json({ success: true, message: `Suspended ${suspended.length} of ${userIds.length} users`, suspended, failed })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to run the bulk suspend' })
+    }
+}
+
+// PATCH /admin/users/bulk-ban sir — Admin only, bulk version of directBanUser above. Same
+// loop/audit pattern as bulkSuspendUsers.
+exports.bulkDirectBanUsers = async (req, res) => {
     try {
         const { userIds, banReason } = req.body
 
@@ -302,12 +477,18 @@ exports.bulkBanUsers = async (req, res) => {
         const failed = []
         for (const userId of userIds) {
             try {
-                const user = await User.findByIdAndUpdate(userId, { isBanned: true, banReason: banReason || '' }, { returnDocument: 'after' }).select(ADMIN_USER_FIELDS)
-                if (!user) {
+                const target = await User.findById(userId).select('role')
+                if (!target) {
                     failed.push({ userId, message: 'User not found' })
                     continue
                 }
-                writeAudit(req.User.id, 'ban_user', userId, banReason || '')
+                if (target.role === 'Admin') {
+                    failed.push({ userId, message: "The Admin's account can't be banned" })
+                    continue
+                }
+
+                await User.findByIdAndUpdate(userId, { isBanned: true, banReason, banType: 'direct', appealStatus: 'denied', appealMessage: '', appealSubmittedAt: null })
+                writeAudit(req.User.id, 'direct_ban_user', userId, banReason)
                 banned.push(userId)
             } catch {
                 failed.push({ userId, message: 'Failed to ban this user' })
@@ -321,6 +502,41 @@ exports.bulkBanUsers = async (req, res) => {
     }
 }
 
+// DELETE /admin/users/bulk-delete sir — Admin only, bulk version of deleteUser above. Same
+// loop/audit pattern; cascadeDeleteUser handles each user's owned data + the User doc itself.
+exports.bulkDeleteUsers = async (req, res) => {
+    try {
+        const { userIds } = req.body
+
+        const deleted = []
+        const failed = []
+        for (const userId of userIds) {
+            try {
+                const target = await User.findById(userId).select('role email firstName lastName')
+                if (!target) {
+                    failed.push({ userId, message: 'User not found' })
+                    continue
+                }
+                if (target.role === 'Admin') {
+                    failed.push({ userId, message: "The Admin's account can't be deleted" })
+                    continue
+                }
+
+                await cascadeDeleteUser(userId)
+                writeAudit(req.User.id, 'delete_user', userId, `${target.firstName} ${target.lastName} <${target.email}>`)
+                deleted.push(userId)
+            } catch {
+                failed.push({ userId, message: 'Failed to delete this user' })
+            }
+        }
+
+        return res.status(200).json({ success: true, message: `Deleted ${deleted.length} of ${userIds.length} users`, deleted, failed })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to run the bulk delete' })
+    }
+}
+
 // PATCH /admin/users/bulk-role sir — Admin only, same guard per user as setRole above; an
 // Admin row (or the sole Admin themselves) in the batch is skipped and reported in `failed`
 // rather than failing the whole batch.
@@ -328,7 +544,7 @@ exports.bulkSetRole = async (req, res) => {
     try {
         const { userIds, role } = req.body
 
-        if (!['User', 'Support', 'Billing'].includes(role)) {
+        if (!['User', 'Support'].includes(role)) {
             return res.status(400).json({ success: false, message: 'Invalid role' })
         }
 
@@ -646,7 +862,7 @@ exports.getTraffic = async (req, res) => {
 }
 
 // GET /admin/saved-views?page=users sir — personal to the caller, isSupport-gated same as
-// the list pages themselves (Support/Billing/Admin can all save/reuse their own filter sets)
+// the list pages themselves (Support/Admin can all save/reuse their own filter sets)
 exports.getSavedViews = async (req, res) => {
     try {
         const { page } = req.query
@@ -686,7 +902,7 @@ exports.createSavedView = async (req, res) => {
 }
 
 // DELETE /admin/saved-views/:viewId sir — scoped to the caller, one agent can't delete
-// another agent's saved view even though both are Support/Billing/Admin
+// another agent's saved view even though both are Support/Admin
 exports.deleteSavedView = async (req, res) => {
     try {
         const { viewId } = req.params
@@ -701,7 +917,7 @@ exports.deleteSavedView = async (req, res) => {
     }
 }
 
-// GET /admin/contact-messages/:messageId/user-activity sir — lets Support/Billing/Admin see
+// GET /admin/contact-messages/:messageId/user-activity sir — lets Support/Admin see
 // the submitter's recent AI usage + credit standing right from the ticket, instead of
 // separately searching for them on the Users/AI-logs pages. Matched by email since a contact
 // submission isn't guaranteed to come from a registered account (public, pre-account form) —

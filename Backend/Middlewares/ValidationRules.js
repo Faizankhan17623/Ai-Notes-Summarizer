@@ -89,8 +89,10 @@ exports.verifyPaymentRules = [
     body('razorpay_signature').trim().notEmpty(),
 ]
 
-exports.banUserRules = [param('userId').isMongoId(), body('banReason').optional().trim().isLength({ max: 300 })]
-exports.setRoleRules = [param('userId').isMongoId(), body('role').isIn(['User', 'Support', 'Billing'])]
+// banReason is required sir — both suspendUser and directBanUser now need it every time,
+// not optional like before (see Backend/controllers/Admin.js)
+exports.banUserRules = [param('userId').isMongoId(), body('banReason').trim().notEmpty().isLength({ max: 300 })]
+exports.setRoleRules = [param('userId').isMongoId(), body('role').isIn(['User', 'Support'])]
 
 // capped at 100 sir — a Support/Admin triage batch is never realistically bigger than a
 // page or two of the Users table; the cap just bounds one request's DB work, matching how
@@ -98,12 +100,17 @@ exports.setRoleRules = [param('userId').isMongoId(), body('role').isIn(['User', 
 exports.bulkBanUsersRules = [
     body('userIds').isArray({ min: 1, max: 100 }),
     body('userIds.*').isMongoId(),
-    body('banReason').optional().trim().isLength({ max: 300 }),
+    body('banReason').trim().notEmpty().isLength({ max: 300 }),
 ]
+exports.bulkDeleteUsersRules = [
+    body('userIds').isArray({ min: 1, max: 100 }),
+    body('userIds.*').isMongoId(),
+]
+exports.deleteUserRules = [param('userId').isMongoId()]
 exports.bulkSetRoleRules = [
     body('userIds').isArray({ min: 1, max: 100 }),
     body('userIds.*').isMongoId(),
-    body('role').isIn(['User', 'Support', 'Billing']),
+    body('role').isIn(['User', 'Support']),
 ]
 
 exports.createSavedViewRules = [

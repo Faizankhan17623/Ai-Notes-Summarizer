@@ -5,7 +5,7 @@ import { AdminData } from "../Apis/AdminApi.js"
 import { setOverview, setAnalytics, setTraffic, setTrafficLoading, setUsers, setPayments, setAuditLogs, setAiLogs, setAnnouncements, setContactMessages, setSavedViews, setTicketActivity, setLoading } from "../../Slices/adminSlice.js"
 
 const {
-    overview, analytics, traffic, users, banUser, unbanUser, denyAppeal, setRole, payments, refundPayment, contactMessages,
+    overview, analytics, traffic, users, suspendUser, banUser, unbanUser, denyAppeal, setRole, deleteUser, payments, refundPayment, contactMessages,
     replyToContactMessage, addInternalNote, audit, aiLogs, activeAnnouncement, announcements, deactivateAnnouncement,
     savedViews, deleteSavedView, userActivity,
 } = AdminData
@@ -78,6 +78,25 @@ export function GetUsers(token, page = 1, search = "") {
     }
 }
 
+// 2-strike, appealable track sir — see suspensionCount's comment in Backend/Models/User.js
+export function SuspendUser(userId, banReason, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Suspending user...")
+        try {
+            const response = await apiConnector("PATCH", `${suspendUser}/${userId}/suspend`, { banReason }, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success("User suspended")
+            dispatch(GetUsers(token))
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not suspend user")
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+// instant and permanent sir — bypasses the suspend/appeal cycle entirely, see
+// Backend/controllers/Admin.js directBanUser
 export function BanUser(userId, banReason, token) {
     return async (dispatch) => {
         const toastId = toast.loading("Banning user...")
@@ -88,6 +107,23 @@ export function BanUser(userId, banReason, token) {
             dispatch(GetUsers(token))
         } catch (error) {
             toast.error(error?.response?.data?.message || "Could not ban user")
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+// hard delete sir — immediate, no recovery buffer, see Backend/controllers/Admin.js deleteUser
+export function DeleteUser(userId, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Deleting user...")
+        try {
+            const response = await apiConnector("DELETE", `${deleteUser}/${userId}`, null, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success("User deleted")
+            dispatch(GetUsers(token))
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not delete user")
         } finally {
             toast.dismiss(toastId)
         }
@@ -144,9 +180,26 @@ export function SetRole(userId, role, token) {
     }
 }
 
-// bulk variants sir — same shape as BanUser/SetRole above, just an array body and a summary
-// toast. onSettled fires whether the batch fully or partially succeeded, so Users.jsx can
-// clear its row-selection state after any outcome (not just a clean success)
+// bulk variants sir — same shape as SuspendUser/BanUser/SetRole above, just an array body and
+// a summary toast. onSettled fires whether the batch fully or partially succeeded, so
+// Users.jsx can clear its row-selection state after any outcome (not just a clean success)
+export function BulkSuspendUsers(userIds, banReason, token, onSettled) {
+    return async (dispatch) => {
+        const toastId = toast.loading(`Suspending ${userIds.length} user${userIds.length === 1 ? '' : 's'}...`)
+        try {
+            const response = await apiConnector("PATCH", `${suspendUser}/bulk-suspend`, { userIds, banReason }, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success(response.data.message)
+            dispatch(GetUsers(token))
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not run the bulk suspend")
+        } finally {
+            toast.dismiss(toastId)
+            if (onSettled) onSettled()
+        }
+    }
+}
+
 export function BulkBanUsers(userIds, banReason, token, onSettled) {
     return async (dispatch) => {
         const toastId = toast.loading(`Banning ${userIds.length} user${userIds.length === 1 ? '' : 's'}...`)
@@ -157,6 +210,23 @@ export function BulkBanUsers(userIds, banReason, token, onSettled) {
             dispatch(GetUsers(token))
         } catch (error) {
             toast.error(error?.response?.data?.message || "Could not run the bulk ban")
+        } finally {
+            toast.dismiss(toastId)
+            if (onSettled) onSettled()
+        }
+    }
+}
+
+export function BulkDeleteUsers(userIds, token, onSettled) {
+    return async (dispatch) => {
+        const toastId = toast.loading(`Deleting ${userIds.length} user${userIds.length === 1 ? '' : 's'}...`)
+        try {
+            const response = await apiConnector("DELETE", `${deleteUser}/bulk-delete`, { userIds }, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success(response.data.message)
+            dispatch(GetUsers(token))
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not run the bulk delete")
         } finally {
             toast.dismiss(toastId)
             if (onSettled) onSettled()

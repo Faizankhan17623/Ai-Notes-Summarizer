@@ -5,7 +5,13 @@ const initialState = {
     creditPacks: [],
     paymentsLive: false,
     loading: false,
-    history: []
+    history: [],
+    // full-screen loader shown while a plan-upgrade payment is being verified sir, right up
+    // until the redirect to /Dashboard — see StartCheckout in Payment.js
+    verifying: false,
+    // set to the purchased plan key once verification succeeds sir — drives the "Start
+    // learning" success popup on /Dashboard (see PaymentSuccessModal.jsx); null hides it
+    purchasedPlan: null
 }
 
 const paymentSlice = createSlice({
@@ -26,9 +32,15 @@ const paymentSlice = createSlice({
         },
         setHistory(state, value) {
             state.history = value.payload
+        },
+        setVerifying(state, value) {
+            state.verifying = value.payload
+        },
+        setPurchasedPlan(state, value) {
+            state.purchasedPlan = value.payload
         }
     }
 })
 
-export const { setPlans, setCreditPacks, setPaymentsLive, setLoading, setHistory } = paymentSlice.actions
+export const { setPlans, setCreditPacks, setPaymentsLive, setLoading, setHistory, setVerifying, setPurchasedPlan } = paymentSlice.actions
 export default paymentSlice.reducer

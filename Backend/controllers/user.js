@@ -249,7 +249,7 @@ exports.loginUser = async (req, res) => {
             existingUser.BufferTiming = null
         }
 
-        const { _id, firstName, lastName, role, SubType, isBanned, banReason, appealStatus } = existingUser
+        const { _id, firstName, lastName, role, SubType, isBanned, banReason, banType, suspensionCount, appealStatus } = existingUser
 
         // 2FA-enabled accounts don't get a full session yet sir — password is correct, but
         // that's only the FIRST factor. Persist the failedLoginAttempts/Buffer-recovery
@@ -285,6 +285,8 @@ exports.loginUser = async (req, res) => {
                 SubType,
                 isBanned,
                 banReason,
+                banType,
+                suspensionCount,
                 appealStatus,
             }
         })
@@ -950,7 +952,7 @@ exports.getProfile = async (req, res) => {
         const id = req.User.id
 
         const user = await User.findById(id)
-            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount receiveDigest currentStreak longestStreak dailyGoal hasCompletedOnboarding createdAt Buffer BufferTiming isBanned banReason appealStatus appealMessage twoFactorEnabled')
+            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount receiveDigest currentStreak longestStreak dailyGoal hasCompletedOnboarding createdAt Buffer BufferTiming isBanned banReason banType suspensionCount appealStatus appealMessage twoFactorEnabled')
 
         if (!user) {
             return res.status(404).json({
@@ -1017,9 +1019,13 @@ exports.getProfile = async (req, res) => {
 
 // ============================================================
 // APPEAL A BAN — POST /appeal sir, banned users only (route is NOT behind blockIfBanned,
-// that's the whole point). One shot: appealStatus must still be 'none', so this always
-// 400s on a second attempt or after an admin has denied the first one. A Deny is permanent —
-// there is no path back to 'none' except an admin unbanning the account outright.
+// that's the whole point). One shot PER STRIKE: appealStatus must be 'none', so this 400s on
+// a duplicate attempt while one is already 'pending'. On a suspension (banType 'suspend'),
+// a denied strike-1 appeal reopens exactly one more window (see denyAppeal in
+// controllers/Admin.js, which resets appealStatus back to 'none' at that point) — so this
+// same endpoint naturally handles both the first AND the reopened second appeal, no changes
+// needed here for that. A denied strike-2 appeal (or any direct ban) is permanent: appealStatus
+// stays 'denied' for good, and only an admin's Unban can clear it.
 // ============================================================
 exports.appealBan = async (req, res) => {
     try {

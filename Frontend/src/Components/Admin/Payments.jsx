@@ -203,10 +203,8 @@ const Payments = () => {
     const { payments, loading } = useSelector((state) => state.admin)
     const [statusFilter, setStatusFilter] = useState('all')
     const [planFilter, setPlanFilter] = useState('all')
-    // refunds are Admin/Billing-only sir — Support can see payments to help/verify, but the
-    // backend 403s a refund attempt from Support too, so hide the button rather than let it
-    // just fail. See canRefund in Backend/Middlewares/Auth.js.
-    const canRefund = user?.role === 'Admin' || user?.role === 'Billing'
+    // refunds are Admin/Support sir — see canRefund in Backend/Middlewares/Auth.js.
+    const canRefund = user?.role === 'Admin' || user?.role === 'Support'
 
     useEffect(() => {
         dispatch(GetPayments(token))

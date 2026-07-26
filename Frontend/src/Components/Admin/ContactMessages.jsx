@@ -7,7 +7,7 @@ import StatusBadge from './StatusBadge.jsx'
 
 const STATUS_TONE = { open: 'neutral', resolved: 'good' }
 
-// lets Support/Billing/Admin see the submitter's recent AI usage right from the ticket sir,
+// lets Support/Admin see the submitter's recent AI usage right from the ticket sir,
 // instead of separately searching for them on Users/Audit. Matched by email server-side —
 // the submitter isn't guaranteed to have an account (public, pre-account form), so
 // matched:false is a normal outcome here, not an error.

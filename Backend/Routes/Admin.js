@@ -3,16 +3,20 @@ const route = express.Router()
 const { Auth, isAdmin, isSupport, canRefund } = require('../Middlewares/Auth.js')
 const { doubleCsrfProtection } = require('../Middlewares/Csrf.js')
 const { validate } = require('../Middlewares/Validate.js')
-const { banUserRules, setRoleRules, bulkBanUsersRules, bulkSetRoleRules, createSavedViewRules, deleteSavedViewRules, userActivityRules } = require('../Middlewares/ValidationRules.js')
+const { banUserRules, deleteUserRules, setRoleRules, bulkBanUsersRules, bulkDeleteUsersRules, bulkSetRoleRules, createSavedViewRules, deleteSavedViewRules, userActivityRules } = require('../Middlewares/ValidationRules.js')
 const {
     getOverview,
     getAdminAnalytics,
     getUsers,
-    banUser,
+    suspendUser,
+    directBanUser,
     unbanUser,
     denyAppeal,
     setRole,
-    bulkBanUsers,
+    deleteUser,
+    bulkSuspendUsers,
+    bulkDirectBanUsers,
+    bulkDeleteUsers,
     bulkSetRole,
     getPayments,
     refundPayment,
@@ -63,17 +67,23 @@ route.get('/admin/analytics', Auth, isAdmin, getAdminAnalytics)
 // unique-visitor/traffic dashboard sir — reads raw ipHash rows, Admin only (not Support)
 // same bar as analytics/audit above
 route.get('/admin/traffic', Auth, isAdmin, getTraffic)
-// Billing OR Admin sir — see canRefund in Middlewares/Auth.js
+// Support OR Admin sir — see canRefund in Middlewares/Auth.js
 route.patch('/admin/payments/:paymentId/refund', doubleCsrfProtection, Auth, canRefund, refundPayment)
-route.patch('/admin/users/:userId/ban', doubleCsrfProtection, banUserRules, validate, Auth, isAdmin, banUser)
+// suspend (2-strike, appealable) vs ban (instant, permanent) are two separate actions sir —
+// see their comments in controllers/Admin.js and suspensionCount's comment in Models/User.js
+route.patch('/admin/users/:userId/suspend', doubleCsrfProtection, banUserRules, validate, Auth, isAdmin, suspendUser)
+route.patch('/admin/users/:userId/ban', doubleCsrfProtection, banUserRules, validate, Auth, isAdmin, directBanUser)
 route.patch('/admin/users/:userId/unban', doubleCsrfProtection, Auth, isAdmin, unbanUser)
 route.patch('/admin/users/:userId/deny-appeal', doubleCsrfProtection, Auth, isAdmin, denyAppeal)
 route.patch('/admin/users/:userId/role', doubleCsrfProtection, setRoleRules, validate, Auth, isAdmin, setRole)
+route.delete('/admin/users/:userId', doubleCsrfProtection, deleteUserRules, validate, Auth, isAdmin, deleteUser)
 // bulk variants sir — same Admin-only bar, registered before the frontend needs them since
-// :userId above would never match the literal path "bulk-ban"/"bulk-role" anyway, but kept
-// grouped here with their single-user counterparts for readability
-route.patch('/admin/users/bulk-ban', doubleCsrfProtection, bulkBanUsersRules, validate, Auth, isAdmin, bulkBanUsers)
+// :userId above would never match the literal path "bulk-suspend"/"bulk-ban"/"bulk-role"/
+// "bulk-delete" anyway, but kept grouped here with their single-user counterparts for readability
+route.patch('/admin/users/bulk-suspend', doubleCsrfProtection, bulkBanUsersRules, validate, Auth, isAdmin, bulkSuspendUsers)
+route.patch('/admin/users/bulk-ban', doubleCsrfProtection, bulkBanUsersRules, validate, Auth, isAdmin, bulkDirectBanUsers)
 route.patch('/admin/users/bulk-role', doubleCsrfProtection, bulkSetRoleRules, validate, Auth, isAdmin, bulkSetRole)
+route.delete('/admin/users/bulk-delete', doubleCsrfProtection, bulkDeleteUsersRules, validate, Auth, isAdmin, bulkDeleteUsers)
 route.get('/admin/audit', Auth, isAdmin, getAuditLog)
 route.get('/admin/announcements', Auth, isAdmin, getAnnouncements)
 route.post('/admin/announcements', doubleCsrfProtection, Auth, isAdmin, createAnnouncement)

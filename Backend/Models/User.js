@@ -156,11 +156,11 @@ const UserSchema = new mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Chat'
         }],
-        // RBAC sir — User is normal, Support can view/help but not destroy, Billing can view/help
-        // AND refund (but not ban/role-change/announce), Admin can do everything
+        // RBAC sir — User is normal, Support can view/help/refund (but not ban/role-change/
+        // announce), Admin can do everything
         role: {
             type: String,
-            enum: ['User', 'Support', 'Billing', 'Admin'],
+            enum: ['User', 'Support', 'Admin'],
             default: 'User'
         },
         // moderation sir — a banned user is blocked by the Auth middleware everywhere, instantly
@@ -172,10 +172,31 @@ const UserSchema = new mongoose.Schema(
             type: String,
             trim: true
         },
-        // one-shot appeal sir — a banned user can submit exactly once (see POST /appeal).
-        // 'pending' shows "under review" on their locked dashboard; an admin's Deny flips it
-        // to 'denied', which is permanent (the appeal button never comes back). Unbanning
-        // resets this to 'none' so a future ban starts with a fresh appeal available.
+        // 'suspend' is the 2-strike, appealable track (see suspensionCount below) sir —
+        // 'direct' is Admin's instant/permanent action, bypasses strikes and appeals entirely.
+        // Only meaningful while isBanned is true; irrelevant once unbanned.
+        banType: {
+            type: String,
+            enum: ['suspend', 'direct'],
+            default: null
+        },
+        // strike count for the suspend track sir — see controllers/Admin.js suspendUser/
+        // denyAppeal. 0 = never suspended (or unbanned back to clean). 1 = first suspension,
+        // appealable once. Denying that appeal bumps this to 2 and reopens ONE more appeal
+        // window (the "last chance" sir asked for) rather than instantly auto-banning. Denying
+        // the 2nd appeal is terminal — Admin must then manually Ban or Delete (see Users.jsx),
+        // nothing happens automatically. A Direct Ban never touches this count at all; Unban
+        // always resets it to 0 regardless of which track put the account here.
+        suspensionCount: {
+            type: Number,
+            default: 0
+        },
+        // one-shot-per-strike appeal sir — a banned user can submit once per suspension strike
+        // (see POST /appeal). 'pending' shows "under review" on their locked dashboard. An
+        // admin's Deny flips it to 'denied' — permanent ONLY if suspensionCount is already 2
+        // when denied; if this was strike 1, denyAppeal separately resets this back to 'none'
+        // (see suspensionCount comment above) so the reopened strike-2 appeal can be submitted.
+        // Unbanning resets this to 'none' so a future suspension starts with a fresh cycle.
         appealStatus: {
             type: String,
             enum: ['none', 'pending', 'denied'],

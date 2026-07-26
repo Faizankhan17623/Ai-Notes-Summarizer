@@ -132,6 +132,16 @@ body {
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+/* theme-switch fade sir — every element's color/background/border reads from the
+   --color-* tokens redefined under :root[data-theme="light"] above, so flipping the
+   attribute recomputes them everywhere at once. Without this they'd all snap instantly;
+   this makes that recompute animate instead. Scoped to just the color-ish properties (not
+   `transition: all`) so it can't fight layout/transform transitions components already use
+   (e.g. hover scales, the fade-in-up entrance above) — those keep their own timing. */
+* {
+  transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease, fill 0.35s ease, stroke 0.35s ease;
+}
+
 /* shared entrance animation sir — used by dashboard-style cards/rows (Admin/Payments etc.)
    that fade+rise in on mount, each element offsetting via inline --delay for a stagger */
 @keyframes fade-in-up {
@@ -141,6 +151,45 @@ body {
 .animate-fade-in-up {
   animation: fade-in-up 0.45s ease both;
   animation-delay: var(--delay, 0s);
+}
+
+/* theme toggle icon swap sir — the sun/moon icon has a `key` prop (see Navbar.jsx) so React
+   remounts a fresh element on every toggle instead of patching the existing one in place;
+   this animation then just plays on mount, giving the icon its own little fade+rotate+scale
+   instead of snapping straight to the new glyph */
+@keyframes theme-icon-in {
+  from { opacity: 0; transform: rotate(-90deg) scale(0.5); }
+  to { opacity: 1; transform: rotate(0deg) scale(1); }
+}
+.animate-theme-icon-in {
+  animation: theme-icon-in 0.35s ease both;
+}
+
+/* Pricing page glitter sir — a soft diagonal light sweep across the Recommended plan card
+   (see Pricing.jsx), looping slowly so it reads as a subtle shine rather than a distracting
+   flash. Layered on an ::after so it never fights the card's own border/hover-lift transform. */
+@keyframes shimmer-sweep {
+  0% { transform: translateX(-150%) rotate(8deg); }
+  100% { transform: translateX(150%) rotate(8deg); }
+}
+.animate-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: -20% -60%;
+  background: linear-gradient(100deg, transparent 40%, rgba(255, 214, 10, 0.16) 50%, transparent 60%);
+  animation: shimmer-sweep 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* soft ambient glow behind the Recommended card sir — a blurred yellow blob that pulses
+   gently, distinct from the shimmer sweep above (that's a moving highlight, this is a
+   stationary glow) so the two read as one cohesive "premium" treatment rather than clutter */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.05); }
+}
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
 }
 
 * {
