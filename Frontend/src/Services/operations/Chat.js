@@ -7,13 +7,15 @@ import { ChatData } from "../Apis/ChatApi.js"
 
 const { createChat, allChats, singleChat, sendMessage, regenerateReply, deleteChat } = ChatData
 
-// start a chat grounded in an already-saved note sir
-export function CreateChat(noteId, token, navigate) {
+// start a chat grounded in an already-saved note sir. Pass either a single noteId (string,
+// original behavior) or an array of noteIds (2-10, cross-note chat) — same endpoint either way
+export function CreateChat(noteIdOrIds, token, navigate) {
     return async (dispatch) => {
         dispatch(setLoading(true))
         const toastId = toast.loading("Starting chat...")
         try {
-            const response = await apiConnector("POST", createChat, { noteId }, {
+            const payload = Array.isArray(noteIdOrIds) ? { noteIds: noteIdOrIds } : { noteId: noteIdOrIds }
+            const response = await apiConnector("POST", createChat, payload, {
                 Authorization: `Bearer ${token}`
             })
 

@@ -17,4 +17,5 @@ export const NotesData = {
     noteVersions: BASE_URL + "/notes",    // + /:noteId/versions
     restoreVersion: BASE_URL + "/notes",  // + /:noteId/versions/:versionId/restore
     checkDuplicate: BASE_URL + "/notes/check-duplicate",
+    noteLinks: BASE_URL + "/notes",       // + /:noteId/links (+ /:targetNoteId for delete)
 }

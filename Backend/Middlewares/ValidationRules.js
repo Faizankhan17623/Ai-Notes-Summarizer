@@ -75,6 +75,27 @@ exports.editNoteRules = [
 exports.getNoteVersionsRules = [param('noteId').isMongoId()]
 exports.restoreNoteVersionRules = [param('noteId').isMongoId(), param('versionId').isMongoId()]
 
+exports.generateExamRules = [
+    body('noteIds').isArray({ min: 1, max: 10 }),
+    body('noteIds.*').isMongoId(),
+    body('count').optional().isInt({ min: 4, max: 40 }),
+    body('timeLimitSeconds').optional().isInt({ min: 60 }),
+]
+exports.attemptExamRules = [
+    param('id').isMongoId(),
+    body('answers').isArray(),
+    body('durationSeconds').optional().isFloat({ min: 0 }),
+]
+
+exports.addNoteLinkRules = [
+    param('noteId').isMongoId(),
+    body('targetNoteId').isMongoId(),
+]
+exports.removeNoteLinkRules = [
+    param('noteId').isMongoId(),
+    param('targetNoteId').isMongoId(),
+]
+
 // capped at 100 sir — same reasoning as bulkBanUsersRules below, bounds one request's DB work
 exports.bulkDeleteNotesRules = [
     body('noteIds').isArray({ min: 1, max: 100 }),
@@ -135,7 +156,17 @@ exports.createSavedViewRules = [
 exports.deleteSavedViewRules = [param('viewId').isMongoId()]
 exports.userActivityRules = [param('messageId').isMongoId()]
 
-exports.createChatRules = [body('noteId').isMongoId()]
+exports.createChatRules = [
+    body('noteId').optional().isMongoId(),
+    body('noteIds').optional().isArray({ min: 1, max: 10 }),
+    body('noteIds.*').optional().isMongoId(),
+    body().custom((value) => {
+        if (!value.noteId && !(Array.isArray(value.noteIds) && value.noteIds.length)) {
+            throw new Error('A note id or list of note ids is required to start a chat')
+        }
+        return true
+    }),
+]
 exports.sendMessageRules = [param('chatId').isMongoId(), body('message').trim().notEmpty().isLength({ max: 4000 })]
 exports.regenerateReplyRules = [param('chatId').isMongoId()]
 

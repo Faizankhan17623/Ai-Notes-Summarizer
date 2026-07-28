@@ -404,6 +404,7 @@ exports.getNote = async (req, res) => {
         }
 
         const note = await Note.findOne({ _id: noteId, user: id })
+            .populate('linkedNotes', 'title plan createdAt')
         if (!note) {
             return res.status(404).json({
                 success: false,
@@ -470,6 +471,71 @@ exports.getRelatedNotes = async (req, res) => {
     }
 }
 
+// POST /notes/:noteId/links sir — manual backlink, kept symmetric on both notes so it
+// shows up in the "linked notes" panel from either side, same idea as a wiki backlink
+exports.addNoteLink = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId } = req.params
+        const { targetNoteId } = req.body
+
+        if (!mongoose.isValidObjectId(noteId) || !mongoose.isValidObjectId(targetNoteId)) {
+            return res.status(400).json({ success: false, message: 'Invalid note id' })
+        }
+
+        if (noteId === targetNoteId) {
+            return res.status(400).json({ success: false, message: 'A note cannot be linked to itself' })
+        }
+
+        const [note, target] = await Promise.all([
+            Note.findOne({ _id: noteId, user: id }),
+            Note.findOne({ _id: targetNoteId, user: id }),
+        ])
+        if (!note || !target) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        await Promise.all([
+            Note.updateOne({ _id: note._id }, { $addToSet: { linkedNotes: target._id } }),
+            Note.updateOne({ _id: target._id }, { $addToSet: { linkedNotes: note._id } }),
+        ])
+
+        const updated = await Note.findById(note._id).populate('linkedNotes', 'title plan createdAt')
+        return res.status(200).json({ success: true, message: 'Notes linked', note: updated })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to link notes' })
+    }
+}
+
+// DELETE /notes/:noteId/links/:targetNoteId sir — removes the link from both sides
+exports.removeNoteLink = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId, targetNoteId } = req.params
+
+        if (!mongoose.isValidObjectId(noteId) || !mongoose.isValidObjectId(targetNoteId)) {
+            return res.status(400).json({ success: false, message: 'Invalid note id' })
+        }
+
+        const note = await Note.findOne({ _id: noteId, user: id })
+        if (!note) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        await Promise.all([
+            Note.updateOne({ _id: noteId }, { $pull: { linkedNotes: targetNoteId } }),
+            Note.updateOne({ _id: targetNoteId, user: id }, { $pull: { linkedNotes: noteId } }),
+        ])
+
+        const updated = await Note.findById(noteId).populate('linkedNotes', 'title plan createdAt')
+        return res.status(200).json({ success: true, message: 'Link removed', note: updated })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to remove the link' })
+    }
+}
+
 // DELETE /notes/:noteId — remove a note and any chats grounded in it sir
 exports.deleteNote = async (req, res) => {
     try {
@@ -495,9 +561,15 @@ exports.deleteNote = async (req, res) => {
         const orphanedChats = await Chat.find({ note: note._id }).select('_id')
         await Promise.all([
             Chat.deleteMany({ note: note._id }),
+            // multi-note chats sir — just pull this note out rather than deleting the whole
+            // chat, the chat is still meaningful as long as at least one other note remains
+            Chat.updateMany({ notes: note._id }, { $pull: { notes: note._id } }),
             Flashcard.deleteMany({ note: note._id }),
             Quiz.deleteMany({ note: note._id }),
             NoteVersion.deleteMany({ note: note._id }),
+            // pull this note out of every other note's linkedNotes sir, otherwise deleting
+            // a note leaves dangling backlink references on whatever it was linked to
+            Note.updateMany({ linkedNotes: note._id }, { $pull: { linkedNotes: note._id } }),
         ])
         await User.findByIdAndUpdate(id, {
             $pull: {
@@ -544,9 +616,11 @@ exports.bulkDeleteNotes = async (req, res) => {
                 const orphanedChats = await Chat.find({ note: note._id }).select('_id')
                 await Promise.all([
                     Chat.deleteMany({ note: note._id }),
+                    Chat.updateMany({ notes: note._id }, { $pull: { notes: note._id } }),
                     Flashcard.deleteMany({ note: note._id }),
                     Quiz.deleteMany({ note: note._id }),
                     NoteVersion.deleteMany({ note: note._id }),
+                    Note.updateMany({ linkedNotes: note._id }, { $pull: { linkedNotes: note._id } }),
                 ])
                 await User.findByIdAndUpdate(id, {
                     $pull: { Notes: note._id, Chats: { $in: orphanedChats.map((c) => c._id) } }

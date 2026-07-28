@@ -15,6 +15,12 @@ export const StudyKitData = {
     deleteQuiz: BASE_URL + "/quizzes",           // + /:id
     exportQuiz: BASE_URL + "/quizzes",           // + /:quizId/export
 
+    generateExam: BASE_URL + "/study/exam/generate",
+    exams: BASE_URL + "/study/exams",
+    exam: BASE_URL + "/study/exams",             // + /:id
+    attemptExam: BASE_URL + "/study/exams",       // + /:id/attempt
+    deleteExam: BASE_URL + "/study/exams",        // + /:id
+
     weakTopics: BASE_URL + "/study/weak-topics",
 
     generateStudyPlan: BASE_URL + "/study/plan/generate",

@@ -5,7 +5,7 @@ import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { NotesData } from "../Apis/NotesApi.js"
 import { setAllNotes, setCurrentNote, setTagsAndFolders, setRelatedNotes, setNoteVersions, setLoading } from "../../Slices/notesSlice.js"
 
-const { summarize, allNotes, tags, importNote, singleNote, deleteNote, organizeNote, enableShare, disableShare, sharedNote, exportNote, relatedNotes, editNote, noteVersions, restoreVersion, checkDuplicate } = NotesData
+const { summarize, allNotes, tags, importNote, singleNote, deleteNote, organizeNote, enableShare, disableShare, sharedNote, exportNote, relatedNotes, editNote, noteVersions, restoreVersion, checkDuplicate, noteLinks } = NotesData
 
 // import sir — creates a Note directly, NO AI call, NO credit/feature spend. Pass either
 // { text } or a FormData with a `notes` file field, same payload shape as SummarizeNotes
@@ -437,6 +437,45 @@ export function GetRelatedNotes(noteId, token) {
             dispatch(setRelatedNotes(response.data.notes))
         } catch (error) {
             logError("Error fetching related notes", error)
+        }
+    }
+}
+
+// manual backlink sir — always symmetric on the backend, so refreshing currentNote here
+// is enough to reflect the link from this note's side; the other note picks it up next
+// time it's opened
+export function AddNoteLink(noteId, targetNoteId, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("POST", `${noteLinks}/${noteId}/links`, { targetNoteId }, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setCurrentNote(response.data.note))
+            toast.success("Notes linked")
+            return true
+        } catch (error) {
+            logError("Error linking notes", error)
+            toast.error(error?.response?.data?.message || "Could not link that note")
+            return false
+        }
+    }
+}
+
+export function RemoveNoteLink(noteId, targetNoteId, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("DELETE", `${noteLinks}/${noteId}/links/${targetNoteId}`, null, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setCurrentNote(response.data.note))
+            toast.success("Link removed")
+            return true
+        } catch (error) {
+            logError("Error removing note link", error)
+            toast.error(error?.response?.data?.message || "Could not remove that link")
+            return false
         }
     }
 }

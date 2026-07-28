@@ -9,12 +9,20 @@ const chatSchema = new mongoose.Schema(
             required: true,
             index: true
         },
-        // the note this chat is grounded in sir — the AI only ever talks about this note's content
+        // the note this chat is grounded in sir — the AI only ever talks about this note's
+        // content. Left in place (rather than folded into `notes` below) so every EXISTING
+        // single-note chat keeps working unchanged; only required when `notes` is empty.
         note: {
             type: mongoose.Schema.ObjectId,
             ref: 'Note',
-            required: true,
+            required: function () { return this.notes.length === 0 },
             index: true
+        },
+        // multi-note chat sir — when non-empty, the AI is grounded in ALL of these notes at
+        // once instead of just `note` above. `note` stays null for chats created this way.
+        notes: {
+            type: [{ type: mongoose.Schema.ObjectId, ref: 'Note' }],
+            default: []
         },
         // shown in the chat list sidebar sir
         title: {

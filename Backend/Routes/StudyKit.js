@@ -4,7 +4,7 @@ const { Auth, blockIfBanned } = require('../Middlewares/Auth.js')
 const { aiLimiter } = require('../Middlewares/RateLimit.js')
 const { doubleCsrfProtection } = require('../Middlewares/Csrf.js')
 const { validate } = require('../Middlewares/Validate.js')
-const { reviewFlashcardRules, attemptQuizRules } = require('../Middlewares/ValidationRules.js')
+const { reviewFlashcardRules, attemptQuizRules, generateExamRules, attemptExamRules } = require('../Middlewares/ValidationRules.js')
 const {
     generateFlashcards,
     getFlashcardsForNote,
@@ -15,6 +15,11 @@ const {
     getQuizzesForNote,
     attemptQuiz,
     deleteQuiz,
+    generateExam,
+    getExams,
+    getExam,
+    attemptExam,
+    deleteExam,
     getWeakTopics,
     generateStudyPlan,
     getTodayStudyPlan,
@@ -42,7 +47,17 @@ route.get('/quizzes/:quizId/export', Auth, blockIfBanned, exportQuiz)
 route.post('/quizzes/:id/attempt', doubleCsrfProtection, attemptQuizRules, validate, Auth, blockIfBanned, attemptQuiz)
 route.delete('/quizzes/:id', doubleCsrfProtection, Auth, blockIfBanned, deleteQuiz)
 
-// weak-topic analytics sir — mined from existing flashcard/quiz data, no AI call, no credit spend
+// practice exam mode sir — spans multiple notes, timed, full attempt history (unlike Quiz's
+// overwrite-only lastAttempt). Generation hits Groq so it gets the AI rate limit + costs a
+// credit, Pro+ only, same gate as flashcards/quizzes above.
+// must come before /study/exams/:id below sir — same ordering trap as elsewhere in this file
+route.post('/study/exam/generate', aiLimiter, doubleCsrfProtection, generateExamRules, validate, Auth, blockIfBanned, generateExam)
+route.get('/study/exams', Auth, blockIfBanned, getExams)
+route.get('/study/exams/:id', Auth, blockIfBanned, getExam)
+route.post('/study/exams/:id/attempt', doubleCsrfProtection, attemptExamRules, validate, Auth, blockIfBanned, attemptExam)
+route.delete('/study/exams/:id', doubleCsrfProtection, Auth, blockIfBanned, deleteExam)
+
+// weak-topic analytics sir — mined from existing flashcard/quiz/exam data, no AI call, no credit spend
 route.get('/study/weak-topics', Auth, blockIfBanned, getWeakTopics)
 
 // AI study plan sir — generation hits Groq so it gets the AI rate limit + costs a credit, Pro+ only

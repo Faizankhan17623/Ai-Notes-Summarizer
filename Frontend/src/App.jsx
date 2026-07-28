@@ -52,6 +52,8 @@ const Report = lazy(() => import('./Components/Dashboard/Report'))
 const SharedNote = lazy(() => import('./Components/Dashboard/SharedNote'))
 const Review = lazy(() => import('./Components/Dashboard/Review'))
 const StudyPlan = lazy(() => import('./Components/Dashboard/StudyPlan'))
+const Exams = lazy(() => import('./Components/Dashboard/Exams'))
+const ExamPlayer = lazy(() => import('./Components/Dashboard/ExamPlayer'))
 const History = lazy(() => import('./Components/Dashboard/History'))
 const Chat = lazy(() => import('./Components/Dashboard/Chat'))
 const SearchResults = lazy(() => import('./Components/Dashboard/SearchResults'))
@@ -171,6 +173,8 @@ function App() {
               <Route path="/Dashboard/Note/:noteId" element={<Report />} />
               <Route path="/Dashboard/Review" element={<Review />} />
               <Route path="/Dashboard/StudyPlan" element={<StudyPlan />} />
+              <Route path="/Dashboard/Exams" element={<Exams />} />
+              <Route path="/Dashboard/Exam/:examId" element={<ExamPlayer />} />
               <Route path="/Dashboard/History" element={<History />} />
               <Route path="/Dashboard/Chats" element={<Chat />} />
               <Route path="/Dashboard/Chat/:chatId" element={<Chat />} />

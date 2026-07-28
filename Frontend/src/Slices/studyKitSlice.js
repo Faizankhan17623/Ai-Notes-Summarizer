@@ -5,6 +5,8 @@ const initialState = {
     dueFlashcards: [],     // cross-note review queue
     quizzes: [],           // quizzes for the currently viewed note
     activeQuiz: null,      // the quiz currently being taken
+    exams: [],              // the user's practice exams list
+    activeExam: null,       // the exam currently being taken/reviewed
     weakTopics: [],         // tags the user is struggling with, see GetWeakTopics
     studyPlan: null,        // today's AI-generated plan, see GetTodayStudyPlan/GenerateStudyPlan
     planLoading: false,
@@ -27,6 +29,12 @@ const studyKitSlice = createSlice({
         setActiveQuiz(state, value) {
             state.activeQuiz = value.payload
         },
+        setExams(state, value) {
+            state.exams = value.payload
+        },
+        setActiveExam(state, value) {
+            state.activeExam = value.payload
+        },
         setWeakTopics(state, value) {
             state.weakTopics = value.payload
         },
@@ -42,5 +50,5 @@ const studyKitSlice = createSlice({
     }
 })
 
-export const { setFlashcards, setDueFlashcards, setQuizzes, setActiveQuiz, setWeakTopics, setStudyPlan, setPlanLoading, setLoading } = studyKitSlice.actions
+export const { setFlashcards, setDueFlashcards, setQuizzes, setActiveQuiz, setExams, setActiveExam, setWeakTopics, setStudyPlan, setPlanLoading, setLoading } = studyKitSlice.actions
 export default studyKitSlice.reducer

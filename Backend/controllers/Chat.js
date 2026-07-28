@@ -13,16 +13,82 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 // fallback for how many past messages we replay sir — the real number comes from the user's plan
 const CONTEXT_WINDOW = 10
 
-// POST /chat — start a new chat grounded in an existing saved note sir (no credit cost — the note was already paid for)
+// resolves what to ground a chat's system prompt in sir — a single note's rawText (original
+// shape, passed straight to buildChatSystemPrompt) for a normal chat, or an array of per-note
+// { title, text } sections for a multi-note chat. Same 20k-char combined budget either way,
+// split evenly across notes when there's more than one (same reasoning as generateExam).
+const loadChatGrounding = async (chat) => {
+    if (chat.notes?.length > 0) {
+        const notes = await Note.find({ _id: { $in: chat.notes } }).select('title rawText')
+        if (notes.length === 0) return null
+        const notesById = new Map(notes.map((n) => [String(n._id), n]))
+        const perNoteCap = Math.floor(20000 / chat.notes.length)
+        return chat.notes
+            .map((nid) => notesById.get(String(nid)))
+            .filter(Boolean)
+            .map((n) => ({ title: n.title, text: n.rawText.slice(0, perNoteCap) }))
+    }
+
+    const note = await Note.findById(chat.note)
+    if (!note) return null
+    // 20k-char cap sir — Groq free tier allows 8,000 tokens/min, and notes created before
+    // AI.js's input cap can carry rawText far beyond that
+    return note.rawText.slice(0, 20000)
+}
+
+const MAX_MULTI_NOTE_CHAT_NOTES = 10
+
+// POST /chat — start a new chat grounded in either ONE note (`noteId`, original behavior) or
+// SEVERAL notes at once (`noteIds`, multi-note chat) sir. No credit cost either way — the
+// note(s) were already paid for at summarize time.
 exports.createChat = async (req, res) => {
     try {
         const id = req.User.id
-        const { noteId } = req.body
+        const { noteId, noteIds } = req.body
+
+        if (Array.isArray(noteIds) && noteIds.length > 0) {
+            if (noteIds.length > MAX_MULTI_NOTE_CHAT_NOTES) {
+                return res.status(400).json({
+                    success: false,
+                    message: `You can chat across at most ${MAX_MULTI_NOTE_CHAT_NOTES} notes at once`,
+                })
+            }
+            if (noteIds.some((n) => !mongoose.isValidObjectId(n))) {
+                return res.status(400).json({ success: false, message: 'Invalid note id in the list' })
+            }
+
+            const notes = await Note.find({ _id: { $in: noteIds }, user: id }).select('title')
+            if (notes.length !== new Set(noteIds).size) {
+                return res.status(404).json({ success: false, message: 'One or more of those notes could not be found' })
+            }
+            const notesById = new Map(notes.map((n) => [String(n._id), n]))
+            const orderedNotes = [...new Set(noteIds)].map((nid) => notesById.get(nid))
+
+            const title = orderedNotes.length === 1
+                ? orderedNotes[0].title
+                : `${orderedNotes[0].title} + ${orderedNotes.length - 1} more`
+
+            const chat = await Chat.create({
+                user: id,
+                notes: orderedNotes.map((n) => n._id),
+                title,
+                messages: []
+            })
+
+            await User.findByIdAndUpdate(id, { $push: { Chats: chat._id } })
+
+            return res.status(201).json({
+                success: true,
+                message: 'Chat created successfully',
+                chatId: chat._id,
+                title: chat.title
+            })
+        }
 
         if (!noteId || !mongoose.isValidObjectId(noteId)) {
             return res.status(400).json({
                 success: false,
-                message: 'A valid note id is required to start a chat',
+                message: 'A valid note id (or list of note ids) is required to start a chat',
             })
         }
 
@@ -89,11 +155,13 @@ exports.sendMessage = async (req, res) => {
             })
         }
 
-        const note = await Note.findById(chat.note)
-        if (!note) {
+        const grounding = await loadChatGrounding(chat)
+        if (!grounding) {
             return res.status(404).json({
                 success: false,
-                message: 'The note behind this chat no longer exists',
+                message: chat.notes?.length > 0
+                    ? 'The notes behind this chat no longer exist'
+                    : 'The note behind this chat no longer exists',
             })
         }
 
@@ -110,9 +178,7 @@ exports.sendMessage = async (req, res) => {
         const Messages = [
             {
                 role: 'system',
-                // 20k-char cap sir — Groq free tier allows 8,000 tokens/min, and notes
-                // created before AI.js's input cap can carry rawText far beyond that
-                content: buildChatSystemPrompt(plan?.key, note.rawText.slice(0, 20000))
+                content: buildChatSystemPrompt(plan?.key, grounding)
             },
             ...chat.messages.slice(-contextWindow).map((m) => ({
                 role: m.role,
@@ -206,11 +272,13 @@ exports.regenerateReply = async (req, res) => {
             })
         }
 
-        const note = await Note.findById(chat.note)
-        if (!note) {
+        const grounding = await loadChatGrounding(chat)
+        if (!grounding) {
             return res.status(404).json({
                 success: false,
-                message: 'The note behind this chat no longer exists',
+                message: chat.notes?.length > 0
+                    ? 'The notes behind this chat no longer exist'
+                    : 'The note behind this chat no longer exists',
             })
         }
 
@@ -223,9 +291,7 @@ exports.regenerateReply = async (req, res) => {
         const Messages = [
             {
                 role: 'system',
-                // 20k-char cap sir — Groq free tier allows 8,000 tokens/min, and notes
-                // created before AI.js's input cap can carry rawText far beyond that
-                content: buildChatSystemPrompt(plan?.key, note.rawText.slice(0, 20000))
+                content: buildChatSystemPrompt(plan?.key, grounding)
             },
             ...historyWithoutLastReply.slice(-contextWindow).map((m) => ({
                 role: m.role,
@@ -291,7 +357,7 @@ exports.getChats = async (req, res) => {
         const id = req.User.id
 
         const chats = await Chat.find({ user: id })
-            .select('title note updatedAt createdAt')
+            .select('title note notes updatedAt createdAt')
             .sort({ updatedAt: -1 })
 
         return res.status(200).json({
@@ -322,7 +388,8 @@ exports.getChat = async (req, res) => {
         }
 
         const chat = await Chat.findOne({ _id: chatId, user: id })
-            .select('title note messages createdAt updatedAt')
+            .select('title note notes messages createdAt updatedAt')
+            .populate('notes', 'title')
 
         if (!chat) {
             return res.status(404).json({

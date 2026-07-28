@@ -4,7 +4,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { FaComments, FaTrash, FaClipboardList, FaLayerGroup, FaDownload } from 'react-icons/fa'
 import Swal from 'sweetalert2'
-import { GetSingleNote, DeleteNote, GetRelatedNotes } from '../../Services/operations/Notes.js'
+import { GetSingleNote, DeleteNote, GetRelatedNotes, GetAllNotes } from '../../Services/operations/Notes.js'
 import { setRelatedNotes } from '../../Slices/notesSlice.js'
 import { CreateChat } from '../../Services/operations/Chat.js'
 import { GenerateFlashcards, GetFlashcardsForNote, GenerateQuiz, GetQuizzesForNote, ExportFlashcardDeck, ExportQuiz } from '../../Services/operations/StudyKit.js'
@@ -16,6 +16,7 @@ import QuizPlayer from './QuizPlayer.jsx'
 import NoteOrganizer from './NoteOrganizer.jsx'
 import ShareExport from './ShareExport.jsx'
 import RelatedNotes from './RelatedNotes.jsx'
+import LinkedNotes from './LinkedNotes.jsx'
 import NoteVersionHistory from './NoteVersionHistory.jsx'
 import { formatReadingTime } from '../../utils/readingTime.js'
 
@@ -35,6 +36,8 @@ const Report = () => {
         dispatch(GetFlashcardsForNote(noteId, token))
         dispatch(GetQuizzesForNote(noteId, token))
         dispatch(GetRelatedNotes(noteId, token))
+        // needed so the linked-notes "add link" search has something to search through sir
+        dispatch(GetAllNotes(token))
     }, [dispatch, noteId, token])
 
     // only gate on !currentNote sir — `loading` is a flag shared across every notes
@@ -243,6 +246,7 @@ const Report = () => {
                             <p className="text-xs uppercase tracking-wide text-richblack-400 font-semibold mb-4">Share &amp; export</p>
                             <ShareExport note={currentNote} />
                         </div>
+                        <LinkedNotes note={currentNote} />
                         <RelatedNotes notes={relatedNotes} />
                     </aside>
                 </div>

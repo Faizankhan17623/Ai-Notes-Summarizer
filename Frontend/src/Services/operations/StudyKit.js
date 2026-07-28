@@ -3,11 +3,12 @@ import toast from "react-hot-toast"
 import { showAiErrorToast } from "../../utils/creditErrorToast.jsx"
 import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { StudyKitData } from "../Apis/StudyKitApi.js"
-import { setFlashcards, setDueFlashcards, setQuizzes, setActiveQuiz, setWeakTopics, setStudyPlan, setPlanLoading, setLoading } from "../../Slices/studyKitSlice.js"
+import { setFlashcards, setDueFlashcards, setQuizzes, setActiveQuiz, setExams, setActiveExam, setWeakTopics, setStudyPlan, setPlanLoading, setLoading } from "../../Slices/studyKitSlice.js"
 
 const {
     generateFlashcards, flashcardsForNote, dueFlashcards, reviewFlashcard, deleteFlashcard,
     generateQuiz, quizzesForNote, attemptQuiz, deleteQuiz, exportReviewQueue, exportFlashcardDeck, exportQuiz,
+    generateExam, exams, exam, attemptExam, deleteExam,
     weakTopics, generateStudyPlan, todayStudyPlan, toggleStudyPlanItem,
 } = StudyKitData
 
@@ -304,6 +305,116 @@ export function DeleteQuiz(quizId, noteId, token) {
             toast.error(error?.response?.data?.message || "Could not delete the quiz")
         } finally {
             toast.dismiss(toastId)
+        }
+    }
+}
+
+// ---------- Practice exams ----------
+
+// spans multiple notes sir — payload is { noteIds, count?, timeLimitSeconds? }
+export function GenerateExam(payload, token, navigate) {
+    return async (dispatch) => {
+        dispatch(setLoading(true))
+        const toastId = toast.loading("Building your practice exam...")
+        try {
+            const response = await apiConnector("POST", generateExam, payload, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            toast.success("Exam ready")
+            dispatch(setActiveExam(response.data.exam))
+            if (navigate) navigate(`/Dashboard/Exam/${response.data.exam._id}`)
+            return response.data.exam
+        } catch (error) {
+            logError("Error generating exam", error)
+            showAiErrorToast(error, "Could not generate the exam")
+            return null
+        } finally {
+            dispatch(setLoading(false))
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+export function GetExams(token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", exams, null, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setExams(response.data.exams))
+        } catch (error) {
+            logError("Error fetching exams", error)
+        }
+    }
+}
+
+export function GetExam(examId, token) {
+    return async (dispatch) => {
+        dispatch(setLoading(true))
+        try {
+            const response = await apiConnector("GET", `${exam}/${examId}`, null, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setActiveExam(response.data.exam))
+        } catch (error) {
+            logError("Error fetching exam", error)
+            toast.error(error?.response?.data?.message || "Could not load that exam")
+        } finally {
+            dispatch(setLoading(false))
+        }
+    }
+}
+
+// durationSeconds is optional — actual wall-clock time spent, separate from the exam's
+// offered timeLimitSeconds sir
+export function AttemptExam(examId, answers, durationSeconds, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("POST", `${attemptExam}/${examId}/attempt`, { answers, durationSeconds }, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            dispatch(setActiveExam(response.data.exam))
+            return response.data
+        } catch (error) {
+            logError("Error submitting exam attempt", error)
+            toast.error(error?.response?.data?.message || "Could not submit your answers")
+            return null
+        }
+    }
+}
+
+export function DeleteExam(examId, token, onSettled) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Deleting exam...")
+        try {
+            const response = await apiConnector("DELETE", `${deleteExam}/${examId}`, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            toast.success("Exam deleted")
+            dispatch(GetExams(token))
+        } catch (error) {
+            logError("Error deleting exam", error)
+            toast.error(error?.response?.data?.message || "Could not delete the exam")
+        } finally {
+            toast.dismiss(toastId)
+            if (onSettled) onSettled()
         }
     }
 }

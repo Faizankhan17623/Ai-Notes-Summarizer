@@ -3,9 +3,10 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { AnimatePresence, motion } from 'motion/react'
-import { FaPaperPlane, FaTrash, FaComments, FaRedo } from 'react-icons/fa'
+import { FaPaperPlane, FaTrash, FaComments, FaRedo, FaLayerGroup, FaTimes } from 'react-icons/fa'
 import Swal from 'sweetalert2'
-import { GetAllChats, GetSingleChat, SendMessage, RegenerateReply, DeleteChat } from '../../Services/operations/Chat.js'
+import { GetAllChats, GetSingleChat, SendMessage, RegenerateReply, DeleteChat, CreateChat } from '../../Services/operations/Chat.js'
+import { GetAllNotes } from '../../Services/operations/Notes.js'
 import MicButton from '../extra/MicButton.jsx'
 
 // the model sometimes answers in markdown (### headings, **bold**, `code`) sir — the chat
@@ -23,11 +24,15 @@ const Chat = () => {
     const navigate = useNavigate()
     const { token } = useSelector((state) => state.auth)
     const { allChats, currentChat, loading, replying } = useSelector((state) => state.chat)
+    const { allNotes } = useSelector((state) => state.notes)
     const [message, setMessage] = useState('')
+    const [pickerOpen, setPickerOpen] = useState(false)
+    const [pickedIds, setPickedIds] = useState(new Set())
     const bottomRef = useRef(null)
 
     useEffect(() => {
         dispatch(GetAllChats(token))
+        dispatch(GetAllNotes(token))
     }, [dispatch, token])
 
     useEffect(() => {
@@ -54,6 +59,22 @@ const Chat = () => {
         dispatch(RegenerateReply(chatId, token, currentChat))
     }
 
+    const togglePicked = (noteId) => {
+        setPickedIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(noteId)) next.delete(noteId)
+            else if (next.size < 10) next.add(noteId)
+            return next
+        })
+    }
+
+    const handleStartMultiChat = () => {
+        if (pickedIds.size < 2) return
+        dispatch(CreateChat([...pickedIds], token, navigate))
+        setPickerOpen(false)
+        setPickedIds(new Set())
+    }
+
     const handleDelete = async (id) => {
         const result = await Swal.fire({
             title: 'Delete this chat?',
@@ -76,9 +97,47 @@ const Chat = () => {
                 {/* chat list sir */}
                 <aside className="w-72 shrink-0 border-r border-border-soft bg-surface-raised flex flex-col">
                     <div className="px-5 py-5 border-b border-border-soft">
-                        <h1 className="font-display text-lg font-semibold text-richblack-5">Your chats</h1>
-                        <p className="text-richblack-400 text-xs mt-1">Start one from any note's summary page</p>
+                        <div className="flex items-center justify-between">
+                            <h1 className="font-display text-lg font-semibold text-richblack-5">Your chats</h1>
+                            <button
+                                type="button"
+                                onClick={() => setPickerOpen((v) => !v)}
+                                title="Chat across multiple notes"
+                                className="text-richblack-400 hover:text-yellow-50 transition-colors"
+                            >
+                                {pickerOpen ? <FaTimes size={14} /> : <FaLayerGroup size={14} />}
+                            </button>
+                        </div>
+                        <p className="text-richblack-400 text-xs mt-1">
+                            {pickerOpen ? 'Pick 2-10 notes to chat across' : "Start one from any note's summary page"}
+                        </p>
                     </div>
+
+                    {pickerOpen && (
+                        <div className="border-b border-border-soft px-3 py-3">
+                            <div className="max-h-52 overflow-y-auto space-y-0.5">
+                                {allNotes.map((note) => (
+                                    <label key={note._id} className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-surface-hover">
+                                        <input
+                                            type="checkbox"
+                                            checked={pickedIds.has(note._id)}
+                                            onChange={() => togglePicked(note._id)}
+                                            className="accent-yellow-50"
+                                        />
+                                        <span className="text-richblack-200 truncate">{note.title}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleStartMultiChat}
+                                disabled={pickedIds.size < 2}
+                                className="w-full mt-2 bg-yellow-50 text-richblack-900 rounded-md py-1.5 text-xs font-semibold disabled:opacity-50 cursor-pointer"
+                            >
+                                Start chat ({pickedIds.size} notes)
+                            </button>
+                        </div>
+                    )}
 
                     <div className="flex-1 overflow-y-auto py-2">
                         {allChats.length === 0 ? (

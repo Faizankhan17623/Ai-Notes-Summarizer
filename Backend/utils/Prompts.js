@@ -207,6 +207,43 @@ RULES:
 }`
 }
 
+// ---------- EXAM PROMPTS (controllers/StudyKit.js practice exam mode) ----------
+
+// like buildQuizPrompt above but spans MULTIPLE notes sir — sections is [{ noteId, title, text }],
+// each question comes back tagged with which note it was drawn from so attempts can be scored
+// per-note and rolled into weak-topics by that note's tags, same as single-note quizzes are
+const buildExamPrompt = (sections, count) => {
+    const { tag, wrapped } = wrapUserContent(
+        'notes',
+        sections.map((s, i) => `[[NOTE_${i}: ${s.title}]]\n${s.text}`).join('\n\n')
+    )
+
+    return `You are an expert study coach. Generate a timed practice exam drawn from the ${sections.length} note(s) below to test understanding across all of them.
+
+${injectionGuard(tag)}
+
+${wrapped}
+
+Generate exactly ${count} multiple-choice questions in total, drawing from across ALL the notes above (not just the first one) roughly in proportion to how much content each contains.
+
+RULES:
+- Every question must be grounded strictly in the notes above — do NOT invent facts.
+- Each question has exactly 4 options, with exactly one correct.
+- "noteIndex" must be the NOTE_<n> number the question was drawn from (0-based, matching the [[NOTE_n: ...]] markers above).
+- Respond ONLY with a valid JSON object in EXACTLY this shape — no markdown fences, no commentary:
+{
+  "questions": [
+    {
+      "question": "a question that tests understanding of a key point in one of the notes",
+      "options": ["four plausible answer options, one of them correct"],
+      "correctIndex": 0,
+      "explanation": "1 sentence on why that answer is correct, grounded in the notes",
+      "noteIndex": 0
+    }
+  ]
+}`
+}
+
 // ---------- CHAT PROMPTS (controllers/Chat.js) ----------
 
 // what the assistant is allowed to do per tier sir — Basic stays light, ProMax is the full study coach
@@ -230,11 +267,22 @@ const CHAT_TIER_RULES = {
 - Be thorough and proactive — anticipate the natural follow-up question and answer it. Structure long answers with headers and lists.`,
 }
 
-// build the full chat system prompt for a plan sir — carries the note's text so the user never re-uploads
-const buildChatSystemPrompt = (planKey, noteText) => {
+// build the full chat system prompt for a plan sir — carries the note's text so the user never
+// re-uploads. `noteContent` is EITHER a plain string (single-note chat, original shape) OR an
+// array of [{ title, text }] sections (multi-note chat) — normalized to one wrapped block either
+// way so the RULES/tier text below stays identical between the two chat modes.
+const buildChatSystemPrompt = (planKey, noteContent) => {
     const tierRules = CHAT_TIER_RULES[planKey] || CHAT_TIER_RULES.Basic
-    const { tag, wrapped } = wrapUserContent('notes', noteText)
-    return `You are an expert study assistant. You are chatting with a user about THEIR notes, shown below.
+    const isMultiNote = Array.isArray(noteContent)
+    const rawText = isMultiNote
+        ? noteContent.map((s, i) => `[[NOTE_${i}: ${s.title}]]\n${s.text}`).join('\n\n')
+        : noteContent
+    const { tag, wrapped } = wrapUserContent('notes', rawText)
+    const scopeLine = isMultiNote
+        ? `You are chatting with a user about THEIR notes — ${noteContent.length} separate notes are shown below, each marked [[NOTE_n: title]]. Draw from whichever note(s) are relevant to the question, and say which note an answer came from when it isn't obvious.`
+        : `You are chatting with a user about THEIR notes, shown below.`
+
+    return `You are an expert study assistant. ${scopeLine}
 
 ${injectionGuard(tag)}
 
@@ -286,4 +334,4 @@ Respond ONLY with a valid JSON object in EXACTLY this shape — no markdown fenc
 "index" must be the number from the list above of an item you selected.`
 }
 
-module.exports = { buildSummarySystemPrompt, buildChatSystemPrompt, buildFlashcardPrompt, buildQuizPrompt, buildStudyPlanPrompt, wrapWithTag }
+module.exports = { buildSummarySystemPrompt, buildChatSystemPrompt, buildFlashcardPrompt, buildQuizPrompt, buildExamPrompt, buildStudyPlanPrompt, wrapWithTag }

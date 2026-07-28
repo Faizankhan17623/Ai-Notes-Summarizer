@@ -77,6 +77,12 @@ const noteSchema = new mongoose.Schema(
         shareEnabled: {
             type: Boolean,
             default: false
+        },
+        // manual backlinks sir — always kept symmetric (linking A->B also links B->A),
+        // maintained by addNoteLink/removeNoteLink in controllers/Notes.js
+        linkedNotes: {
+            type: [{ type: mongoose.Schema.ObjectId, ref: 'Note' }],
+            default: []
         }
     },
     { timestamps: true }

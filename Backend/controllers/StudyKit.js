@@ -4,12 +4,13 @@ const Groq = require('groq-sdk')
 const Note = require('../Models/Note')
 const Flashcard = require('../Models/Flashcard')
 const Quiz = require('../Models/Quiz')
+const Exam = require('../Models/Exam')
 const User = require('../Models/User')
 const StudyPlan = require('../Models/StudyPlan')
 const { ObjectId } = mongoose.Types
 
 const { consumeCredit, getUserPlan, DEFAULT_MODEL } = require('../utils/Plans')
-const { buildFlashcardPrompt, buildQuizPrompt, buildStudyPlanPrompt } = require('../utils/Prompts')
+const { buildFlashcardPrompt, buildQuizPrompt, buildExamPrompt, buildStudyPlanPrompt } = require('../utils/Prompts')
 const { logAi } = require('../utils/AdminLog')
 const { schedule } = require('../utils/SpacedRepetition')
 const { recordStudyActivity, dayKey } = require('../utils/Streak')
@@ -337,6 +338,217 @@ exports.deleteQuiz = async (req, res) => {
     }
 }
 
+const MAX_EXAM_NOTES = 10
+const MAX_EXAM_QUESTIONS = 40
+
+// POST /study/exam/generate sir — { noteIds, count?, timeLimitSeconds? }. Like generateQuiz
+// but spans multiple notes: one Groq call sees all of them at once (so it can spread
+// questions across the material) rather than concatenating N separate per-note quizzes.
+exports.generateExam = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteIds, timeLimitSeconds } = req.body
+        const count = Math.min(Math.max(parseInt(req.body?.count) || 15, 4), MAX_EXAM_QUESTIONS)
+
+        if (!Array.isArray(noteIds) || noteIds.length === 0 || noteIds.length > MAX_EXAM_NOTES) {
+            return res.status(400).json({ success: false, message: `Choose between 1 and ${MAX_EXAM_NOTES} notes for the exam` })
+        }
+        if (noteIds.some((n) => !mongoose.isValidObjectId(n))) {
+            return res.status(400).json({ success: false, message: 'Invalid note id in the list' })
+        }
+
+        const notes = await Note.find({ _id: { $in: noteIds }, user: id }).select('title rawText')
+        if (notes.length !== noteIds.length) {
+            return res.status(404).json({ success: false, message: 'One or more of those notes could not be found' })
+        }
+        // keep the exam's note order matching what the caller sent sir — Note.find doesn't
+        // guarantee $in order, and question.noteIndex below must line up with `sections`
+        const notesById = new Map(notes.map((n) => [String(n._id), n]))
+        const orderedNotes = noteIds.map((nid) => notesById.get(nid))
+
+        const plan = await requirePaidPlan(id, res)
+        if (!plan) return
+
+        const spend = await consumeCredit(id)
+        if (!spend.ok) {
+            return res.status(403).json({ success: false, message: spend.message })
+        }
+
+        // 20k-char combined cap sir — same Groq free-tier reasoning as buildQuizPrompt,
+        // split evenly across however many notes are in this exam
+        const perNoteCap = Math.floor(20000 / orderedNotes.length)
+        const sections = orderedNotes.map((n) => ({ title: n.title, text: n.rawText.slice(0, perNoteCap) }))
+        const examPrompt = buildExamPrompt(sections, count)
+
+        const model = spend.model || DEFAULT_MODEL
+        const t0 = Date.now()
+        let invoking
+        try {
+            invoking = await groq.chat.completions.create({
+                messages: [{ role: 'system', content: examPrompt }, { role: 'user', content: 'Return only the JSON.' }],
+                model,
+                temperature: 0.4,
+                response_format: { type: 'json_object' },
+            })
+            logAi({ user: id, type: 'exam', plan: spend.plan, model, usage: invoking.usage, latencyMs: Date.now() - t0, success: true })
+        } catch (aiErr) {
+            logAi({ user: id, type: 'exam', plan: spend.plan, model, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
+            throw aiErr
+        }
+
+        let raw = invoking?.choices?.[0]?.message?.content
+        if (!raw) {
+            return res.status(502).json({ success: false, message: 'The AI returned an empty response, please try again' })
+        }
+
+        let parsed
+        try {
+            parsed = JSON.parse(cleanJson(raw))
+        } catch (parseErr) {
+            console.log('Exam JSON parse failed:', parseErr.message)
+            return res.status(502).json({ success: false, message: 'The AI response was not in the expected format, please try again' })
+        }
+
+        const rawQuestions = Array.isArray(parsed.questions) ? parsed.questions : []
+        if (rawQuestions.length === 0) {
+            return res.status(502).json({ success: false, message: 'The AI did not return any exam questions, please try again' })
+        }
+
+        // map each question's noteIndex back to a real note id sir, dropping anything the
+        // model returned an out-of-range index for rather than failing the whole exam
+        const questions = rawQuestions
+            .filter((q) => Number.isInteger(q.noteIndex) && q.noteIndex >= 0 && q.noteIndex < orderedNotes.length)
+            .map((q) => ({
+                question: q.question,
+                options: q.options,
+                correctIndex: q.correctIndex,
+                explanation: q.explanation,
+                note: orderedNotes[q.noteIndex]._id,
+            }))
+
+        if (questions.length === 0) {
+            return res.status(502).json({ success: false, message: 'The AI response was not in the expected format, please try again' })
+        }
+
+        const title = orderedNotes.length === 1
+            ? `Exam: ${orderedNotes[0].title}`
+            : `Exam: ${orderedNotes[0].title} + ${orderedNotes.length - 1} more`
+
+        const exam = await Exam.create({
+            user: id,
+            title,
+            notes: orderedNotes.map((n) => n._id),
+            timeLimitSeconds: Number.isInteger(timeLimitSeconds) && timeLimitSeconds > 0 ? timeLimitSeconds : null,
+            questions,
+        })
+
+        return res.status(201).json({ success: true, exam })
+    } catch (error) {
+        console.log(error)
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Something went wrong while generating the exam' })
+    }
+}
+
+// GET /study/exams sir — the user's exam list, questions omitted to keep the payload light
+exports.getExams = async (req, res) => {
+    try {
+        const id = req.User.id
+        const exams = await Exam.find({ user: id })
+            .select('title notes timeLimitSeconds attempts createdAt')
+            .populate('notes', 'title')
+            .sort({ createdAt: -1 })
+        return res.status(200).json({ success: true, exams })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to load exams' })
+    }
+}
+
+// GET /study/exams/:id sir — full exam including questions, for taking/reviewing it
+exports.getExam = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { id: examId } = req.params
+
+        if (!mongoose.isValidObjectId(examId)) {
+            return res.status(400).json({ success: false, message: 'Invalid exam id' })
+        }
+
+        const exam = await Exam.findOne({ _id: examId, user: id }).populate('notes', 'title')
+        if (!exam) {
+            return res.status(404).json({ success: false, message: 'Exam not found' })
+        }
+
+        return res.status(200).json({ success: true, exam })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to load the exam' })
+    }
+}
+
+// POST /study/exams/:id/attempt sir — { answers, durationSeconds? }. Unlike Quiz.lastAttempt
+// (overwrite-only), every attempt is APPENDED so score-over-time / retake history is visible
+exports.attemptExam = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { id: examId } = req.params
+        const { answers, durationSeconds } = req.body
+
+        if (!mongoose.isValidObjectId(examId)) {
+            return res.status(400).json({ success: false, message: 'Invalid exam id' })
+        }
+        if (!Array.isArray(answers)) {
+            return res.status(400).json({ success: false, message: 'Answers must be an array of option indexes' })
+        }
+
+        const exam = await Exam.findOne({ _id: examId, user: id })
+        if (!exam) {
+            return res.status(404).json({ success: false, message: 'Exam not found' })
+        }
+
+        const score = exam.questions.reduce(
+            (acc, q, i) => acc + (answers[i] === q.correctIndex ? 1 : 0),
+            0
+        )
+
+        exam.attempts.push({
+            score,
+            total: exam.questions.length,
+            answers,
+            durationSeconds: Number.isFinite(durationSeconds) ? Math.max(0, Math.round(durationSeconds)) : undefined,
+            attemptedAt: new Date(),
+        })
+        await exam.save()
+
+        const user = await User.findById(id).select('currentStreak lastStreakDate longestStreak')
+        await recordStudyActivity(user)
+
+        return res.status(200).json({ success: true, score, total: exam.questions.length, exam })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to record the exam attempt' })
+    }
+}
+
+// DELETE /study/exams/:id sir
+exports.deleteExam = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { id: examId } = req.params
+
+        const exam = await Exam.findOneAndDelete({ _id: examId, user: id })
+        if (!exam) {
+            return res.status(404).json({ success: false, message: 'Exam not found' })
+        }
+
+        return res.status(200).json({ success: true, message: 'Exam deleted' })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to delete the exam' })
+    }
+}
+
 // minimum sample sizes before a tag is confident enough to call "weak" sir — a single hard
 // flashcard or one missed question shouldn't paint an entire topic red
 const MIN_FLASHCARD_REVIEWS_PER_TAG = 3
@@ -356,7 +568,7 @@ exports.getWeakTopics = async (req, res) => {
     try {
         const userId = new ObjectId(req.User.id)
 
-        const [flashcardStats, quizNotes] = await Promise.all([
+        const [flashcardStats, quizNotes, examsAttempted] = await Promise.all([
             // avg ease + review count per tag sir — only cards that have actually been
             // reviewed at least once carry a meaningful ease signal (unreviewed cards sit at
             // the schema default of 2.5, which would just dilute the average toward "fine")
@@ -374,6 +586,13 @@ exports.getWeakTopics = async (req, res) => {
             Quiz.find({ user: userId, 'lastAttempt.answers': { $exists: true, $ne: [] } })
                 .populate('note', 'tags')
                 .select('questions lastAttempt note'),
+            // exams with at least one attempt sir — each question already carries its own
+            // source note (it can span several), so unlike Quiz this doesn't need a populate
+            // on a single shared `note` field; only the MOST RECENT attempt per exam counts,
+            // matching how quiz's lastAttempt-only signal treats retakes
+            Exam.find({ user: userId, 'attempts.0': { $exists: true } })
+                .populate('questions.note', 'tags')
+                .select('questions attempts'),
         ])
 
         const quizTagStats = new Map() // tag -> { wrong, total }
@@ -382,6 +601,23 @@ exports.getWeakTopics = async (req, res) => {
             if (tags.length === 0) continue
             quiz.questions.forEach((q, i) => {
                 const answered = quiz.lastAttempt.answers[i]
+                if (answered === undefined || answered === null) return
+                const wrong = answered !== q.correctIndex
+                tags.forEach((tag) => {
+                    const entry = quizTagStats.get(tag) || { wrong: 0, total: 0 }
+                    entry.total += 1
+                    if (wrong) entry.wrong += 1
+                    quizTagStats.set(tag, entry)
+                })
+            })
+        }
+
+        for (const exam of examsAttempted) {
+            const lastAttempt = exam.attempts[exam.attempts.length - 1]
+            exam.questions.forEach((q, i) => {
+                const tags = q.note?.tags || []
+                if (tags.length === 0) return
+                const answered = lastAttempt.answers[i]
                 if (answered === undefined || answered === null) return
                 const wrong = answered !== q.correctIndex
                 tags.forEach((tag) => {
