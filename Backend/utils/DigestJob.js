@@ -1,10 +1,46 @@
 const cron = require('node-cron')
+const Groq = require('groq-sdk')
 const User = require('../Models/User')
 const mailSender = require('./Nodemailer')
 const { getWeeklyDigestData } = require('./DigestContent')
 const { weeklyDigestTemplate } = require('../Templates/weeklyDigestTemplate')
+const { buildDigestPrompt } = require('./Prompts')
+const { DEFAULT_MODEL } = require('./Plans')
+const { logAi } = require('./AdminLog')
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+
+// free sir — this is a passive weekly email, not a user-triggered action, so it never spends
+// a credit. If the AI call fails for any reason, the digest still sends WITHOUT the recap
+// paragraph (see sendDigestToUser below) rather than blocking the whole email on it.
+const generateRecap = async (data) => {
+    const t0 = Date.now()
+    try {
+        const invoking = await groq.chat.completions.create({
+            messages: [
+                { role: 'system', content: buildDigestPrompt(data) },
+                { role: 'user', content: 'Return only the JSON.' },
+            ],
+            model: DEFAULT_MODEL,
+            temperature: 0.6,
+            response_format: { type: 'json_object' },
+        })
+        logAi({ type: 'digest', plan: 'system', model: DEFAULT_MODEL, usage: invoking.usage, latencyMs: Date.now() - t0, success: true })
+
+        let raw = invoking?.choices?.[0]?.message?.content
+        if (!raw) return null
+        if (raw.includes('</think>')) raw = raw.split('</think>').pop()
+        raw = raw.replace(/```json/gi, '').replace(/```/g, '').trim()
+
+        const parsed = JSON.parse(raw)
+        return typeof parsed.recap === 'string' && parsed.recap.trim() ? parsed.recap.trim() : null
+    } catch (err) {
+        logAi({ type: 'digest', plan: 'system', model: DEFAULT_MODEL, latencyMs: Date.now() - t0, success: false, error: err.message })
+        console.log('Digest recap generation failed:', err.message)
+        return null
+    }
+}
 
 const sendDigestToUser = async (user) => {
     const data = await getWeeklyDigestData(user._id)
@@ -14,10 +50,12 @@ const sendDigestToUser = async (user) => {
         return
     }
 
+    const recap = await generateRecap(data)
+
     await mailSender(
         user.email,
         'Your week in notes',
-        weeklyDigestTemplate(user.firstName, data, `${FRONTEND_URL}/Dashboard`)
+        weeklyDigestTemplate(user.firstName, { ...data, recap }, `${FRONTEND_URL}/Dashboard`)
     )
 }
 

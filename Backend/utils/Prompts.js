@@ -334,4 +334,32 @@ Respond ONLY with a valid JSON object in EXACTLY this shape — no markdown fenc
 "index" must be the number from the list above of an item you selected.`
 }
 
-module.exports = { buildSummarySystemPrompt, buildChatSystemPrompt, buildFlashcardPrompt, buildQuizPrompt, buildExamPrompt, buildStudyPlanPrompt, wrapWithTag }
+// ---------- WEEKLY DIGEST PROMPT (utils/DigestJob.js) ----------
+// same "candidates in, model can only pick/phrase from what's real" shape as
+// buildStudyPlanPrompt above sir — turns this week's raw counts + weak topics into a short,
+// personalized recap paragraph instead of a bare bullet list. No note text is sent, only
+// counts/tag names, so this stays cheap regardless of how much the user has written.
+const buildDigestPrompt = (data) => {
+    const facts = [
+        `${data.notesThisWeek} note(s) summarized this week`,
+        `${data.chatsThisWeek} chat message(s) sent this week`,
+        `${data.dueFlashcards} flashcard(s) currently due for review`,
+        `${data.quizzesTaken} quiz/exam attempt(s) completed this week`,
+        data.weakTopics.length
+            ? `weakest topics right now (hardest first): ${data.weakTopics.map((t) => t.tag).join(', ')}`
+            : 'no clear weak topics yet (not enough review data)',
+    ].join('\n- ')
+
+    return `You are an encouraging study coach writing a short weekly recap email for one student. Use ONLY the facts below — do not invent numbers, topics, or achievements not listed:
+
+- ${facts}
+
+Write EXACTLY 2 short sentences:
+1. A warm, specific observation about their week (reference an actual number from above).
+2. One concrete, encouraging suggestion for next week, prioritizing a weak topic if one is listed, otherwise a general study nudge.
+
+Do not use headers, greetings ("Hi there"), or sign-offs — just the 2 sentences of body text. Respond ONLY with a valid JSON object in EXACTLY this shape — no markdown fences, no commentary:
+{ "recap": "the 2-sentence recap" }`
+}
+
+module.exports = { buildSummarySystemPrompt, buildChatSystemPrompt, buildFlashcardPrompt, buildQuizPrompt, buildExamPrompt, buildStudyPlanPrompt, buildDigestPrompt, wrapWithTag }

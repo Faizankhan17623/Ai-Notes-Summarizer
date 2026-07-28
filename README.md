@@ -12,12 +12,14 @@ Turn any notes into a clear, structured summary — paste text, upload a PDF/Wor
 ## Features
 
 - **Summarize notes** from pasted/typed text, uploaded files (PDF/DOCX/TXT), a pasted article URL, or voice/audio (browser dictation or an uploaded audio file transcribed via Groq) — single or bulk (up to 20 files at once)
-- **Chat with your notes** — ask follow-up questions grounded strictly in the note you're viewing
+- **Chat with your notes** — ask follow-up questions grounded strictly in the note you're viewing, or start a chat grounded across 2-10 notes at once for cross-note Q&A
 - **Plan-tiered summaries** — Basic (key points + structured action items: tasks/key dates/decisions), Pro (+ sections & key terms), Pro Max (+ an initial quiz & flashcard set) — with real credit gating enforced per plan, and AI-suggested tags applied automatically at creation time
 - **On-demand flashcards & quizzes** (Pro/Pro Max) — generate more of either from any note at any time; flashcards use SM-2 spaced repetition (again/hard/good/easy) with a dedicated Review page for everything due across all notes; export a full deck or quiz (with answer key) as a printable PDF
-- **Organize & find notes** — tags, folders, pin/favorite, full-text search, and a "related notes" panel based on tag overlap
+- **Practice exam mode** (Pro/Pro Max) — build one timed AI-generated exam spanning up to 10 notes at once, with full attempt history (unlike single-note quizzes, every retake is kept) feeding into weak-topic insights
+- **Organize & find notes** — tags, folders, pin/favorite, full-text search, a "related notes" panel based on tag overlap, and manual note-to-note links (symmetric backlinks, shown on both linked notes)
 - **Edit a note's content & version history** — edit a note's title/source text after creation; every past state is snapshotted and restorable
-- **Weak-topic insights** — a dashboard widget surfaces which note tags you're struggling with, mined from flashcard ease scores and quiz results
+- **Weak-topic insights** — a dashboard widget surfaces which note tags you're struggling with, mined from flashcard ease scores and quiz/exam results
+- **AI weekly recap email** — the weekly digest includes a short AI-written recap (grounded in that week's real activity + current weak topics), not just a bare stat count
 - **Pick your model** (Pro/Pro Max) — choose which Groq model powers your summaries/chat/study tools instead of the plan default
 - **Auth** — signup with OTP email verification, JWT (httpOnly cookie + bearer), forgot/reset password, 2-day account delete/recover buffer
 - **In-app notifications** — polled updates for things like low credits, plan expiry, and support replies
@@ -115,6 +117,9 @@ NOTES / SUMMARIZATION
 - Organize: free-form tags, single folder, pin-to-top
 - Public share links (read-only, summary only — never raw text/flashcards/quiz)
 - Export note as Markdown, PDF, or DOCX
+- Manual note-to-note links (Note.linkedNotes) — symmetric on both notes (linking A->B also
+  links B->A in one write), shown in a "Linked notes" panel on the Report page with an inline
+  search-to-add picker; auto-cleaned (pulled from other notes' linkedNotes) on delete
 - Edit a note's title/source text after creation (PATCH /notes/:noteId/edit) — the only path that
   changes content post-creation; every edit AND restore snapshots the note's prior state into
   NoteVersion first, so nothing is ever destructively lost. Version history list + one-click
@@ -124,11 +129,16 @@ NOTES / SUMMARIZATION
   weak-topics widget (see ANALYTICS below)
 
 CHAT WITH NOTES
-- Chat grounded in one specific note; AI restricted to that note's content
+- Chat grounded in one specific note, OR in 2-10 notes at once (multi-note chat — Chat.notes
+  array instead of the single Chat.note field, picked from the Chat page sidebar); AI restricted
+  strictly to the grounded note(s)' content either way, told which [[NOTE_n: title]] each
+  section came from so it can attribute answers when chatting across several notes
 - Plan-based context depth: Basic 10 / Pro 20 / ProMax 40 past turns replayed
 - Plan-based capability scope: Basic light Q&A, Pro adds quizzes/flashcards/reorganize on request, Pro Max full study coach (mock exams, multi-day study plans)
 - Plan-based message caps: Basic 60 / Pro 200 / ProMax 500 per chat
 - Chat list sidebar + conversation view, voice-dictate messages, delete chat
+- Deleting a note pulls it out of any multi-note chat's `notes` array rather than deleting the
+  whole chat (the chat stays meaningful as long as at least one grounded note remains)
 
 STUDY KIT - FLASHCARDS
 - On-demand flashcard generation per note (Pro/ProMax only, 1 credit), avoids duplicate fronts
@@ -143,6 +153,17 @@ STUDY KIT - QUIZZES
 - One-question-at-a-time player, submit all at once, scored with per-question correct/incorrect + explanations
 - Retake overwrites lastAttempt; quiz deletable
 - Export a quiz as a printable PDF (questions + options, answer key on a separate page)
+
+STUDY KIT - PRACTICE EXAMS
+- Separate from per-note Quiz above: spans 1-10 notes at once (Pro/ProMax only, 1 credit),
+  picked via a note checklist on the Exams page; one Groq call sees all selected notes'
+  content together and spreads questions across them, each question tagged with which
+  source note it came from (Exam.questions[].note)
+- Optional time limit (untimed/5/10/20 min); countdown auto-submits at zero
+- Full attempt history kept (Exam.attempts array) — UNLIKE Quiz's overwrite-only lastAttempt,
+  every retake is appended so score-over-time is visible on the exam list
+- Each question's source-note tags feed into weak-topic insights (see ANALYTICS below) the
+  same way quiz questions do, using only the most recent attempt per exam
 
 PLANS, CREDITS & PAYMENTS
 - Three tiers: Basic (free, 5 credits/mo), Pro (Rs499/mo, 100 credits), Pro Max (Rs999/mo, 500 credits)
@@ -165,9 +186,10 @@ ACCOUNT / SETTINGS
 ANALYTICS (USER-FACING)
 - Personal activity dashboard: notes/day (30-day area chart), total notes/chats/flashcards, cards reviewed,
   quizzes attempted + average score, plan credit limit — embedded on Dashboard home
-- Weak-topic insights (GET /study/weak-topics): mines EXISTING flashcard/quiz data (no new
+- Weak-topic insights (GET /study/weak-topics, logic shared via utils/WeakTopics.js so the
+  weekly AI digest can reuse it too): mines EXISTING flashcard/quiz/exam data (no new
   tracking, no AI call) — average SM-2 ease factor per note tag (lower ease = harder) and
-  quiz right/wrong rate per tag, merged into one 0-100 "difficulty" score, top 10 shown.
+  quiz/exam right/wrong rate per tag, merged into one 0-100 "difficulty" score, top 10 shown.
   Requires a minimum sample per tag (3+ reviewed cards or 3+ answered questions) before it's
   surfaced, so one hard card doesn't paint a whole topic red. Widget hides itself entirely
   until there's enough history.
@@ -231,10 +253,16 @@ THIRD-PARTY INTEGRATIONS
 
 BACKGROUND JOBS
 - Weekly digest email: node-cron, Mondays 08:00 server time, per opted-in non-banned user,
-  summarizes notes created/chats had/flashcards due/quizzes taken; skips empty weeks; sequential sends
+  summarizes notes created/chats had/flashcards due/quizzes taken; skips empty weeks; sequential
+  sends. Now includes a short (2-sentence) AI-written recap paragraph above the stat list —
+  Groq is given ONLY that week's real counts + the user's current weak topics (utils/WeakTopics.js)
+  and can't invent facts (buildDigestPrompt in utils/Prompts.js), free/no credit cost since it's
+  a passive email not a user-triggered action; if the AI call fails for any reason the digest
+  still sends without the recap paragraph rather than blocking on it
 
 DATA MODELS (MongoDB / Mongoose)
-- User, Note, NoteVersion, Flashcard, Quiz, Chat, Payment, AiLog, AuditLog, Announcement,
+- User, Note (incl. linkedNotes), NoteVersion, Flashcard, Quiz, Exam, Chat (incl. multi-note
+  `notes` array alongside the original single `note`), Payment, AiLog, AuditLog, Announcement,
   Notification, ContactMessage (incl. internalNotes subdocs), SavedView, OTP
   (see Backend/Models/*.js for full field lists)
 
@@ -242,7 +270,8 @@ FULL FRONTEND ROUTES
 - Public: /, /Pricing, /Contact, /shared/:shareId
 - Logged-out only: /Signup, /Verify-Otp, /Login, /forgot-password, /reset-password/:token
 - Dashboard: /Dashboard, /Dashboard/New-Summary, /Dashboard/Note/:noteId, /Dashboard/Review,
-  /Dashboard/History, /Dashboard/Chats, /Dashboard/Chat/:chatId, /Dashboard/Account
+  /Dashboard/StudyPlan, /Dashboard/Exams, /Dashboard/Exam/:examId, /Dashboard/History,
+  /Dashboard/Chats, /Dashboard/Chat/:chatId, /Dashboard/Account
 - Admin/Support: /Admin, /Admin/Analytics, /Admin/Users, /Admin/Payments, /Admin/Audit,
   /Admin/Announcements, /Admin/Contact-Messages
 
@@ -252,14 +281,18 @@ FULL BACKEND API MAP (/api/v1)
   PATCH /profile/digest-preference, PATCH /profile/password, DELETE /profile, POST /profile/recover,
   GET/POST/DELETE /api-key
 - Notes: POST /summarize, GET /shared/:shareId, GET /notes, GET /notes/tags, GET /notes/:noteId,
+  GET /notes/:noteId/related, POST /notes/:noteId/links, DELETE /notes/:noteId/links/:targetNoteId,
   DELETE /notes/:noteId, PATCH /notes/:noteId/organize, PATCH /notes/:noteId/edit,
   GET /notes/:noteId/versions, POST /notes/:noteId/versions/:versionId/restore,
   POST/DELETE /notes/:noteId/share, GET /notes/:noteId/export/:format
 - Study Kit: POST/GET /notes/:noteId/flashcards, GET /notes/:noteId/flashcards/export,
   GET /flashcards/due, GET /flashcards/review/export, POST /flashcards/:id/review,
   DELETE /flashcards/:id, POST/GET /notes/:noteId/quiz(zes), GET /quizzes/:quizId/export,
-  POST /quizzes/:id/attempt, DELETE /quizzes/:id, GET /study/weak-topics
-- Chat: POST /chat, POST /chat/:chatId/message, GET /chat, GET /chat/:chatId, DELETE /chat/:chatId
+  POST /quizzes/:id/attempt, DELETE /quizzes/:id, POST /study/exam/generate, GET /study/exams,
+  GET /study/exams/:id, POST /study/exams/:id/attempt, DELETE /study/exams/:id,
+  GET /study/weak-topics
+- Chat: POST /chat (accepts noteId OR noteIds for multi-note chat), POST /chat/:chatId/message,
+  POST /chat/:chatId/regenerate, GET /chat, GET /chat/:chatId, DELETE /chat/:chatId
 - Payment: GET /payment/plans, POST /payment/order, POST /payment/verify
 - Analytics: GET /analytics/me
 - Notifications: GET /notifications, PATCH /notifications/:id/read, PATCH /notifications/read-all

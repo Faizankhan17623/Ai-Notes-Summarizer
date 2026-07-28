@@ -12,13 +12,15 @@ const aiLogSchema = new mongoose.Schema(
         // which feature burned the tokens sir
         type: {
             type: String,
-            enum: ['summary', 'chat', 'flashcard', 'quiz'],
+            enum: ['summary', 'chat', 'flashcard', 'quiz', 'exam', 'studyPlan', 'digest'],
             required: true,
         },
-        // which plan tier made the call sir — this is what per-tier cost tracking groups by
+        // which plan tier made the call sir — this is what per-tier cost tracking groups by.
+        // 'system' covers calls not attributable to one user's plan (e.g. the weekly digest
+        // recap in utils/DigestJob.js, which runs per-user but isn't a plan-gated feature)
         plan: {
             type: String,
-            enum: ['Basic', 'Pro', 'ProMax'],
+            enum: ['Basic', 'Pro', 'ProMax', 'system'],
             default: 'Basic',
         },
         model: {
