@@ -2,10 +2,11 @@ import { logError } from "../../utils/logError.js"
 import toast from "react-hot-toast"
 import { showAiErrorToast } from "../../utils/creditErrorToast.jsx"
 import { apiConnector } from "../apiConnector.js"
-import { setAllChats, setCurrentChat, setLoading, setReplying } from "../../Slices/chatSlice.js"
+import { streamChatMessage } from "../streamChat.js"
+import { setAllChats, setCurrentChat, setLoading, setReplying, appendToLastMessage } from "../../Slices/chatSlice.js"
 import { ChatData } from "../Apis/ChatApi.js"
 
-const { createChat, allChats, singleChat, sendMessage, regenerateReply, deleteChat } = ChatData
+const { createChat, allChats, singleChat, sendMessageStream, regenerateReplyStream, deleteChat } = ChatData
 
 // start a chat grounded in an already-saved note sir. Pass either a single noteId (string,
 // original behavior) or an array of noteIds (2-10, cross-note chat) — same endpoint either way
@@ -76,78 +77,67 @@ export function GetSingleChat(chatId, token) {
     }
 }
 
-// send one message sir — the messages are pushed into the open chat optimistically
-// so the user's bubble shows instantly while the AI thinks
+// send one message sir — the user's bubble shows instantly (optimistic), then an empty
+// assistant placeholder is appended and grown token-by-token as the SSE stream arrives
 export function SendMessage(chatId, message, token, currentChat) {
     return async (dispatch) => {
         dispatch(setReplying(true))
 
-        // optimistic user bubble sir
+        // optimistic user bubble + empty assistant placeholder sir, filled in as tokens stream
         dispatch(setCurrentChat({
             ...currentChat,
-            messages: [...currentChat.messages, { role: 'user', content: message }]
+            messages: [
+                ...currentChat.messages,
+                { role: 'user', content: message },
+                { role: 'assistant', content: '' },
+            ]
         }))
 
-        try {
-            const response = await apiConnector("POST", `${sendMessage}/${chatId}/message`, { message }, {
-                Authorization: `Bearer ${token}`
-            })
-
-            if (!response.data.success) {
-                throw new Error(response.data.message)
-            }
-
-            dispatch(setCurrentChat({
-                ...currentChat,
-                messages: [
-                    ...currentChat.messages,
-                    { role: 'user', content: message },
-                    { role: 'assistant', content: response.data.reply }
-                ]
-            }))
-        } catch (error) {
-            logError("Error sending the message", error)
-            showAiErrorToast(error, "Could not send the message")
-            // roll the optimistic bubble back sir
-            dispatch(setCurrentChat(currentChat))
-        } finally {
-            dispatch(setReplying(false))
-        }
+        await streamChatMessage({
+            url: `${sendMessageStream}/${chatId}/message/stream`,
+            body: { message },
+            token,
+            onToken: (chunk) => dispatch(appendToLastMessage(chunk)),
+            onDone: () => dispatch(setReplying(false)),
+            onError: (error) => {
+                logError("Error sending the message", error)
+                showAiErrorToast(error, "Could not send the message")
+                // roll the optimistic bubble + placeholder back sir
+                dispatch(setCurrentChat(currentChat))
+                dispatch(setReplying(false))
+            },
+        })
     }
 }
 
-// re-asks the last user message sir — replaces the last assistant reply in place
-// rather than appending a duplicate exchange to the conversation
+// re-asks the last user message sir — replaces the last assistant reply in place,
+// streamed token-by-token exactly like SendMessage
 export function RegenerateReply(chatId, token, currentChat) {
     return async (dispatch) => {
         dispatch(setReplying(true))
 
-        // pull the stale reply off immediately sir so the "thinking" indicator
-        // takes its place instead of sitting below the old answer
+        // pull the stale reply off immediately sir and drop in an empty placeholder so the
+        // "thinking" indicator takes its place instead of sitting below the old answer
         const messagesWithoutLastReply = currentChat.messages.slice(0, -1)
-        dispatch(setCurrentChat({ ...currentChat, messages: messagesWithoutLastReply }))
+        dispatch(setCurrentChat({
+            ...currentChat,
+            messages: [...messagesWithoutLastReply, { role: 'assistant', content: '' }]
+        }))
 
-        try {
-            const response = await apiConnector("POST", `${regenerateReply}/${chatId}/regenerate`, null, {
-                Authorization: `Bearer ${token}`
-            })
-
-            if (!response.data.success) {
-                throw new Error(response.data.message)
-            }
-
-            dispatch(setCurrentChat({
-                ...currentChat,
-                messages: [...messagesWithoutLastReply, { role: 'assistant', content: response.data.reply }]
-            }))
-        } catch (error) {
-            logError("Error regenerating the reply", error)
-            showAiErrorToast(error, "Could not regenerate the reply")
-            // roll back to the original reply sir
-            dispatch(setCurrentChat(currentChat))
-        } finally {
-            dispatch(setReplying(false))
-        }
+        await streamChatMessage({
+            url: `${regenerateReplyStream}/${chatId}/regenerate/stream`,
+            body: null,
+            token,
+            onToken: (chunk) => dispatch(appendToLastMessage(chunk)),
+            onDone: () => dispatch(setReplying(false)),
+            onError: (error) => {
+                logError("Error regenerating the reply", error)
+                showAiErrorToast(error, "Could not regenerate the reply")
+                // roll back to the original reply sir
+                dispatch(setCurrentChat(currentChat))
+                dispatch(setReplying(false))
+            },
+        })
     }
 }
 

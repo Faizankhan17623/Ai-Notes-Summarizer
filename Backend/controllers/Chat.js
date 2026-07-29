@@ -38,6 +38,104 @@ const loadChatGrounding = async (chat) => {
 
 const MAX_MULTI_NOTE_CHAT_NOTES = 10
 
+// shared prep for both streaming handlers sir — loads grounding, enforces the plan's
+// per-chat message cap, and builds the Groq messages array. Returns { errorStatus, errorMessage }
+// instead of throwing/responding directly, since the caller decides how to surface it
+// (plain JSON before the stream starts, SSE event once it's already streaming)
+const prepareChatCompletion = async (chat, plan, extraUserMessage) => {
+    const grounding = await loadChatGrounding(chat)
+    if (!grounding) {
+        return {
+            error: chat.notes?.length > 0
+                ? 'The notes behind this chat no longer exist'
+                : 'The note behind this chat no longer exists',
+        }
+    }
+
+    if (extraUserMessage && plan && plan.maxMessagesPerChat !== null && chat.messages.length >= plan.maxMessagesPerChat) {
+        return { error: 'This chat is full for your plan, please start a new chat or upgrade your plan' }
+    }
+
+    const contextWindow = plan?.contextWindow || CONTEXT_WINDOW
+    const history = extraUserMessage ? chat.messages : chat.messages.slice(0, -1)
+    const Messages = [
+        {
+            role: 'system',
+            content: buildChatSystemPrompt(plan?.key, grounding)
+        },
+        ...history.slice(-contextWindow).map((m) => ({
+            role: m.role,
+            content: m.content
+        })),
+    ]
+    if (extraUserMessage) {
+        Messages.push({ role: 'user', content: extraUserMessage })
+    }
+
+    return { Messages }
+}
+
+// writes one SSE event sir — always {event}\ndata:{json}\n\n so the frontend parser has one shape to handle
+const writeSseEvent = (res, event, data) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+}
+
+// runs a Groq streaming completion and pipes tokens to the client as SSE sir, then
+// persists the final chat exactly like the non-streaming handlers do. Shared by
+// sendMessageStream and regenerateReplyStream — only how `chat.messages` gets updated
+// before/after differs, passed in via `applyToChat`
+const streamCompletion = async ({ res, id, chat, plan, Messages, applyToChat }) => {
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache, no-transform')
+    res.setHeader('Connection', 'keep-alive')
+    res.flushHeaders()
+
+    const t0 = Date.now()
+    let raw = ''
+    try {
+        const stream = await groq.chat.completions.create({
+            messages: Messages,
+            model: plan?.model || DEFAULT_MODEL,
+            temperature: 0.5,
+            stream: true,
+        })
+
+        for await (const chunk of stream) {
+            const token = chunk.choices?.[0]?.delta?.content
+            if (token) {
+                raw += token
+                writeSseEvent(res, 'token', { token })
+            }
+        }
+
+        logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: plan?.model || DEFAULT_MODEL, latencyMs: Date.now() - t0, success: true })
+    } catch (aiErr) {
+        logAi({ user: id, type: 'chat', plan: plan?.key || 'Basic', model: plan?.model || DEFAULT_MODEL, latencyMs: Date.now() - t0, success: false, error: aiErr.message })
+        // friendly message for Groq free-tier limit errors sir, same mapping as the non-streaming handlers
+        const message = (aiErr?.status === 413 || aiErr?.status === 429)
+            ? 'Our AI service is at its per-minute limit right now — please wait about a minute and try again'
+            : 'Something went wrong while talking to the AI'
+        writeSseEvent(res, 'error', { message })
+        return res.end()
+    }
+
+    if (raw.includes('</think>')) {
+        raw = raw.split('</think>').pop()
+    }
+    raw = raw.trim()
+
+    if (!raw) {
+        writeSseEvent(res, 'error', { message: 'The AI returned an empty response, please try again' })
+        return res.end()
+    }
+
+    applyToChat(raw)
+    await chat.save()
+
+    writeSseEvent(res, 'done', { reply: raw })
+    return res.end()
+}
+
 // POST /chat — start a new chat grounded in either ONE note (`noteId`, original behavior) or
 // SEVERAL notes at once (`noteIds`, multi-note chat) sir. No credit cost either way — the
 // note(s) were already paid for at summarize time.
@@ -348,6 +446,103 @@ exports.regenerateReply = async (req, res) => {
             success: false,
             message: 'Something went wrong while regenerating the reply',
         })
+    }
+}
+
+// POST /chat/:chatId/message/stream — same as sendMessage sir, but streams the reply
+// token-by-token over SSE instead of waiting for the full completion
+exports.sendMessageStream = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { chatId } = req.params
+        const message = req.body.message
+
+        if (!mongoose.isValidObjectId(chatId)) {
+            return res.status(400).json({ success: false, message: 'Invalid chat id' })
+        }
+        if (!message || !message.trim()) {
+            return res.status(400).json({ success: false, message: 'Message is required' })
+        }
+
+        const chat = await Chat.findOne({ _id: chatId, user: id })
+        if (!chat) {
+            return res.status(404).json({ success: false, message: 'Chat not found' })
+        }
+
+        const plan = await getUserPlan(id)
+        const trimmedMessage = message.trim()
+        const { error, Messages } = await prepareChatCompletion(chat, plan, trimmedMessage)
+        if (error) {
+            return res.status(404).json({ success: false, message: error })
+        }
+
+        await streamCompletion({
+            res,
+            id,
+            chat,
+            plan,
+            Messages,
+            applyToChat: (raw) => {
+                chat.messages.push({ role: 'user', content: trimmedMessage })
+                chat.messages.push({ role: 'assistant', content: raw })
+            },
+        })
+    } catch (error) {
+        console.log(error)
+        console.log(error.message)
+        if (!res.headersSent) {
+            return res.status(500).json({ success: false, message: 'Something went wrong while sending the message' })
+        }
+        res.end()
+    }
+}
+
+// POST /chat/:chatId/regenerate/stream — same as regenerateReply sir, streamed over SSE
+exports.regenerateReplyStream = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { chatId } = req.params
+
+        if (!mongoose.isValidObjectId(chatId)) {
+            return res.status(400).json({ success: false, message: 'Invalid chat id' })
+        }
+
+        const chat = await Chat.findOne({ _id: chatId, user: id })
+        if (!chat) {
+            return res.status(404).json({ success: false, message: 'Chat not found' })
+        }
+
+        const last = chat.messages[chat.messages.length - 1]
+        if (!last || last.role !== 'assistant') {
+            return res.status(400).json({ success: false, message: 'There is no reply to regenerate yet' })
+        }
+
+        const plan = await getUserPlan(id)
+        const { error, Messages } = await prepareChatCompletion(chat, plan, null)
+        if (error) {
+            return res.status(404).json({ success: false, message: error })
+        }
+
+        const historyWithoutLastReply = chat.messages.slice(0, -1)
+
+        await streamCompletion({
+            res,
+            id,
+            chat,
+            plan,
+            Messages,
+            applyToChat: (raw) => {
+                chat.messages = historyWithoutLastReply
+                chat.messages.push({ role: 'assistant', content: raw })
+            },
+        })
+    } catch (error) {
+        console.log(error)
+        console.log(error.message)
+        if (!res.headersSent) {
+            return res.status(500).json({ success: false, message: 'Something went wrong while regenerating the reply' })
+        }
+        res.end()
     }
 }
 

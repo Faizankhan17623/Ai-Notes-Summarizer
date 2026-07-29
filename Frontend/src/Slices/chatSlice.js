@@ -25,9 +25,17 @@ const chatSlice = createSlice({
         },
         setReplying(state, value) {
             state.replying = value.payload
+        },
+        // appends one streamed token to the last message's content sir — used instead of
+        // re-dispatching the whole currentChat on every token, which would be wasteful at
+        // token granularity (SendMessage/RegenerateReply in operations/Chat.js)
+        appendToLastMessage(state, value) {
+            const messages = state.currentChat?.messages
+            if (!messages || messages.length === 0) return
+            messages[messages.length - 1].content += value.payload
         }
     }
 })
 
-export const { setAllChats, setCurrentChat, setLoading, setReplying } = chatSlice.actions
+export const { setAllChats, setCurrentChat, setLoading, setReplying, appendToLastMessage } = chatSlice.actions
 export default chatSlice.reducer

@@ -9,6 +9,8 @@ const {
     createChat,
     sendMessage,
     regenerateReply,
+    sendMessageStream,
+    regenerateReplyStream,
     getChats,
     getChat,
     deleteChat
@@ -19,6 +21,9 @@ route.post('/chat', doubleCsrfProtection, createChatRules, validate, Auth, block
 route.post('/chat/:chatId/message', aiLimiter, doubleCsrfProtection, sendMessageRules, validate, Auth, blockIfBanned, sendMessage)
 // also hits Groq sir — same rate limit as sending a message
 route.post('/chat/:chatId/regenerate', aiLimiter, doubleCsrfProtection, regenerateReplyRules, validate, Auth, blockIfBanned, regenerateReply)
+// streamed versions sir — same middleware chain, reply comes back over SSE token-by-token
+route.post('/chat/:chatId/message/stream', aiLimiter, doubleCsrfProtection, sendMessageRules, validate, Auth, blockIfBanned, sendMessageStream)
+route.post('/chat/:chatId/regenerate/stream', aiLimiter, doubleCsrfProtection, regenerateReplyRules, validate, Auth, blockIfBanned, regenerateReplyStream)
 route.get('/chat', Auth, blockIfBanned, getChats)
 route.get('/chat/:chatId', Auth, blockIfBanned, getChat)
 route.delete('/chat/:chatId', doubleCsrfProtection, Auth, blockIfBanned, deleteChat)

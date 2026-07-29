@@ -189,7 +189,27 @@ const Chat = () => {
                             <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
                                 <AnimatePresence initial={false}>
                                     {currentChat?.messages?.map((m, i) => {
-                                        const isLastAssistantReply = m.role === 'assistant' && i === currentChat.messages.length - 1
+                                        const isLastMessage = i === currentChat.messages.length - 1
+                                        const isLastAssistantReply = m.role === 'assistant' && isLastMessage
+                                        // empty placeholder sir — streaming hasn't produced its first token yet,
+                                        // show the typing dots in its place instead of a blank bubble
+                                        if (isLastAssistantReply && replying && !m.content) {
+                                            return (
+                                                <motion.div
+                                                    key="typing-indicator"
+                                                    initial={{ opacity: 0, y: 12 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0 }}
+                                                    className="flex justify-start"
+                                                >
+                                                    <div className="bg-surface border border-border-soft text-richblack-400 rounded-lg px-4 py-2.5 text-sm flex items-center gap-1.5">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse" />
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse [animation-delay:150ms]" />
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse [animation-delay:300ms]" />
+                                                    </div>
+                                                </motion.div>
+                                            )
+                                        }
                                         return (
                                             <motion.div
                                                 key={i}
@@ -218,21 +238,6 @@ const Chat = () => {
                                             </motion.div>
                                         )
                                     })}
-                                    {replying && (
-                                        <motion.div
-                                            key="typing-indicator"
-                                            initial={{ opacity: 0, y: 12 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0 }}
-                                            className="flex justify-start"
-                                        >
-                                            <div className="bg-surface border border-border-soft text-richblack-400 rounded-lg px-4 py-2.5 text-sm flex items-center gap-1.5">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse" />
-                                                <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse [animation-delay:150ms]" />
-                                                <span className="w-1.5 h-1.5 rounded-full bg-richblack-400 animate-pulse [animation-delay:300ms]" />
-                                            </div>
-                                        </motion.div>
-                                    )}
                                 </AnimatePresence>
                                 <div ref={bottomRef} />
                             </div>

@@ -11,6 +11,9 @@ export const axiosinstance = axios.create({
 // via GET /csrf-token, then echoed back on every state-changing request via this header
 let csrfToken = null
 export const setCsrfToken = (t) => { csrfToken = t }
+// exposed for the raw-fetch SSE stream helper sir (streamChat.js) — axios requests get this
+// stamped on automatically by the interceptor below, but a plain fetch() call needs it directly
+export const getCsrfToken = () => csrfToken
 
 axiosinstance.interceptors.request.use((config) => {
     if (csrfToken && config.method?.toLowerCase() !== 'get') {
