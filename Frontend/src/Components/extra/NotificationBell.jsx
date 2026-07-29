@@ -3,12 +3,16 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { FaBell } from 'react-icons/fa'
 import { GetNotifications, MarkNotificationRead, MarkAllNotificationsRead } from '../../Services/operations/Notification.js'
+import { useNotificationStream } from '../../Hooks/useNotificationStream.js'
 
-const POLL_INTERVAL_MS = 30000
+// fallback-only cadence sir — new notifications now arrive live over SSE (useNotificationStream
+// below), this poll just reconciles read/unread state and covers the gap on the rare drop that
+// somehow outlasts EventSource's own auto-reconnect (e.g. a long Render free-tier cold start)
+const POLL_INTERVAL_MS = 90000
 
-// bell + dropdown, polled sir — not pushed. See Backend/Models/Notification.js for why: this
-// runs on Render's free tier, which sleeps/restarts, so a persistent socket/SSE connection
-// would fight the platform for a use case that never needed sub-second delivery anyway
+// bell + dropdown sir — new notifications pushed live over SSE (see useNotificationStream),
+// with a slow poll left running underneath as a fallback/reconciliation safety net since
+// Render's free tier can restart the process mid-connection
 const NotificationBell = () => {
     const dispatch = useDispatch()
     const navigate = useNavigate()
@@ -16,6 +20,8 @@ const NotificationBell = () => {
     const { notifications, unreadCount } = useSelector((state) => state.notification)
     const [open, setOpen] = useState(false)
     const rootRef = useRef(null)
+
+    useNotificationStream(token)
 
     useEffect(() => {
         dispatch(GetNotifications(token))

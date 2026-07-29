@@ -22,7 +22,7 @@ Turn any notes into a clear, structured summary — paste text, upload a PDF/Wor
 - **AI weekly recap email** — the weekly digest includes a short AI-written recap (grounded in that week's real activity + current weak topics), not just a bare stat count
 - **Pick your model** (Pro/Pro Max) — choose which Groq model powers your summaries/chat/study tools instead of the plan default
 - **Auth** — signup with OTP email verification, JWT (httpOnly cookie + bearer), forgot/reset password, 2-day account delete/recover buffer
-- **In-app notifications** — polled updates for things like low credits, plan expiry, and support replies
+- **In-app notifications** — pushed live over SSE the instant they happen (low credits, plan expiry, support replies), with a slow poll kept underneath as a fallback
 - **Role-based Admin & Support dashboards** — Support gets a read-only/reply view (users, payments, AI logs, contact tickets — with private handoff notes and a per-ticket AI-activity lookup on each ticket); a Billing role can issue refunds without full Admin access; Admin adds ban/role changes, refunds (including credit-pack refunds), audit log, and site-wide announcements
 - **Saved admin filter views** — Support/Billing/Admin can save and reuse named filter combos on the Users, Payments, and AI-usage-log pages
 - **Payments** — Razorpay integration with plan purchases and one-time credit top-up packs
@@ -233,6 +233,11 @@ SITE-WIDE / MISC UI
   (rounded-full pill background on hover, Glassdoor-style); profile icon links to Account
 - One-time ProMax plan-change notice: dismissible banner + idempotent startup bell notification
   (ProMaxPlanNotice.jsx + utils/PlanChangeNotice.js — both deletable once rollout is old news)
+- Notification bell is pushed live over SSE (GET /notifications/stream, EventSource on the frontend
+  — see Hooks/useNotificationStream.js + Backend/utils/NotificationHub.js) the instant notify() fires
+  anywhere in the backend (low credits, plan expiry, support reply, refund, role change, etc), with
+  the existing ~90s poll kept underneath purely as a fallback/reconciliation net in case a connection
+  outlives EventSource's own auto-reconnect (e.g. a Render free-tier cold start)
 - Dev/under-construction banner
 - Persistent dashboard sidebar nav + live credit-usage progress bar
 - Lazy-loaded/code-split routes with spinner fallback, scroll-restore on route change
@@ -295,7 +300,8 @@ FULL BACKEND API MAP (/api/v1)
   POST /chat/:chatId/regenerate, GET /chat, GET /chat/:chatId, DELETE /chat/:chatId
 - Payment: GET /payment/plans, POST /payment/order, POST /payment/verify
 - Analytics: GET /analytics/me
-- Notifications: GET /notifications, PATCH /notifications/:id/read, PATCH /notifications/read-all
+- Notifications: GET /notifications, GET /notifications/stream (SSE, live push), PATCH /notifications/:id/read,
+  PATCH /notifications/read-all
 - Contact: POST /contact (public)
 - Admin: GET /announcements/active (public), GET /admin/overview, GET /admin/analytics, GET /admin/users,
   PATCH /admin/users/:id/ban|unban|role, GET /admin/payments, PATCH /admin/payments/:id/refund (canRefund:

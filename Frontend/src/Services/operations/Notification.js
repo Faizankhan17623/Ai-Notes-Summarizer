@@ -5,9 +5,9 @@ import { setNotifications, markReadLocal, markAllReadLocal } from "../../Slices/
 
 const { list, markRead, markAllRead } = NotificationData
 
-// polled sir — called once on mount/login, then every ~30s while logged in (see the Navbar
-// bell's useEffect interval). No socket/SSE layer, see Models/Notification.js on the backend
-// for why polling is the right call for this app's hosting (Render free tier).
+// called once on mount/login, then every ~90s as a fallback while logged in (see the Navbar
+// bell's useEffect interval) — new notifications normally arrive live via useNotificationStream's
+// SSE connection, this just reconciles read/unread state and covers any gap in delivery.
 export function GetNotifications(token) {
     return async (dispatch) => {
         try {

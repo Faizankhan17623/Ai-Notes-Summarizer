@@ -7,7 +7,11 @@ exports.Auth = async (req, res, next) => {
         const token =
             req.cookies?.token ||
             req.body?.token ||
-            req.header('Authorization')?.replace('Bearer ', '')
+            req.header('Authorization')?.replace('Bearer ', '') ||
+            // query-param fallback sir — ONLY EventSource needs this (the notification SSE
+            // stream, see Routes/Notification.js): it's a plain browser GET with no way to set
+            // custom headers, so the token has to travel in the URL for that one route
+            req.query?.token
 
         // not case sir — no token was sent
         if (!token) {

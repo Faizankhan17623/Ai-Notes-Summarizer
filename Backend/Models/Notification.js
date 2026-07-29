@@ -1,9 +1,8 @@
 const mongoose = require('mongoose')
 
-// one row per in-app notification sir — polled by the frontend (GET /notifications every
-// ~30s), not pushed. No socket/SSE layer: this app runs on Render's free tier, which sleeps
-// and restarts the process, so a persistent connection would just add complexity for a use
-// case (credits low, plan expiring, support replied) that never needed sub-second delivery.
+// one row per in-app notification sir — pushed live over SSE the instant it's created
+// (see utils/NotificationHub.js + GET /notifications/stream), with the frontend's ~90s poll
+// kept underneath as a fallback since Render's free tier can restart the process mid-connection.
 const notificationSchema = new mongoose.Schema(
     {
         user: {

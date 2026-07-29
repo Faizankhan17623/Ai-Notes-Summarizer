@@ -4,4 +4,5 @@ export const NotificationData = {
     list: BASE_URL + "/notifications",
     markRead: BASE_URL + "/notifications",        // + /:id/read
     markAllRead: BASE_URL + "/notifications/read-all",
+    stream: BASE_URL + "/notifications/stream",
 }
