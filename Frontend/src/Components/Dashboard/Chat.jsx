@@ -9,7 +9,7 @@ import { GetAllChats, GetSingleChat, SendMessage, SendVoiceMessage, RegenerateRe
 import { GetAllNotes } from '../../Services/operations/Notes.js'
 import MicButton from '../extra/MicButton.jsx'
 import VoiceRecordButton from '../extra/VoiceRecordButton.jsx'
-import useAudioPlayback from '../../Hooks/useAudioPlayback.js'
+import useTextToSpeech from '../../Hooks/useTextToSpeech.js'
 
 // the model sometimes answers in markdown (### headings, **bold**, `code`) sir — the chat
 // bubble is plain text, not a markdown renderer, so strip the syntax rather than show it raw
@@ -32,7 +32,7 @@ const Chat = () => {
     const [pickedIds, setPickedIds] = useState(new Set())
     const [voiceMode, setVoiceMode] = useState(() => localStorage.getItem('notewise_voiceMode') === '1')
     const bottomRef = useRef(null)
-    const { playing, play, stop: stopPlayback } = useAudioPlayback()
+    const { supported: ttsSupported, speaking, speak, stop: stopSpeaking } = useTextToSpeech()
 
     useEffect(() => {
         dispatch(GetAllChats(token))
@@ -62,7 +62,7 @@ const Chat = () => {
         setVoiceMode((prev) => {
             const next = !prev
             localStorage.setItem('notewise_voiceMode', next ? '1' : '0')
-            if (!next) stopPlayback()
+            if (!next) stopSpeaking()
             return next
         })
     }
@@ -70,9 +70,9 @@ const Chat = () => {
     // barge-in sir — starting a new recording stops any reply still being spoken
     const handleVoiceRecorded = useCallback((blob) => {
         if (!chatId) return
-        stopPlayback()
-        dispatch(SendVoiceMessage(chatId, blob, token, currentChat, (audio, mimeType) => play(audio, mimeType)))
-    }, [chatId, token, currentChat, dispatch, play, stopPlayback])
+        stopSpeaking()
+        dispatch(SendVoiceMessage(chatId, blob, token, currentChat, (reply) => speak(stripMarkdown(reply))))
+    }, [chatId, token, currentChat, dispatch, speak, stopSpeaking])
 
     const handleRegenerate = () => {
         if (!chatId || replying) return
@@ -272,7 +272,10 @@ const Chat = () => {
                                     <FaHeadphones size={12} />
                                     Voice mode {voiceMode ? "on" : "off"}
                                 </button>
-                                {playing && (
+                                {voiceMode && !ttsSupported && (
+                                    <span className="text-xs text-richblack-500">Spoken replies not supported in this browser</span>
+                                )}
+                                {speaking && (
                                     <span className="text-xs text-richblack-400 flex items-center gap-1.5">
                                         <span className="w-1.5 h-1.5 rounded-full bg-yellow-50 animate-pulse" />
                                         Speaking...

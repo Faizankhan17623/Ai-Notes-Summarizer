@@ -113,8 +113,9 @@ export function SendMessage(chatId, message, token, currentChat) {
 // voice-mode Q&A sir — sends a recorded audio blob instead of typed text. The transcript
 // isn't known client-side until Whisper decodes it server-side, so only the empty assistant
 // placeholder is appended optimistically; the real user bubble is spliced in once the
-// `transcript` SSE event arrives. `onAudio` plays the synthesized reply back once it lands.
-export function SendVoiceMessage(chatId, audioBlob, token, currentChat, onAudio) {
+// `transcript` SSE event arrives. `onReplyDone` gets the final reply text so the caller can
+// speak it aloud via browser speechSynthesis (see useTextToSpeech) once streaming finishes.
+export function SendVoiceMessage(chatId, audioBlob, token, currentChat, onReplyDone) {
     return async (dispatch) => {
         dispatch(setReplying(true))
 
@@ -135,8 +136,10 @@ export function SendVoiceMessage(chatId, audioBlob, token, currentChat, onAudio)
             token,
             onTranscript: (text) => dispatch(insertUserMessage(text)),
             onToken: (chunk) => dispatch(appendToLastMessage(chunk)),
-            onDone: () => dispatch(setReplying(false)),
-            onAudio: (audio, mimeType) => onAudio?.(audio, mimeType),
+            onDone: (reply) => {
+                dispatch(setReplying(false))
+                onReplyDone?.(reply)
+            },
             onError: (error) => {
                 logError("Error sending the voice message", error)
                 showAiErrorToast(error, "Could not send the voice message")

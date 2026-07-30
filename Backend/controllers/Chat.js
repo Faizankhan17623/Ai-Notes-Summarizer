@@ -14,55 +14,6 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 // fallback for how many past messages we replay sir — the real number comes from the user's plan
 const CONTEXT_WINDOW = 10
 
-// voice-mode TTS sir — Groq's playai-tts caps input at ~10k chars per call, so a very long
-// reply gets split on sentence boundaries and synthesized in pieces, then concatenated back
-// into one buffer (all pieces come back as the same WAV sample rate/format, so this is safe)
-// playai-tts was decommissioned by Groq on 2026-12-31 sir — canopylabs/orpheus-v1-english is
-// the current replacement (console.groq.com/docs/deprecations). This model requires one-time
-// terms acceptance by the org admin at console.groq.com/playground?model=canopylabs%2Forpheus-v1-english
-// before any request will succeed — do that before relying on this in production.
-const TTS_MODEL = 'canopylabs/orpheus-v1-english'
-const TTS_VOICE = process.env.GROQ_TTS_VOICE || 'hannah'
-const TTS_MAX_CHARS = 9000
-
-const chunkForTts = (text) => {
-    if (text.length <= TTS_MAX_CHARS) return [text]
-    const chunks = []
-    let rest = text
-    while (rest.length > TTS_MAX_CHARS) {
-        let cut = rest.lastIndexOf('. ', TTS_MAX_CHARS)
-        if (cut < TTS_MAX_CHARS * 0.5) cut = TTS_MAX_CHARS
-        else cut += 1
-        chunks.push(rest.slice(0, cut).trim())
-        rest = rest.slice(cut).trim()
-    }
-    if (rest) chunks.push(rest)
-    return chunks
-}
-
-// synthesizes speech for the given text via Groq's TTS endpoint sir — returns a base64 WAV
-// string, or null if synthesis fails (a TTS failure should never fail the whole chat turn,
-// the text reply already succeeded by the time this runs)
-const synthesizeSpeech = async (text) => {
-    try {
-        const chunks = chunkForTts(text)
-        const buffers = []
-        for (const chunk of chunks) {
-            const response = await groq.audio.speech.create({
-                model: TTS_MODEL,
-                voice: TTS_VOICE,
-                input: chunk,
-                response_format: 'wav',
-            })
-            buffers.push(Buffer.from(await response.arrayBuffer()))
-        }
-        return Buffer.concat(buffers).toString('base64')
-    } catch (ttsErr) {
-        console.log('TTS synthesis failed:', ttsErr.message)
-        return null
-    }
-}
-
 // resolves what to ground a chat's system prompt in sir — a single note's rawText (original
 // shape, passed straight to buildChatSystemPrompt) for a normal chat, or an array of per-note
 // { title, text } sections for a multi-note chat. Same 20k-char combined budget either way,
@@ -146,7 +97,7 @@ const openSseStream = (res) => {
 // before/after differs, passed in via `applyToChat`. `streamOpen` lets a caller that
 // already opened the SSE stream itself (voice mode, to write a `transcript` event first)
 // skip re-opening it here.
-const streamCompletion = async ({ res, id, chat, plan, Messages, applyToChat, streamOpen = false, speak = false }) => {
+const streamCompletion = async ({ res, id, chat, plan, Messages, applyToChat, streamOpen = false }) => {
     if (!streamOpen) openSseStream(res)
 
     const t0 = Date.now()
@@ -192,14 +143,6 @@ const streamCompletion = async ({ res, id, chat, plan, Messages, applyToChat, st
     await chat.save()
 
     writeSseEvent(res, 'done', { reply: raw })
-
-    if (speak) {
-        const audio = await synthesizeSpeech(raw)
-        if (audio) {
-            writeSseEvent(res, 'audio', { audio, mimeType: 'audio/wav' })
-        }
-    }
-
     return res.end()
 }
 
@@ -567,9 +510,9 @@ exports.sendMessageStream = async (req, res) => {
 // POST /chat/:chatId/message/voice — voice-mode Q&A sir. The client posts a recorded audio
 // blob (no req.body.message — the transcript isn't known until Whisper decodes it), so this
 // transcribes first, spends one `voiceChat` feature-usage unit, then runs the exact same
-// completion + persistence path as sendMessageStream, finishing with a synthesized `audio`
-// SSE event so the reply can be played back aloud. A TTS failure never fails the turn — by
-// the time it runs the text reply has already succeeded and been saved.
+// completion + persistence path as sendMessageStream. Speaking the reply back aloud happens
+// client-side (browser speechSynthesis, see Frontend's useTextToSpeech) — Groq's TTS models
+// need a paid account, so there's no server-side speech synthesis here.
 exports.sendVoiceMessageStream = async (req, res) => {
     try {
         const id = req.User.id
@@ -620,7 +563,6 @@ exports.sendVoiceMessageStream = async (req, res) => {
             plan,
             Messages,
             streamOpen: true,
-            speak: true,
             applyToChat: (raw) => {
                 chat.messages.push({ role: 'user', content: transcript })
                 chat.messages.push({ role: 'assistant', content: raw })

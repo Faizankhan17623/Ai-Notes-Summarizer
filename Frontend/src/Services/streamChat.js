@@ -4,7 +4,7 @@ import { getCsrfToken } from "./apiConnector.js"
 // token-by-token chat reply uses a plain fetch() against the SSE routes instead
 // (Backend/Routes/Chat.js: POST .../message/stream and .../regenerate/stream).
 // Still sends the same auth (bearer + httpOnly cookie) and CSRF header as apiConnector.
-export const streamChatMessage = async ({ url, body, token, onToken, onDone, onError, onTranscript, onAudio }) => {
+export const streamChatMessage = async ({ url, body, token, onToken, onDone, onError, onTranscript }) => {
     // FormData (voice-mode audio upload) needs the browser to set its own multipart
     // Content-Type/boundary header sir — only set it ourselves for the plain-JSON case
     const isFormData = typeof FormData !== "undefined" && body instanceof FormData
@@ -65,11 +65,6 @@ export const streamChatMessage = async ({ url, body, token, onToken, onDone, onE
                 onToken(payload.token)
             } else if (eventName === "done") {
                 onDone(payload.reply)
-                // voice-mode replies may still send an `audio` event after `done` sir —
-                // only return here if the caller isn't expecting one
-                if (!onAudio) return
-            } else if (eventName === "audio") {
-                onAudio?.(payload.audio, payload.mimeType)
                 return
             } else if (eventName === "error") {
                 onError({ response: { status: 502, data: { success: false, message: payload.message } } })
