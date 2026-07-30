@@ -3,10 +3,10 @@ import toast from "react-hot-toast"
 import { showAiErrorToast } from "../../utils/creditErrorToast.jsx"
 import { apiConnector } from "../apiConnector.js"
 import { streamChatMessage } from "../streamChat.js"
-import { setAllChats, setCurrentChat, setLoading, setReplying, appendToLastMessage } from "../../Slices/chatSlice.js"
+import { setAllChats, setCurrentChat, setLoading, setReplying, appendToLastMessage, insertUserMessage } from "../../Slices/chatSlice.js"
 import { ChatData } from "../Apis/ChatApi.js"
 
-const { createChat, allChats, singleChat, sendMessageStream, regenerateReplyStream, deleteChat } = ChatData
+const { createChat, allChats, singleChat, sendMessageStream, regenerateReplyStream, sendVoiceMessageStream, deleteChat } = ChatData
 
 // start a chat grounded in an already-saved note sir. Pass either a single noteId (string,
 // original behavior) or an array of noteIds (2-10, cross-note chat) — same endpoint either way
@@ -103,6 +103,44 @@ export function SendMessage(chatId, message, token, currentChat) {
                 logError("Error sending the message", error)
                 showAiErrorToast(error, "Could not send the message")
                 // roll the optimistic bubble + placeholder back sir
+                dispatch(setCurrentChat(currentChat))
+                dispatch(setReplying(false))
+            },
+        })
+    }
+}
+
+// voice-mode Q&A sir — sends a recorded audio blob instead of typed text. The transcript
+// isn't known client-side until Whisper decodes it server-side, so only the empty assistant
+// placeholder is appended optimistically; the real user bubble is spliced in once the
+// `transcript` SSE event arrives. `onAudio` plays the synthesized reply back once it lands.
+export function SendVoiceMessage(chatId, audioBlob, token, currentChat, onAudio) {
+    return async (dispatch) => {
+        dispatch(setReplying(true))
+
+        dispatch(setCurrentChat({
+            ...currentChat,
+            messages: [
+                ...currentChat.messages,
+                { role: 'assistant', content: '' },
+            ]
+        }))
+
+        const formData = new FormData()
+        formData.append('audio', audioBlob, 'voice-message.webm')
+
+        await streamChatMessage({
+            url: `${sendVoiceMessageStream}/${chatId}/message/voice`,
+            body: formData,
+            token,
+            onTranscript: (text) => dispatch(insertUserMessage(text)),
+            onToken: (chunk) => dispatch(appendToLastMessage(chunk)),
+            onDone: () => dispatch(setReplying(false)),
+            onAudio: (audio, mimeType) => onAudio?.(audio, mimeType),
+            onError: (error) => {
+                logError("Error sending the voice message", error)
+                showAiErrorToast(error, "Could not send the voice message")
+                // roll the optimistic placeholder back sir
                 dispatch(setCurrentChat(currentChat))
                 dispatch(setReplying(false))
             },

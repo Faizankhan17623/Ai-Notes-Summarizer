@@ -4,18 +4,21 @@ import { getCsrfToken } from "./apiConnector.js"
 // token-by-token chat reply uses a plain fetch() against the SSE routes instead
 // (Backend/Routes/Chat.js: POST .../message/stream and .../regenerate/stream).
 // Still sends the same auth (bearer + httpOnly cookie) and CSRF header as apiConnector.
-export const streamChatMessage = async ({ url, body, token, onToken, onDone, onError }) => {
+export const streamChatMessage = async ({ url, body, token, onToken, onDone, onError, onTranscript, onAudio }) => {
+    // FormData (voice-mode audio upload) needs the browser to set its own multipart
+    // Content-Type/boundary header sir — only set it ourselves for the plain-JSON case
+    const isFormData = typeof FormData !== "undefined" && body instanceof FormData
     let response
     try {
         response = await fetch(url, {
             method: "POST",
             credentials: "include",
             headers: {
-                "Content-Type": "application/json",
+                ...(isFormData ? {} : { "Content-Type": "application/json" }),
                 Authorization: `Bearer ${token}`,
                 "x-csrf-token": getCsrfToken() || "",
             },
-            body: JSON.stringify(body || {}),
+            body: isFormData ? body : JSON.stringify(body || {}),
         })
     } catch (networkErr) {
         onError({ response: null, message: networkErr.message })
@@ -56,10 +59,17 @@ export const streamChatMessage = async ({ url, body, token, onToken, onDone, onE
                 continue
             }
 
-            if (eventName === "token") {
+            if (eventName === "transcript") {
+                onTranscript?.(payload.text)
+            } else if (eventName === "token") {
                 onToken(payload.token)
             } else if (eventName === "done") {
                 onDone(payload.reply)
+                // voice-mode replies may still send an `audio` event after `done` sir —
+                // only return here if the caller isn't expecting one
+                if (!onAudio) return
+            } else if (eventName === "audio") {
+                onAudio?.(payload.audio, payload.mimeType)
                 return
             } else if (eventName === "error") {
                 onError({ response: { status: 502, data: { success: false, message: payload.message } } })

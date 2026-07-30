@@ -12,7 +12,7 @@ const PLANS = {
         contextWindow: 10,        // past turns replayed into the chat prompt
         // per-feature monthly caps sir — independent of the `credits` pool above, gated by
         // consumeFeatureUsage() below. null means unlimited, same convention as `credits`
-        featureLimits: { docSummary: 10, bulkSummary: 10, audioSummary: 10 },
+        featureLimits: { docSummary: 10, bulkSummary: 10, audioSummary: 10, voiceChat: 10 },
     },
     Pro: {
         key: 'Pro',
@@ -20,7 +20,7 @@ const PLANS = {
         credits: 100,
         maxMessagesPerChat: 200,
         contextWindow: 20,
-        featureLimits: { docSummary: 80, bulkSummary: 80, audioSummary: 80 },
+        featureLimits: { docSummary: 80, bulkSummary: 80, audioSummary: 80, voiceChat: 80 },
     },
     ProMax: {
         key: 'ProMax',
@@ -32,7 +32,7 @@ const PLANS = {
         credits: 500,
         maxMessagesPerChat: 500,
         contextWindow: 40,
-        featureLimits: { docSummary: 150, bulkSummary: 150, audioSummary: 150 },
+        featureLimits: { docSummary: 150, bulkSummary: 150, audioSummary: 150, voiceChat: 150 },
     },
 }
 
@@ -80,6 +80,7 @@ const FEATURE_FIELDS = {
     docSummary: { field: 'docSummaryCount', label: 'document summaries' },
     bulkSummary: { field: 'bulkSummaryCount', label: 'bulk file uploads' },
     audioSummary: { field: 'audioSummaryCount', label: 'audio summaries' },
+    voiceChat: { field: 'voiceChatCount', label: 'voice messages' },
 }
 
 // one-time top-up credit packs sir — bought via /payment/order with packKey instead of plan,
@@ -105,7 +106,7 @@ const cycleElapsed = (user) => {
 const resetCycleIfNeeded = async (user) => {
     if (!cycleElapsed(user)) return user
     const now = new Date()
-    const zeroed = { count: 0, bonusCredits: 0, docSummaryCount: 0, bulkSummaryCount: 0, audioSummaryCount: 0, lowCreditNotified: false, creditCycleStart: now }
+    const zeroed = { count: 0, bonusCredits: 0, docSummaryCount: 0, bulkSummaryCount: 0, audioSummaryCount: 0, voiceChatCount: 0, lowCreditNotified: false, creditCycleStart: now }
     await User.findByIdAndUpdate(user._id, zeroed)
     Object.assign(user, zeroed)
     return user
@@ -119,7 +120,7 @@ const getEffectivePlan = (user) => {
     return PLANS[user.SubType] || PLANS.Basic
 }
 
-const USER_PLAN_FIELDS = 'SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount lowCreditNotified preferredModel createdAt'
+const USER_PLAN_FIELDS = 'SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount voiceChatCount lowCreditNotified preferredModel createdAt'
 
 // fetch the user fresh and resolve their effective plan sir — the returned object also carries
 // `model` (this user's resolved Groq model, see resolveModel above) alongside the plan's own

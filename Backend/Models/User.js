@@ -89,6 +89,10 @@ const UserSchema = new mongoose.Schema(
             type: Number,
             default: 0
         },
+        voiceChatCount: {
+            type: Number,
+            default: 0
+        },
         // fires the 'credits_low' in-app notification once per cycle sir — set the moment
         // usage crosses 90% of any tracked pool (see utils/Plans.js consumeCredit/
         // consumeFeatureUsage), reset alongside count/bonusCredits/etc at the same

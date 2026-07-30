@@ -8,5 +8,6 @@ export const ChatData = {
     regenerateReply: BASE_URL + "/chat",          // + /:chatId/regenerate
     sendMessageStream: BASE_URL + "/chat",        // + /:chatId/message/stream
     regenerateReplyStream: BASE_URL + "/chat",    // + /:chatId/regenerate/stream
+    sendVoiceMessageStream: BASE_URL + "/chat",   // + /:chatId/message/voice
     deleteChat: BASE_URL + "/chat",               // + /:chatId
 }

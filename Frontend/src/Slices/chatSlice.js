@@ -33,9 +33,18 @@ const chatSlice = createSlice({
             const messages = state.currentChat?.messages
             if (!messages || messages.length === 0) return
             messages[messages.length - 1].content += value.payload
+        },
+        // voice-mode Q&A sir — the user's own words aren't known until Whisper transcribes
+        // them server-side, so SendVoiceMessage optimistically appends only the empty
+        // assistant placeholder first; once the `transcript` SSE event arrives, this splices
+        // the real user bubble in just before that trailing placeholder
+        insertUserMessage(state, value) {
+            const messages = state.currentChat?.messages
+            if (!messages || messages.length === 0) return
+            messages.splice(messages.length - 1, 0, { role: 'user', content: value.payload })
         }
     }
 })
 
-export const { setAllChats, setCurrentChat, setLoading, setReplying, appendToLastMessage } = chatSlice.actions
+export const { setAllChats, setCurrentChat, setLoading, setReplying, appendToLastMessage, insertUserMessage } = chatSlice.actions
 export default chatSlice.reducer

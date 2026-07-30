@@ -5,13 +5,63 @@ const Note = require('../Models/Note')
 const Chat = require('../Models/Chat')
 const User = require('../Models/User')
 
-const { getUserPlan, DEFAULT_MODEL } = require('../utils/Plans')
+const { getUserPlan, consumeFeatureUsage, DEFAULT_MODEL } = require('../utils/Plans')
 const { buildChatSystemPrompt } = require('../utils/Prompts')
 const { logAi } = require('../utils/AdminLog')
+const { extractFromAudio } = require('../utils/Parsers')
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 // fallback for how many past messages we replay sir — the real number comes from the user's plan
 const CONTEXT_WINDOW = 10
+
+// voice-mode TTS sir — Groq's playai-tts caps input at ~10k chars per call, so a very long
+// reply gets split on sentence boundaries and synthesized in pieces, then concatenated back
+// into one buffer (all pieces come back as the same WAV sample rate/format, so this is safe)
+// playai-tts was decommissioned by Groq on 2026-12-31 sir — canopylabs/orpheus-v1-english is
+// the current replacement (console.groq.com/docs/deprecations). This model requires one-time
+// terms acceptance by the org admin at console.groq.com/playground?model=canopylabs%2Forpheus-v1-english
+// before any request will succeed — do that before relying on this in production.
+const TTS_MODEL = 'canopylabs/orpheus-v1-english'
+const TTS_VOICE = process.env.GROQ_TTS_VOICE || 'hannah'
+const TTS_MAX_CHARS = 9000
+
+const chunkForTts = (text) => {
+    if (text.length <= TTS_MAX_CHARS) return [text]
+    const chunks = []
+    let rest = text
+    while (rest.length > TTS_MAX_CHARS) {
+        let cut = rest.lastIndexOf('. ', TTS_MAX_CHARS)
+        if (cut < TTS_MAX_CHARS * 0.5) cut = TTS_MAX_CHARS
+        else cut += 1
+        chunks.push(rest.slice(0, cut).trim())
+        rest = rest.slice(cut).trim()
+    }
+    if (rest) chunks.push(rest)
+    return chunks
+}
+
+// synthesizes speech for the given text via Groq's TTS endpoint sir — returns a base64 WAV
+// string, or null if synthesis fails (a TTS failure should never fail the whole chat turn,
+// the text reply already succeeded by the time this runs)
+const synthesizeSpeech = async (text) => {
+    try {
+        const chunks = chunkForTts(text)
+        const buffers = []
+        for (const chunk of chunks) {
+            const response = await groq.audio.speech.create({
+                model: TTS_MODEL,
+                voice: TTS_VOICE,
+                input: chunk,
+                response_format: 'wav',
+            })
+            buffers.push(Buffer.from(await response.arrayBuffer()))
+        }
+        return Buffer.concat(buffers).toString('base64')
+    } catch (ttsErr) {
+        console.log('TTS synthesis failed:', ttsErr.message)
+        return null
+    }
+}
 
 // resolves what to ground a chat's system prompt in sir — a single note's rawText (original
 // shape, passed straight to buildChatSystemPrompt) for a normal chat, or an array of per-note
@@ -80,15 +130,24 @@ const writeSseEvent = (res, event, data) => {
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
 }
 
-// runs a Groq streaming completion and pipes tokens to the client as SSE sir, then
-// persists the final chat exactly like the non-streaming handlers do. Shared by
-// sendMessageStream and regenerateReplyStream — only how `chat.messages` gets updated
-// before/after differs, passed in via `applyToChat`
-const streamCompletion = async ({ res, id, chat, plan, Messages, applyToChat }) => {
+// opens the SSE stream sir — split out so the voice-message handler can write its own
+// `transcript` event before streamCompletion's token/done events start flowing, all on
+// the same already-open connection
+const openSseStream = (res) => {
     res.setHeader('Content-Type', 'text/event-stream')
     res.setHeader('Cache-Control', 'no-cache, no-transform')
     res.setHeader('Connection', 'keep-alive')
     res.flushHeaders()
+}
+
+// runs a Groq streaming completion and pipes tokens to the client as SSE sir, then
+// persists the final chat exactly like the non-streaming handlers do. Shared by
+// sendMessageStream and regenerateReplyStream — only how `chat.messages` gets updated
+// before/after differs, passed in via `applyToChat`. `streamOpen` lets a caller that
+// already opened the SSE stream itself (voice mode, to write a `transcript` event first)
+// skip re-opening it here.
+const streamCompletion = async ({ res, id, chat, plan, Messages, applyToChat, streamOpen = false, speak = false }) => {
+    if (!streamOpen) openSseStream(res)
 
     const t0 = Date.now()
     let raw = ''
@@ -133,6 +192,14 @@ const streamCompletion = async ({ res, id, chat, plan, Messages, applyToChat }) 
     await chat.save()
 
     writeSseEvent(res, 'done', { reply: raw })
+
+    if (speak) {
+        const audio = await synthesizeSpeech(raw)
+        if (audio) {
+            writeSseEvent(res, 'audio', { audio, mimeType: 'audio/wav' })
+        }
+    }
+
     return res.end()
 }
 
@@ -492,6 +559,78 @@ exports.sendMessageStream = async (req, res) => {
         console.log(error.message)
         if (!res.headersSent) {
             return res.status(500).json({ success: false, message: 'Something went wrong while sending the message' })
+        }
+        res.end()
+    }
+}
+
+// POST /chat/:chatId/message/voice — voice-mode Q&A sir. The client posts a recorded audio
+// blob (no req.body.message — the transcript isn't known until Whisper decodes it), so this
+// transcribes first, spends one `voiceChat` feature-usage unit, then runs the exact same
+// completion + persistence path as sendMessageStream, finishing with a synthesized `audio`
+// SSE event so the reply can be played back aloud. A TTS failure never fails the turn — by
+// the time it runs the text reply has already succeeded and been saved.
+exports.sendVoiceMessageStream = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { chatId } = req.params
+        const audioFile = req.files?.audio
+
+        if (!mongoose.isValidObjectId(chatId)) {
+            return res.status(400).json({ success: false, message: 'Invalid chat id' })
+        }
+        if (!audioFile) {
+            return res.status(400).json({ success: false, message: 'An audio recording is required' })
+        }
+
+        const chat = await Chat.findOne({ _id: chatId, user: id })
+        if (!chat) {
+            return res.status(404).json({ success: false, message: 'Chat not found' })
+        }
+
+        let transcript
+        try {
+            const extracted = await extractFromAudio(audioFile)
+            transcript = extracted.text.trim()
+        } catch (parseErr) {
+            return res.status(400).json({ success: false, message: parseErr.message })
+        }
+        if (!transcript) {
+            return res.status(400).json({ success: false, message: 'Could not transcribe any speech from that recording' })
+        }
+
+        const spend = await consumeFeatureUsage(id, 'voiceChat')
+        if (!spend.ok) {
+            return res.status(403).json({ success: false, message: spend.message })
+        }
+
+        const plan = await getUserPlan(id)
+        const { error, Messages } = await prepareChatCompletion(chat, plan, transcript)
+        if (error) {
+            return res.status(404).json({ success: false, message: error })
+        }
+
+        openSseStream(res)
+        writeSseEvent(res, 'transcript', { text: transcript })
+
+        await streamCompletion({
+            res,
+            id,
+            chat,
+            plan,
+            Messages,
+            streamOpen: true,
+            speak: true,
+            applyToChat: (raw) => {
+                chat.messages.push({ role: 'user', content: transcript })
+                chat.messages.push({ role: 'assistant', content: raw })
+            },
+        })
+    } catch (error) {
+        console.log(error)
+        console.log(error.message)
+        if (!res.headersSent) {
+            return res.status(500).json({ success: false, message: 'Something went wrong while sending the voice message' })
         }
         res.end()
     }

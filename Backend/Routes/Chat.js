@@ -11,6 +11,7 @@ const {
     regenerateReply,
     sendMessageStream,
     regenerateReplyStream,
+    sendVoiceMessageStream,
     getChats,
     getChat,
     deleteChat
@@ -24,6 +25,10 @@ route.post('/chat/:chatId/regenerate', aiLimiter, doubleCsrfProtection, regenera
 // streamed versions sir — same middleware chain, reply comes back over SSE token-by-token
 route.post('/chat/:chatId/message/stream', aiLimiter, doubleCsrfProtection, sendMessageRules, validate, Auth, blockIfBanned, sendMessageStream)
 route.post('/chat/:chatId/regenerate/stream', aiLimiter, doubleCsrfProtection, regenerateReplyRules, validate, Auth, blockIfBanned, regenerateReplyStream)
+// voice-mode Q&A sir — no body to validate (the message is an uploaded audio file, validated
+// inside extractFromAudio itself), but it still hits Groq twice (Whisper + chat) so it keeps
+// the same rate limit + CSRF protection as every other state-changing chat route
+route.post('/chat/:chatId/message/voice', aiLimiter, doubleCsrfProtection, Auth, blockIfBanned, sendVoiceMessageStream)
 route.get('/chat', Auth, blockIfBanned, getChats)
 route.get('/chat/:chatId', Auth, blockIfBanned, getChat)
 route.delete('/chat/:chatId', doubleCsrfProtection, Auth, blockIfBanned, deleteChat)

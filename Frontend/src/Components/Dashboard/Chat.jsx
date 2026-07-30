@@ -3,11 +3,13 @@ import { useDispatch, useSelector } from 'react-redux'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { AnimatePresence, motion } from 'motion/react'
-import { FaPaperPlane, FaTrash, FaComments, FaRedo, FaLayerGroup, FaTimes } from 'react-icons/fa'
+import { FaPaperPlane, FaTrash, FaComments, FaRedo, FaLayerGroup, FaTimes, FaHeadphones } from 'react-icons/fa'
 import Swal from 'sweetalert2'
-import { GetAllChats, GetSingleChat, SendMessage, RegenerateReply, DeleteChat, CreateChat } from '../../Services/operations/Chat.js'
+import { GetAllChats, GetSingleChat, SendMessage, SendVoiceMessage, RegenerateReply, DeleteChat, CreateChat } from '../../Services/operations/Chat.js'
 import { GetAllNotes } from '../../Services/operations/Notes.js'
 import MicButton from '../extra/MicButton.jsx'
+import VoiceRecordButton from '../extra/VoiceRecordButton.jsx'
+import useAudioPlayback from '../../Hooks/useAudioPlayback.js'
 
 // the model sometimes answers in markdown (### headings, **bold**, `code`) sir — the chat
 // bubble is plain text, not a markdown renderer, so strip the syntax rather than show it raw
@@ -28,7 +30,9 @@ const Chat = () => {
     const [message, setMessage] = useState('')
     const [pickerOpen, setPickerOpen] = useState(false)
     const [pickedIds, setPickedIds] = useState(new Set())
+    const [voiceMode, setVoiceMode] = useState(() => localStorage.getItem('notewise_voiceMode') === '1')
     const bottomRef = useRef(null)
+    const { playing, play, stop: stopPlayback } = useAudioPlayback()
 
     useEffect(() => {
         dispatch(GetAllChats(token))
@@ -53,6 +57,22 @@ const Chat = () => {
         dispatch(SendMessage(chatId, message.trim(), token, currentChat))
         setMessage('')
     }
+
+    const toggleVoiceMode = () => {
+        setVoiceMode((prev) => {
+            const next = !prev
+            localStorage.setItem('notewise_voiceMode', next ? '1' : '0')
+            if (!next) stopPlayback()
+            return next
+        })
+    }
+
+    // barge-in sir — starting a new recording stops any reply still being spoken
+    const handleVoiceRecorded = useCallback((blob) => {
+        if (!chatId) return
+        stopPlayback()
+        dispatch(SendVoiceMessage(chatId, blob, token, currentChat, (audio, mimeType) => play(audio, mimeType)))
+    }, [chatId, token, currentChat, dispatch, play, stopPlayback])
 
     const handleRegenerate = () => {
         if (!chatId || replying) return
@@ -242,23 +262,47 @@ const Chat = () => {
                                 <div ref={bottomRef} />
                             </div>
 
-                            <form onSubmit={handleSend} className="flex items-center gap-2 px-6 py-4 border-t border-border-soft bg-surface-raised">
-                                <input
-                                    value={message}
-                                    onChange={(e) => setMessage(e.target.value)}
-                                    placeholder="Ask something about your notes..."
-                                    className="flex-1 bg-surface border border-border-soft text-richblack-5 rounded-md px-4 py-2.5 outline-none focus:border-yellow-50 transition-colors"
-                                />
-                                <MicButton onTranscript={handleTranscript} />
-                                <motion.button
-                                    type="submit"
-                                    whileTap={{ scale: 0.9 }}
-                                    disabled={replying || !message.trim()}
-                                    className="bg-yellow-50 text-richblack-900 rounded-md p-2.5 disabled:opacity-50 cursor-pointer hover:scale-95 transition-all"
+                            <div className="flex items-center justify-between px-6 pt-3 border-t border-border-soft bg-surface-raised">
+                                <button
+                                    type="button"
+                                    onClick={toggleVoiceMode}
+                                    title={voiceMode ? "Switch back to typing" : "Switch to voice mode — speak your question and hear the answer"}
+                                    className={`flex items-center gap-1.5 text-xs font-medium cursor-pointer transition-colors ${voiceMode ? "text-yellow-50" : "text-richblack-400 hover:text-richblack-200"}`}
                                 >
-                                    <FaPaperPlane />
-                                </motion.button>
-                            </form>
+                                    <FaHeadphones size={12} />
+                                    Voice mode {voiceMode ? "on" : "off"}
+                                </button>
+                                {playing && (
+                                    <span className="text-xs text-richblack-400 flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-50 animate-pulse" />
+                                        Speaking...
+                                    </span>
+                                )}
+                            </div>
+
+                            {voiceMode ? (
+                                <div className="flex items-center justify-center gap-2 px-6 py-4 bg-surface-raised">
+                                    <VoiceRecordButton onRecorded={handleVoiceRecorded} disabled={replying} />
+                                </div>
+                            ) : (
+                                <form onSubmit={handleSend} className="flex items-center gap-2 px-6 py-4 bg-surface-raised">
+                                    <input
+                                        value={message}
+                                        onChange={(e) => setMessage(e.target.value)}
+                                        placeholder="Ask something about your notes..."
+                                        className="flex-1 bg-surface border border-border-soft text-richblack-5 rounded-md px-4 py-2.5 outline-none focus:border-yellow-50 transition-colors"
+                                    />
+                                    <MicButton onTranscript={handleTranscript} />
+                                    <motion.button
+                                        type="submit"
+                                        whileTap={{ scale: 0.9 }}
+                                        disabled={replying || !message.trim()}
+                                        className="bg-yellow-50 text-richblack-900 rounded-md p-2.5 disabled:opacity-50 cursor-pointer hover:scale-95 transition-all"
+                                    >
+                                        <FaPaperPlane />
+                                    </motion.button>
+                                </form>
+                            )}
                         </>
                     )}
                 </div>

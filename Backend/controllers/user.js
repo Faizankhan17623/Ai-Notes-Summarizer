@@ -25,7 +25,7 @@ const { sampleNoteFields } = require('../utils/SampleNote.js')
 // browser on every profile update. Same field set getProfile below already uses, so every
 // self-service update returns exactly the shape the frontend's setProfile/setUser expect.
 const SAFE_USER_FIELDS = 'firstName lastName email role Verified Subscription SubType SubscriptionExpires ' +
-    'count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount receiveDigest ' +
+    'count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount voiceChatCount receiveDigest ' +
     'currentStreak longestStreak dailyGoal hasCompletedOnboarding createdAt Buffer BufferTiming twoFactorEnabled'
 
 const isProd = process.env.NODE_ENV === 'production'
@@ -952,7 +952,7 @@ exports.getProfile = async (req, res) => {
         const id = req.User.id
 
         const user = await User.findById(id)
-            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount receiveDigest currentStreak longestStreak dailyGoal hasCompletedOnboarding createdAt Buffer BufferTiming isBanned banReason banType suspensionCount appealStatus appealMessage twoFactorEnabled')
+            .select('firstName lastName email role Verified Subscription SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount voiceChatCount receiveDigest currentStreak longestStreak dailyGoal hasCompletedOnboarding createdAt Buffer BufferTiming isBanned banReason banType suspensionCount appealStatus appealMessage twoFactorEnabled')
 
         if (!user) {
             return res.status(404).json({
@@ -997,6 +997,7 @@ exports.getProfile = async (req, res) => {
                     docSummary: { used: user.docSummaryCount, limit: plan.featureLimits.docSummary },
                     bulkSummary: { used: user.bulkSummaryCount, limit: plan.featureLimits.bulkSummary },
                     audioSummary: { used: user.audioSummaryCount, limit: plan.featureLimits.audioSummary },
+                    voiceChat: { used: user.voiceChatCount, limit: plan.featureLimits.voiceChat },
                 },
             },
             activity: {
