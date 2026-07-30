@@ -16,6 +16,7 @@ Turn any notes into a clear, structured summary — paste text, upload a PDF/Wor
 - **Plan-tiered summaries** — Basic (key points + structured action items: tasks/key dates/decisions), Pro (+ sections & key terms), Pro Max (+ an initial quiz & flashcard set) — with real credit gating enforced per plan, and AI-suggested tags applied automatically at creation time
 - **On-demand flashcards & quizzes** (Pro/Pro Max) — generate more of either from any note at any time; flashcards use SM-2 spaced repetition (again/hard/good/easy) with a dedicated Review page for everything due across all notes; export a full deck or quiz (with answer key) as a printable PDF
 - **Practice exam mode** (Pro/Pro Max) — build one timed AI-generated exam spanning up to 10 notes at once, with full attempt history (unlike single-note quizzes, every retake is kept) feeding into weak-topic insights
+- **Daily AI study plan** (Pro/Pro Max) — one tap builds a short checklist for today, AI-picked from your due flashcards, unattempted quizzes, and weak topics, plus your best study hour if there's enough history; idempotent per day so re-opening it never discards items you've already checked off
 - **Organize & find notes** — tags, folders, pin/favorite, full-text search, a "related notes" panel based on tag overlap, and manual note-to-note links (symmetric backlinks, shown on both linked notes)
 - **Edit a note's content & version history** — edit a note's title/source text after creation; every past state is snapshotted and restorable
 - **Weak-topic insights** — a dashboard widget surfaces which note tags you're struggling with, mined from flashcard ease scores and quiz/exam results
@@ -154,6 +155,16 @@ STUDY KIT - QUIZZES
 - Retake overwrites lastAttempt; quiz deletable
 - Export a quiz as a printable PDF (questions + options, answer key on a separate page)
 
+STUDY KIT - DAILY STUDY PLAN
+- One plan per user per calendar day (Pro/ProMax only, 1 credit) — generate-on-demand, idempotent:
+  calling generate again the same day just returns the existing plan rather than burning another
+  credit or discarding items already checked off
+- Candidates pulled from real data (due flashcards, unattempted quizzes, weak-topic notes), one Groq
+  call picks and orders the most useful subset (buildStudyPlanPrompt in utils/Prompts.js), each item
+  typed (review_note/flashcards/quiz/new_summary) and deep-linking back to its source note
+- Also surfaces a "suggested hour" (best historical study time) when there's enough activity history
+- Checklist UI: tick items done/not-done (PATCH), contributes to the daily streak like other study actions
+
 STUDY KIT - PRACTICE EXAMS
 - Separate from per-note Quiz above: spans 1-10 notes at once (Pro/ProMax only, 1 credit),
   picked via a note checklist on the Exams page; one Groq call sees all selected notes'
@@ -266,9 +277,9 @@ BACKGROUND JOBS
   still sends without the recap paragraph rather than blocking on it
 
 DATA MODELS (MongoDB / Mongoose)
-- User, Note (incl. linkedNotes), NoteVersion, Flashcard, Quiz, Exam, Chat (incl. multi-note
-  `notes` array alongside the original single `note`), Payment, AiLog, AuditLog, Announcement,
-  Notification, ContactMessage (incl. internalNotes subdocs), SavedView, OTP
+- User, Note (incl. linkedNotes), NoteVersion, Flashcard, Quiz, Exam, StudyPlan, Chat (incl.
+  multi-note `notes` array alongside the original single `note`), Payment, AiLog, AuditLog,
+  Announcement, Notification, ContactMessage (incl. internalNotes subdocs), SavedView, OTP
   (see Backend/Models/*.js for full field lists)
 
 FULL FRONTEND ROUTES
@@ -295,7 +306,8 @@ FULL BACKEND API MAP (/api/v1)
   DELETE /flashcards/:id, POST/GET /notes/:noteId/quiz(zes), GET /quizzes/:quizId/export,
   POST /quizzes/:id/attempt, DELETE /quizzes/:id, POST /study/exam/generate, GET /study/exams,
   GET /study/exams/:id, POST /study/exams/:id/attempt, DELETE /study/exams/:id,
-  GET /study/weak-topics
+  GET /study/weak-topics, POST /study/plan/generate, GET /study/plan/today,
+  PATCH /study/plan/:planId/items/:itemId
 - Chat: POST /chat (accepts noteId OR noteIds for multi-note chat), POST /chat/:chatId/message,
   POST /chat/:chatId/regenerate, GET /chat, GET /chat/:chatId, DELETE /chat/:chatId
 - Payment: GET /payment/plans, POST /payment/order, POST /payment/verify
