@@ -19,6 +19,11 @@ axiosinstance.interceptors.request.use((config) => {
     if (csrfToken && config.method?.toLowerCase() !== 'get') {
         config.headers['x-csrf-token'] = csrfToken
     }
+    // tells the backend what "today" means for this user (streaks, daily study plan,
+    // dashboard "today" stats — see Backend/Middlewares/Auth.js) sir, same sign convention
+    // as Date.getTimezoneOffset() itself. Harmless to send on every request; the backend
+    // just falls back to UTC if it's ever missing.
+    config.headers['x-tz-offset'] = new Date().getTimezoneOffset()
     return config
 })
 

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 // wraps the browser's native speechSynthesis sir — free, no backend cost, no extra API key.
 // Used to read voice-mode chat replies aloud (server-side Groq TTS needs a paid account, so
@@ -26,6 +26,15 @@ export default function useTextToSpeech() {
         utteranceRef.current = utterance
         window.speechSynthesis.speak(utterance)
     }, [stop])
+
+    // stops any in-progress utterance the moment the owning component unmounts sir — without
+    // this, navigating away mid-reply (switching chats, leaving the page) left speechSynthesis
+    // talking over whatever the user looks at next, with no UI left to stop it
+    useEffect(() => {
+        return () => {
+            if (supported) window.speechSynthesis.cancel()
+        }
+    }, [])
 
     return { supported, speaking, speak, stop }
 }

@@ -14,6 +14,7 @@ const Visit = require('../Models/Visit')
 const SavedView = require('../Models/SavedView')
 const ContactMessage = require('../Models/ContactMessage')
 const { PLANS } = require('../utils/Plans')
+const { safeSearchRegex } = require('../utils/SafeRegex')
 const { notify } = require('./Notification')
 const mailSender = require('../utils/Nodemailer')
 const { roleChangedEmail } = require('../Templates/RoleChanged')
@@ -205,7 +206,7 @@ exports.getUsers = async (req, res) => {
         // via this page anyway (setRole above refuses to touch an Admin row), and Support
         // shouldn't even see that account exists in the Users table
         const filter = search
-            ? { role: { $ne: 'Admin' }, $or: [{ email: new RegExp(search, 'i') }, { firstName: new RegExp(search, 'i') }, { lastName: new RegExp(search, 'i') }] }
+            ? { role: { $ne: 'Admin' }, $or: [{ email: safeSearchRegex(search) }, { firstName: safeSearchRegex(search) }, { lastName: safeSearchRegex(search) }] }
             : { role: { $ne: 'Admin' } }
 
         const [users, total] = await Promise.all([
@@ -762,7 +763,7 @@ exports.getAiLogs = async (req, res) => {
             const term = userSearch.trim()
             const matchingUsers = await User.find({
                 role: { $ne: 'Admin' },
-                $or: [{ email: new RegExp(term, 'i') }, { firstName: new RegExp(term, 'i') }, { lastName: new RegExp(term, 'i') }]
+                $or: [{ email: safeSearchRegex(term) }, { firstName: safeSearchRegex(term) }, { lastName: safeSearchRegex(term) }]
             }).select('_id')
             filter.user = { $in: matchingUsers.map((u) => u._id) }
         }

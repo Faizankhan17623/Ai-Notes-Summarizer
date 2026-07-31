@@ -14,6 +14,13 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 // free sir — this is a passive weekly email, not a user-triggered action, so it never spends
 // a credit. If the AI call fails for any reason, the digest still sends WITHOUT the recap
 // paragraph (see sendDigestToUser below) rather than blocking the whole email on it.
+// hard cap sir — this runs sequentially per-user inside scheduleWeeklyDigest's for-loop
+// below, so one hung Groq request (no response, dead connection) would otherwise stall
+// every subsequent user's digest indefinitely. 20s matches the mail relay's own timeout in
+// Nodemailer.js; a timeout here just means this one user's email goes out without the recap
+// paragraph (see the catch below), same as any other recap-generation failure.
+const RECAP_TIMEOUT_MS = 20000
+
 const generateRecap = async (data) => {
     const t0 = Date.now()
     try {
@@ -25,7 +32,7 @@ const generateRecap = async (data) => {
             model: DEFAULT_MODEL,
             temperature: 0.6,
             response_format: { type: 'json_object' },
-        })
+        }, { timeout: RECAP_TIMEOUT_MS })
         logAi({ type: 'digest', plan: 'system', model: DEFAULT_MODEL, usage: invoking.usage, latencyMs: Date.now() - t0, success: true })
 
         let raw = invoking?.choices?.[0]?.message?.content

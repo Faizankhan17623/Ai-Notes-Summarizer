@@ -17,7 +17,7 @@ const { passwordResetTemplate } = require('../Templates/passwordResetTemplate.js
 const { getEffectivePlan, resetCycleIfNeeded, MODEL_CATALOG } = require('../utils/Plans.js')
 const { dayKey } = require('../utils/Streak.js')
 const { isStrongPassword } = require('../utils/PasswordPolicy.js')
-const { hashToken, signAccessToken, issueSessionCookies, signTempTwoFactorToken } = require('../utils/RefreshToken.js')
+const { hashToken, signAccessToken, issueSessionCookies, signTempTwoFactorToken, issueRefreshToken, REFRESH_TOKEN_TTL_MS } = require('../utils/RefreshToken.js')
 const { sampleNoteFields } = require('../utils/SampleNote.js')
 
 // allowlist, not a blocklist, sir — '-password' alone still shipped refreshTokenHash,
@@ -315,9 +315,21 @@ exports.refreshToken = async (req, res) => {
         }
 
         const hashed = hashToken(raw)
-        const user = await User.findOne({ refreshTokenHash: hashed })
 
-        if (!user || !user.refreshTokenExpiresAt || user.refreshTokenExpiresAt < Date.now()) {
+        // rotate on every use sir — mint a brand-new refresh token and atomically swap it in
+        // ONLY if the presented hash still matches what's stored (findOneAndUpdate re-checks
+        // this at write time, so two concurrent refreshes with the same stale cookie can't
+        // both succeed: the first rotates it, the second's condition then fails to match).
+        // A stolen-and-replayed refresh token is now only usable once before it stops working,
+        // rather than being valid for its full 7-day life — narrows the theft window a lot.
+        const newRawRefreshToken = issueRefreshToken()
+        const user = await User.findOneAndUpdate(
+            { refreshTokenHash: hashed, refreshTokenExpiresAt: { $gt: new Date() } },
+            { refreshTokenHash: hashToken(newRawRefreshToken), refreshTokenExpiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS) },
+            { new: true },
+        )
+
+        if (!user) {
             return res.status(401).json({
                 success: false,
                 message: 'Refresh token invalid or expired, please log in again',
@@ -338,7 +350,14 @@ exports.refreshToken = async (req, res) => {
             maxAge: 60 * 60,
             path: '/',
         })
-        res.setHeader('Set-Cookie', accessCookie)
+        const refreshCookie = cookie.serialize('refreshToken', newRawRefreshToken, {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: cookieSameSite,
+            maxAge: 7 * 24 * 60 * 60,
+            path: '/api/v1',
+        })
+        res.setHeader('Set-Cookie', [accessCookie, refreshCookie])
 
         return res.status(200).json({
             success: true,
@@ -968,8 +987,13 @@ exports.getProfile = async (req, res) => {
         // the effective plan sir — an expired Pro is a Basic again
         const plan = getEffectivePlan(user)
 
-        // start of today in UTC sir — matches the calendar-day boundary used by recordStudyActivity
-        const todayStart = new Date(`${dayKey(new Date())}T00:00:00.000Z`)
+        // start of the USER's local today, expressed as the equivalent UTC instant sir —
+        // matches the calendar-day boundary recordStudyActivity now uses (see utils/Streak.js).
+        // dayKey already shifts by the offset before slicing the date string; shifting back by
+        // the same offset here converts that local-midnight string back into the correct UTC
+        // instant to compare against createdAt/lastReviewedAt/attemptedAt (always stored in UTC)
+        const tzOffsetMinutes = req.User.tzOffsetMinutes || 0
+        const todayStart = new Date(new Date(`${dayKey(new Date(), tzOffsetMinutes)}T00:00:00.000Z`).getTime() + tzOffsetMinutes * 60 * 1000)
 
         const [noteCount, chatCount, notesToday, reviewsToday, quizzesToday] = await Promise.all([
             Note.countDocuments({ user: id }),

@@ -25,26 +25,56 @@ const ExamSession = ({ exam, examId, token }) => {
     const [answers, setAnswers] = useState(() => Array(exam.questions.length).fill(null))
     const [result, setResult] = useState(() => lastAttempt ? { score: lastAttempt.score, total: lastAttempt.total } : null)
     const [secondsLeft, setSecondsLeft] = useState(() => (!lastAttempt && exam.timeLimitSeconds) ? exam.timeLimitSeconds : null)
+    const [submitting, setSubmitting] = useState(false)
     const startedAtRef = useRef(null)
+    // guards against the countdown's auto-submit and the manual Submit button both firing
+    // AttemptExam for the same exam sir — a ref (not state) so it's readable synchronously
+    // inside the same tick a click and a timer callback could otherwise both slip through in
+    const submittingRef = useRef(false)
+    // wall-clock deadline, not a tick counter sir — anchoring to a fixed Date.now() target
+    // (rather than re-arming a fresh setTimeout(...,1000) off the previous tick) means a
+    // backgrounded/throttled tab still auto-submits at the RIGHT real time once it's active
+    // again, instead of having silently gained extra time while hidden
+    const deadlineRef = useRef(null)
     useEffect(() => {
-        startedAtRef.current = Date.now()
+        const now = Date.now()
+        startedAtRef.current = now
+        if (secondsLeft !== null) deadlineRef.current = now + secondsLeft * 1000
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     const allAnswered = useMemo(() => answers.length > 0 && answers.every((a) => a !== null), [answers])
 
     const handleSubmit = async () => {
-        const durationSeconds = startedAtRef.current ? Math.round((Date.now() - startedAtRef.current) / 1000) : undefined
-        const data = await dispatch(AttemptExam(examId, answers, durationSeconds, token))
-        if (data) setResult({ score: data.score, total: data.total })
+        if (submittingRef.current || result) return
+        submittingRef.current = true
+        setSubmitting(true)
+        try {
+            const durationSeconds = startedAtRef.current ? Math.round((Date.now() - startedAtRef.current) / 1000) : undefined
+            const data = await dispatch(AttemptExam(examId, answers, durationSeconds, token))
+            if (data) setResult({ score: data.score, total: data.total })
+        } finally {
+            submittingRef.current = false
+            setSubmitting(false)
+        }
     }
 
-    // countdown sir — ticks every second while the exam is timed and untaken, auto-submits at zero
+    // countdown sir — re-derives secondsLeft from the wall-clock deadline every tick (instead
+    // of decrementing a counter), so a throttled/backgrounded tab catches up to the real
+    // elapsed time the moment it's active again rather than drifting. Auto-submits once the
+    // deadline has actually passed.
     useEffect(() => {
-        if (result || secondsLeft === null) return
-        const t = setTimeout(() => {
-            if (secondsLeft <= 1) handleSubmit()
-            else setSecondsLeft(secondsLeft - 1)
-        }, 1000)
+        if (result || secondsLeft === null || !deadlineRef.current) return
+        const tick = () => {
+            const remaining = Math.round((deadlineRef.current - Date.now()) / 1000)
+            if (remaining <= 0) {
+                setSecondsLeft(0)
+                handleSubmit()
+                return
+            }
+            setSecondsLeft(remaining)
+        }
+        const t = setTimeout(tick, 1000)
         return () => clearTimeout(t)
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [secondsLeft, result])
@@ -63,7 +93,7 @@ const ExamSession = ({ exam, examId, token }) => {
                 {secondsLeft !== null && !result && (
                     <div className="flex items-center gap-1.5 text-sm font-mono text-yellow-50 shrink-0">
                         <FaClock size={12} />
-                        {formatSeconds(secondsLeft)}
+                        {submitting ? 'Submitting…' : formatSeconds(secondsLeft)}
                     </div>
                 )}
             </div>
@@ -119,10 +149,10 @@ const ExamSession = ({ exam, examId, token }) => {
                         variants={fadeUp}
                         whileTap={{ scale: 0.97 }}
                         onClick={handleSubmit}
-                        disabled={!allAnswered}
+                        disabled={!allAnswered || submitting}
                         className="w-full bg-yellow-50 text-richblack-900 rounded-md py-2 font-semibold disabled:opacity-50 cursor-pointer"
                     >
-                        Submit exam
+                        {submitting ? 'Submitting…' : 'Submit exam'}
                     </motion.button>
                 )}
             </motion.div>

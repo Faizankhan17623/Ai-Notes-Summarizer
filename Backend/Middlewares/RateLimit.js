@@ -45,6 +45,18 @@ const aiLimiter = rateLimit({
     message: tooMany('You are sending requests too fast, please wait a minute and try again'),
 })
 
+// plain-text chat message/regenerate sir — now also metered by consumeChatMessage (a
+// per-cycle feature cap + one shared credit every 20 messages, see utils/Plans.js), but
+// that alone doesn't stop a short burst of rapid-fire messages within the cycle window, so
+// this sits tighter than the general aiLimiter specifically on the chat-turn routes
+const chatLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 6,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: tooMany('You are chatting too fast, please wait a minute and try again'),
+})
+
 // contact form sends a real email too sir — same abuse profile as otpLimiter, same limit
 const contactLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -74,4 +86,4 @@ const visitLimiter = rateLimit({
     message: tooMany('Too many requests, please slow down'),
 })
 
-module.exports = { globalLimiter, authLimiter, otpLimiter, aiLimiter, contactLimiter, feedbackLimiter, visitLimiter }
+module.exports = { globalLimiter, authLimiter, otpLimiter, aiLimiter, chatLimiter, contactLimiter, feedbackLimiter, visitLimiter }

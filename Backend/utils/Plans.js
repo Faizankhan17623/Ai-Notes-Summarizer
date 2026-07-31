@@ -11,8 +11,11 @@ const PLANS = {
         maxMessagesPerChat: 60,
         contextWindow: 10,        // past turns replayed into the chat prompt
         // per-feature monthly caps sir — independent of the `credits` pool above, gated by
-        // consumeFeatureUsage() below. null means unlimited, same convention as `credits`
-        featureLimits: { docSummary: 10, bulkSummary: 10, audioSummary: 10, voiceChat: 10 },
+        // consumeFeatureUsage() below. null means unlimited, same convention as `credits`.
+        // chatMessages is a generous per-cycle ceiling on top of each message's own tiny
+        // credit cost (see CHAT_MESSAGE_CREDIT_COST) and the per-chat maxMessagesPerChat cap
+        // above — three independent brakes on the same feature, deliberately overlapping
+        featureLimits: { docSummary: 10, bulkSummary: 10, audioSummary: 10, voiceChat: 10, chatMessages: 300 },
     },
     Pro: {
         key: 'Pro',
@@ -20,7 +23,7 @@ const PLANS = {
         credits: 100,
         maxMessagesPerChat: 200,
         contextWindow: 20,
-        featureLimits: { docSummary: 80, bulkSummary: 80, audioSummary: 80, voiceChat: 80 },
+        featureLimits: { docSummary: 80, bulkSummary: 80, audioSummary: 80, voiceChat: 80, chatMessages: 1500 },
     },
     ProMax: {
         key: 'ProMax',
@@ -32,9 +35,15 @@ const PLANS = {
         credits: 500,
         maxMessagesPerChat: 500,
         contextWindow: 40,
-        featureLimits: { docSummary: 150, bulkSummary: 150, audioSummary: 150, voiceChat: 150 },
+        featureLimits: { docSummary: 150, bulkSummary: 150, audioSummary: 150, voiceChat: 150, chatMessages: 5000 },
     },
 }
+
+// chat messages are cheap sir — a whole credit per message would burn a Basic user's 5
+// monthly credits in a few exchanges, so consumeChatMessage below only draws one real
+// credit from the shared pool every this-many messages (message #20, #40, ... each cycle),
+// on top of the chatMessages feature cap and the per-chat maxMessagesPerChat ceiling
+const CHAT_MESSAGES_PER_CREDIT = 20
 
 // the model each tier is stuck with if they haven't picked (or aren't allowed to pick) sir —
 // the universal fallback, so an invalid/cleared preference never breaks a request.
@@ -81,6 +90,7 @@ const FEATURE_FIELDS = {
     bulkSummary: { field: 'bulkSummaryCount', label: 'bulk file uploads' },
     audioSummary: { field: 'audioSummaryCount', label: 'audio summaries' },
     voiceChat: { field: 'voiceChatCount', label: 'voice messages' },
+    chatMessages: { field: 'chatMessageCount', label: 'chat messages' },
 }
 
 // one-time top-up credit packs sir — bought via /payment/order with packKey instead of plan,
@@ -102,13 +112,26 @@ const cycleElapsed = (user) => {
 }
 
 // resets count + bonusCredits + the per-feature counters and bumps creditCycleStart sir —
-// called before any read/spend so a user never sees stale usage from a previous cycle
+// called before any read/spend so a user never sees stale usage from a previous cycle.
+// Uses an atomic conditional update (matched on the in-memory creditCycleStart) so two
+// concurrent requests racing the exact rollover moment can't both apply a reset and
+// interleave with each other's credit read — only the first write actually matches sir
 const resetCycleIfNeeded = async (user) => {
     if (!cycleElapsed(user)) return user
     const now = new Date()
-    const zeroed = { count: 0, bonusCredits: 0, docSummaryCount: 0, bulkSummaryCount: 0, audioSummaryCount: 0, voiceChatCount: 0, lowCreditNotified: false, creditCycleStart: now }
-    await User.findByIdAndUpdate(user._id, zeroed)
-    Object.assign(user, zeroed)
+    const zeroed = { count: 0, bonusCredits: 0, docSummaryCount: 0, bulkSummaryCount: 0, audioSummaryCount: 0, voiceChatCount: 0, chatMessageCount: 0, lowCreditNotified: false, creditCycleStart: now }
+    const updated = await User.findOneAndUpdate(
+        { _id: user._id, creditCycleStart: user.creditCycleStart },
+        zeroed,
+        { new: true },
+    ).select(USER_PLAN_FIELDS)
+    // another concurrent request already reset it first sir — re-read so we don't stomp its work
+    if (!updated) {
+        const fresh = await User.findById(user._id).select(USER_PLAN_FIELDS)
+        if (fresh) Object.assign(user, fresh.toObject())
+        return user
+    }
+    Object.assign(user, updated.toObject())
     return user
 }
 
@@ -120,7 +143,7 @@ const getEffectivePlan = (user) => {
     return PLANS[user.SubType] || PLANS.Basic
 }
 
-const USER_PLAN_FIELDS = 'SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount voiceChatCount lowCreditNotified preferredModel createdAt'
+const USER_PLAN_FIELDS = 'SubType SubscriptionExpires count creditCycleStart bonusCredits docSummaryCount bulkSummaryCount audioSummaryCount voiceChatCount chatMessageCount lowCreditNotified preferredModel createdAt'
 
 // fetch the user fresh and resolve their effective plan sir — the returned object also carries
 // `model` (this user's resolved Groq model, see resolveModel above) alongside the plan's own
@@ -167,16 +190,28 @@ const consumeCredit = async (userId) => {
         return { ok: true, plan: plan.key, model }
     }
 
-    if (user.count < plan.credits) {
-        const notifyUpdate = maybeNotifyLowCredit(userId, user.count, user.count + 1, plan.credits, user.lowCreditNotified)
-        await User.findByIdAndUpdate(userId, { $inc: { count: 1 }, ...(Object.keys(notifyUpdate).length ? { $set: notifyUpdate } : {}) })
+    // atomic conditional increment sir — the $lt filter is re-checked by MongoDB at write time,
+    // not just read in JS beforehand, so two concurrent requests can't both pass a stale check
+    // and both spend past the cap (the race the old read-then-write version had)
+    const notifyUpdate = maybeNotifyLowCredit(userId, user.count, user.count + 1, plan.credits, user.lowCreditNotified)
+    const spent = await User.findOneAndUpdate(
+        { _id: userId, count: { $lt: plan.credits } },
+        { $inc: { count: 1 }, ...(Object.keys(notifyUpdate).length ? { $set: notifyUpdate } : {}) },
+        { new: true },
+    ).select(USER_PLAN_FIELDS)
+    if (spent) {
         return { ok: true, plan: plan.key, model }
     }
 
-    // plan allowance exhausted sir — fall back to purchased top-up credits before hard-blocking
-    if (user.bonusCredits > 0) {
-        await User.findByIdAndUpdate(userId, { $inc: { bonusCredits: -1 } })
-        return { ok: true, plan: plan.key, model, usedBonus: true, bonusRemaining: user.bonusCredits - 1 }
+    // plan allowance exhausted sir — fall back to purchased top-up credits before hard-blocking.
+    // Same atomic pattern: condition on bonusCredits > 0 at write time, not a stale JS read
+    const bonusSpent = await User.findOneAndUpdate(
+        { _id: userId, bonusCredits: { $gt: 0 } },
+        { $inc: { bonusCredits: -1 } },
+        { new: true },
+    ).select(USER_PLAN_FIELDS)
+    if (bonusSpent) {
+        return { ok: true, plan: plan.key, model, usedBonus: true, bonusRemaining: bonusSpent.bonusCredits }
     }
 
     return {
@@ -212,9 +247,15 @@ const consumeFeatureUsage = async (userId, feature) => {
     }
 
     const used = user[meta.field] || 0
-    if (used < limit) {
-        const notifyUpdate = maybeNotifyLowCredit(userId, used, used + 1, limit, user.lowCreditNotified)
-        await User.findByIdAndUpdate(userId, { $inc: { [meta.field]: 1 }, ...(Object.keys(notifyUpdate).length ? { $set: notifyUpdate } : {}) })
+    // atomic conditional increment sir — same fix as consumeCredit above, condition re-checked
+    // by MongoDB at write time so concurrent requests can't both slip past a stale JS check
+    const notifyUpdate = maybeNotifyLowCredit(userId, used, used + 1, limit, user.lowCreditNotified)
+    const spent = await User.findOneAndUpdate(
+        { _id: userId, [meta.field]: { $lt: limit } },
+        { $inc: { [meta.field]: 1 }, ...(Object.keys(notifyUpdate).length ? { $set: notifyUpdate } : {}) },
+        { new: true },
+    ).select(USER_PLAN_FIELDS)
+    if (spent) {
         return { ok: true, plan: plan.key, model }
     }
 
@@ -224,4 +265,94 @@ const consumeFeatureUsage = async (userId, feature) => {
     }
 }
 
-module.exports = { PLANS, CREDIT_PACKS, MODEL_CATALOG, DEFAULT_MODEL, resolveModel, getEffectivePlan, getUserPlan, consumeCredit, consumeFeatureUsage, resetCycleIfNeeded }
+// spend one chat message/regenerate sir — the three independent brakes on plain-text chat:
+// 1) the chatMessages feature cap below (a generous per-cycle ceiling, same mechanism as
+//    consumeFeatureUsage), 2) one real credit drawn from the shared pool every
+//    CHAT_MESSAGES_PER_CREDIT messages (falls back to bonusCredits, same as consumeCredit),
+//    and 3) the per-chat maxMessagesPerChat cap + the chat-route rate limiter, both enforced
+//    by the caller. Call this once per user-facing chat turn (sendMessage/regenerate, whether
+//    streamed or not) — NOT for voice messages, which already spend a voiceChat feature unit.
+// Returns { ok:true, plan, model } or { ok:false, message }
+const consumeChatMessage = async (userId) => {
+    const user = await User.findById(userId).select(USER_PLAN_FIELDS)
+    if (!user) {
+        return { ok: false, message: 'Account not found, please log in again' }
+    }
+
+    await resetCycleIfNeeded(user)
+
+    const plan = getEffectivePlan(user)
+    const model = resolveModel(user)
+    const limit = plan.featureLimits?.chatMessages
+    const used = user.chatMessageCount || 0
+
+    if (limit !== null && limit !== undefined && used >= limit) {
+        return {
+            ok: false,
+            message: `You have used all ${limit} chat messages on the ${plan.name} plan this month, please upgrade to keep going`,
+        }
+    }
+
+    // does THIS message land on a credit-charging multiple sir — checked against the
+    // pre-increment count so message #20 (the 20th message, used===19 beforehand) is the
+    // one that spends, keeping the very first message of a fresh cycle free
+    const spendsCredit = plan.credits !== null && (used + 1) % CHAT_MESSAGES_PER_CREDIT === 0
+
+    const featureFilter = (limit !== null && limit !== undefined)
+        ? { _id: userId, chatMessageCount: { $lt: limit } }
+        : { _id: userId }
+
+    if (!spendsCredit) {
+        const notifyUpdate = maybeNotifyLowCredit(userId, used, used + 1, limit, user.lowCreditNotified)
+        const spent = await User.findOneAndUpdate(
+            featureFilter,
+            { $inc: { chatMessageCount: 1 }, ...(Object.keys(notifyUpdate).length ? { $set: notifyUpdate } : {}) },
+            { new: true },
+        ).select(USER_PLAN_FIELDS)
+        if (!spent) {
+            return {
+                ok: false,
+                message: `You have used all ${limit} chat messages on the ${plan.name} plan this month, please upgrade to keep going`,
+            }
+        }
+        return { ok: true, plan: plan.key, model }
+    }
+
+    // this message needs a real credit too sir — same atomic $lt-conditioned pattern as
+    // consumeCredit, combined into one update alongside the chatMessageCount bump
+    const spent = await User.findOneAndUpdate(
+        { ...featureFilter, count: { $lt: plan.credits } },
+        { $inc: { chatMessageCount: 1, count: 1 } },
+        { new: true },
+    ).select(USER_PLAN_FIELDS)
+    if (spent) {
+        return { ok: true, plan: plan.key, model }
+    }
+
+    // feature cap had room but the shared credit pool didn't sir — fall back to bonus
+    // credits before hard-blocking, same as consumeCredit
+    const bonusSpent = await User.findOneAndUpdate(
+        { ...featureFilter, bonusCredits: { $gt: 0 } },
+        { $inc: { chatMessageCount: 1, bonusCredits: -1 } },
+        { new: true },
+    ).select(USER_PLAN_FIELDS)
+    if (bonusSpent) {
+        return { ok: true, plan: plan.key, model, usedBonus: true, bonusRemaining: bonusSpent.bonusCredits }
+    }
+
+    // could be the feature cap or the credit pool that finally blocked it sir — re-read to
+    // give an accurate message rather than guessing
+    const fresh = await User.findById(userId).select(USER_PLAN_FIELDS)
+    if (fresh && limit !== null && limit !== undefined && (fresh.chatMessageCount || 0) >= limit) {
+        return {
+            ok: false,
+            message: `You have used all ${limit} chat messages on the ${plan.name} plan this month, please upgrade to keep going`,
+        }
+    }
+    return {
+        ok: false,
+        message: `You have used all ${plan.credits} credits on the ${plan.name} plan this month, please upgrade or buy a top-up pack to keep going`,
+    }
+}
+
+module.exports = { PLANS, CREDIT_PACKS, MODEL_CATALOG, DEFAULT_MODEL, CHAT_MESSAGES_PER_CREDIT, resolveModel, getEffectivePlan, getUserPlan, consumeCredit, consumeFeatureUsage, consumeChatMessage, resetCycleIfNeeded }

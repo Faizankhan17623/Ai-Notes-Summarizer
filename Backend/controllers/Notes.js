@@ -29,7 +29,12 @@ exports.getNotes = async (req, res) => {
             filter.$text = { $search: search.trim() }
         }
 
-        let query = Note.find(filter).select('title sourceType plan tags folder pinned favorite createdAt updatedAt')
+        // hard ceiling sir — the frontend still treats this as "the whole list" (History's
+        // select-all, Chat/Exams' note pickers, Dashboard's total-notes tile all assume every
+        // note the user has), so this isn't real pagination, just a backstop against an
+        // unbounded query/payload for the rare account with a huge note history
+        const HARD_LIMIT = 2000
+        let query = Note.find(filter).select('title sourceType plan tags folder pinned favorite createdAt updatedAt').limit(HARD_LIMIT)
 
         // text-search results are most useful sorted by relevance sir, otherwise pinned-then-newest
         if (search && search.trim()) {

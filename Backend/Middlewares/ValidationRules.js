@@ -155,6 +155,8 @@ exports.createSavedViewRules = [
 ]
 exports.deleteSavedViewRules = [param('viewId').isMongoId()]
 exports.userActivityRules = [param('messageId').isMongoId()]
+exports.messageIdParamRules = [param('messageId').isMongoId()]
+exports.announcementIdParamRules = [param('id').isMongoId()]
 
 exports.createChatRules = [
     body('noteId').optional().isMongoId(),

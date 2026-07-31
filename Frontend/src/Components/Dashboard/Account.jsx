@@ -72,15 +72,30 @@ const Account = () => {
         }
     }, [profile])
 
+    const DELETE_CONFIRM_PHRASE = 'delete my account'
+
     const handleDelete = async () => {
+        // typed confirmation sir — a single "Delete"/"Cancel" click-through was too easy to
+        // trigger by accident (misclick, muscle memory from a less destructive dialog); making
+        // the user type the exact phrase is the standard pattern for an irreversible-feeling
+        // action, even though this one technically has a 2-day recovery window
         const result = await Swal.fire({
             title: 'Delete your account?',
-            text: 'You will have 2 days to recover it by logging back in.',
+            html: `You will have 2 days to recover it by logging back in.<br/><br/>Type <b>${DELETE_CONFIRM_PHRASE}</b> below to confirm.`,
             icon: 'warning',
+            input: 'text',
+            inputPlaceholder: DELETE_CONFIRM_PHRASE,
             showCancelButton: true,
-            confirmButtonText: 'Delete',
+            confirmButtonText: 'Delete my account',
             background: 'var(--color-surface-raised)',
             color: 'var(--color-richblack-5)',
+            preConfirm: (value) => {
+                if ((value || '').trim().toLowerCase() !== DELETE_CONFIRM_PHRASE) {
+                    Swal.showValidationMessage(`Please type "${DELETE_CONFIRM_PHRASE}" exactly to confirm`)
+                    return false
+                }
+                return true
+            },
         })
         if (result.isConfirmed) {
             dispatch(DeleteAccount(token, navigate))

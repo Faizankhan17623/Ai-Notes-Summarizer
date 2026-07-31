@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 // wraps MediaRecorder sir — records a single take and resolves it as a Blob, for the
 // Whisper-backed voice-mode path (distinct from useSpeechToText, which is live browser
@@ -60,6 +60,24 @@ export default function useVoiceRecorder({ maxDurationMs = 60000 } = {}) {
     const stop = useCallback(() => {
         if (recorderRef.current && recorderRef.current.state !== "inactive") {
             recorderRef.current.stop()
+        }
+    }, [])
+
+    // releases the mic the moment this component unmounts sir — without this, navigating
+    // away (or the parent unmounting) mid-recording leaves getUserMedia's stream tracks live
+    // and the browser's mic indicator on indefinitely, since onstop (the only other place
+    // cleanup() ran) only fires from an explicit stop() call that never happens if nobody's
+    // there to make it. Stops the recorder directly (not via stop()/onstop, which does a
+    // React state update that would warn/no-op on an unmounted component) and releases the
+    // stream tracks straight away.
+    useEffect(() => {
+        return () => {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current)
+            if (recorderRef.current && recorderRef.current.state !== "inactive") {
+                recorderRef.current.onstop = null
+                recorderRef.current.stop()
+            }
+            streamRef.current?.getTracks().forEach((track) => track.stop())
         }
     }, [])
 

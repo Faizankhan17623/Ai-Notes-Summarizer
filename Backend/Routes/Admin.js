@@ -3,7 +3,7 @@ const route = express.Router()
 const { Auth, isAdmin, isSupport, canRefund } = require('../Middlewares/Auth.js')
 const { doubleCsrfProtection } = require('../Middlewares/Csrf.js')
 const { validate } = require('../Middlewares/Validate.js')
-const { banUserRules, deleteUserRules, setRoleRules, bulkBanUsersRules, bulkDeleteUsersRules, bulkSetRoleRules, createSavedViewRules, deleteSavedViewRules, userActivityRules } = require('../Middlewares/ValidationRules.js')
+const { banUserRules, deleteUserRules, setRoleRules, bulkBanUsersRules, bulkDeleteUsersRules, bulkSetRoleRules, createSavedViewRules, deleteSavedViewRules, userActivityRules, messageIdParamRules, announcementIdParamRules } = require('../Middlewares/ValidationRules.js')
 const {
     getOverview,
     getAdminAnalytics,
@@ -50,10 +50,10 @@ route.get('/admin/ai-logs', Auth, isSupport, getAiLogs)
 route.get('/admin/contact-messages', Auth, isSupport, getContactMessages)
 // replying/resolving a ticket is exactly the "help" action Support exists for sir — no
 // destructive/site-wide effect, so this stays isSupport too, not isAdmin
-route.post('/admin/contact-messages/:messageId/reply', doubleCsrfProtection, Auth, isSupport, replyToContactMessage)
+route.post('/admin/contact-messages/:messageId/reply', doubleCsrfProtection, messageIdParamRules, validate, Auth, isSupport, replyToContactMessage)
 // private handoff notes sir — same isSupport gate as reply above, never visible to the
 // submitter, only ever read back through this same Support/Admin-gated list endpoint
-route.post('/admin/contact-messages/:messageId/notes', doubleCsrfProtection, Auth, isSupport, addInternalNote)
+route.post('/admin/contact-messages/:messageId/notes', doubleCsrfProtection, messageIdParamRules, validate, Auth, isSupport, addInternalNote)
 // this ticket's submitter's recent AI activity sir — same isSupport gate, view-only, no
 // side effects, matches the "help" tier the rest of the ticket routes sit at
 route.get('/admin/contact-messages/:messageId/user-activity', userActivityRules, validate, Auth, isSupport, getContactMessageUserActivity)
@@ -97,8 +97,8 @@ route.delete('/admin/users/bulk-delete', doubleCsrfProtection, bulkDeleteUsersRu
 route.get('/admin/audit', Auth, isAdmin, getAuditLog)
 route.get('/admin/announcements', Auth, isAdmin, getAnnouncements)
 route.post('/admin/announcements', doubleCsrfProtection, Auth, isAdmin, createAnnouncement)
-route.patch('/admin/announcements/:id', doubleCsrfProtection, Auth, isAdmin, editAnnouncement)
-route.patch('/admin/announcements/:id/deactivate', doubleCsrfProtection, Auth, isAdmin, deactivateAnnouncement)
-route.delete('/admin/announcements/:id', doubleCsrfProtection, Auth, isAdmin, deleteAnnouncement)
+route.patch('/admin/announcements/:id', doubleCsrfProtection, announcementIdParamRules, validate, Auth, isAdmin, editAnnouncement)
+route.patch('/admin/announcements/:id/deactivate', doubleCsrfProtection, announcementIdParamRules, validate, Auth, isAdmin, deactivateAnnouncement)
+route.delete('/admin/announcements/:id', doubleCsrfProtection, announcementIdParamRules, validate, Auth, isAdmin, deleteAnnouncement)
 
 module.exports = route

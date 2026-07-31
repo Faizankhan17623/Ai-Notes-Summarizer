@@ -5,7 +5,7 @@ const Note = require('../Models/Note')
 const Chat = require('../Models/Chat')
 const User = require('../Models/User')
 
-const { getUserPlan, consumeFeatureUsage, DEFAULT_MODEL } = require('../utils/Plans')
+const { getUserPlan, consumeFeatureUsage, consumeChatMessage, DEFAULT_MODEL } = require('../utils/Plans')
 const { buildChatSystemPrompt } = require('../utils/Prompts')
 const { logAi } = require('../utils/AdminLog')
 const { extractFromAudio } = require('../utils/Parsers')
@@ -282,6 +282,13 @@ exports.sendMessage = async (req, res) => {
             })
         }
 
+        // monthly chat-message ceiling + every-20th-message credit spend sir — see
+        // consumeChatMessage in utils/Plans.js for why plain chat needed metering at all
+        const spend = await consumeChatMessage(id)
+        if (!spend.ok) {
+            return res.status(403).json({ success: false, message: spend.message })
+        }
+
         const contextWindow = plan?.contextWindow || CONTEXT_WINDOW
         const Messages = [
             {
@@ -394,6 +401,12 @@ exports.regenerateReply = async (req, res) => {
         // user message stays as the prompt history, same as a normal sendMessage call
         const historyWithoutLastReply = chat.messages.slice(0, -1)
 
+        // regenerate hits Groq again just like sending a new message sir — same metering
+        const spend = await consumeChatMessage(id)
+        if (!spend.ok) {
+            return res.status(403).json({ success: false, message: spend.message })
+        }
+
         const plan = await getUserPlan(id)
         const contextWindow = plan?.contextWindow || CONTEXT_WINDOW
         const Messages = [
@@ -477,6 +490,11 @@ exports.sendMessageStream = async (req, res) => {
         const chat = await Chat.findOne({ _id: chatId, user: id })
         if (!chat) {
             return res.status(404).json({ success: false, message: 'Chat not found' })
+        }
+
+        const spend = await consumeChatMessage(id)
+        if (!spend.ok) {
+            return res.status(403).json({ success: false, message: spend.message })
         }
 
         const plan = await getUserPlan(id)
@@ -596,6 +614,11 @@ exports.regenerateReplyStream = async (req, res) => {
         const last = chat.messages[chat.messages.length - 1]
         if (!last || last.role !== 'assistant') {
             return res.status(400).json({ success: false, message: 'There is no reply to regenerate yet' })
+        }
+
+        const spend = await consumeChatMessage(id)
+        if (!spend.ok) {
+            return res.status(403).json({ success: false, message: spend.message })
         }
 
         const plan = await getUserPlan(id)

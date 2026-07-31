@@ -53,6 +53,14 @@ exports.Auth = async (req, res, next) => {
         req.User.isBanned = user.isBanned
         req.User.banReason = user.banReason
 
+        // the browser's UTC offset in minutes sir — same sign convention as JS's own
+        // Date.getTimezoneOffset() (e.g. IST/UTC+5:30 sends -330), used by utils/Streak.js so
+        // "today" for streaks/daily-study-plan/profile stats means the USER's local calendar
+        // day, not a UTC one. Missing/invalid header (API-key callers, older cached frontend
+        // builds) safely falls back to 0 = UTC, never throws.
+        const rawOffset = parseInt(req.header('x-tz-offset'), 10)
+        req.User.tzOffsetMinutes = Number.isFinite(rawOffset) ? Math.max(-720, Math.min(840, rawOffset)) : 0
+
         next()
     } catch (error) {
         console.log(error.message)

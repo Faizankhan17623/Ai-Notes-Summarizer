@@ -172,7 +172,7 @@ exports.reviewFlashcard = async (req, res) => {
         await card.save()
 
         const user = await User.findById(id).select('currentStreak lastStreakDate longestStreak')
-        await recordStudyActivity(user)
+        await recordStudyActivity(user, req.User.tzOffsetMinutes)
 
         return res.status(200).json({ success: true, flashcard: card })
     } catch (error) {
@@ -312,7 +312,7 @@ exports.attemptQuiz = async (req, res) => {
         await quiz.save()
 
         const user = await User.findById(id).select('currentStreak lastStreakDate longestStreak')
-        await recordStudyActivity(user)
+        await recordStudyActivity(user, req.User.tzOffsetMinutes)
 
         return res.status(200).json({ success: true, score, total: quiz.questions.length, quiz })
     } catch (error) {
@@ -523,7 +523,7 @@ exports.attemptExam = async (req, res) => {
         await exam.save()
 
         const user = await User.findById(id).select('currentStreak lastStreakDate longestStreak')
-        await recordStudyActivity(user)
+        await recordStudyActivity(user, req.User.tzOffsetMinutes)
 
         return res.status(200).json({ success: true, score, total: exam.questions.length, exam })
     } catch (error) {
@@ -661,7 +661,7 @@ const getSuggestedHour = async (userId) => {
 exports.generateStudyPlan = async (req, res) => {
     try {
         const id = req.User.id
-        const today = dayKey(new Date())
+        const today = dayKey(new Date(), req.User.tzOffsetMinutes)
 
         const existing = await StudyPlan.findOne({ user: id, dayKey: today })
         if (existing) {
@@ -752,7 +752,7 @@ exports.generateStudyPlan = async (req, res) => {
 exports.getTodayStudyPlan = async (req, res) => {
     try {
         const id = req.User.id
-        const today = dayKey(new Date())
+        const today = dayKey(new Date(), req.User.tzOffsetMinutes)
         const plan = await StudyPlan.findOne({ user: id, dayKey: today })
         return res.status(200).json({ success: true, plan })
     } catch (error) {
@@ -782,7 +782,7 @@ exports.toggleStudyPlanItem = async (req, res) => {
 
         if (item.done) {
             const user = await User.findById(id).select('currentStreak lastStreakDate longestStreak')
-            await recordStudyActivity(user)
+            await recordStudyActivity(user, req.User.tzOffsetMinutes)
         }
 
         return res.status(200).json({ success: true, plan })

@@ -41,6 +41,12 @@ const Chat = () => {
 
     useEffect(() => {
         if (chatId) dispatch(GetSingleChat(chatId, token))
+        // switching chats mid-utterance shouldn't keep reading the PREVIOUS chat's reply
+        // aloud over the new one sir — this component instance persists across chatId
+        // changes (same route, different param), so useTextToSpeech's own unmount cleanup
+        // never fires here; stop explicitly on every chat switch instead
+        stopSpeaking()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dispatch, chatId, token])
 
     useEffect(() => {

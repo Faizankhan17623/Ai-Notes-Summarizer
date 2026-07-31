@@ -12,6 +12,7 @@ import AdminRoute from './Hooks/AdminRoute'
 import SupportRoute from './Hooks/SupportRoute'
 import NoStaffRoute from './Hooks/NoStaffRoute'
 import ScrollToTop from './Components/extra/ScrollToTop'
+import ErrorBoundary from './Components/extra/ErrorBoundary'
 import AnnouncementBanner from './Components/extra/AnnouncementBanner'
 import CookieConsent from './Components/extra/CookieConsent'
 import ProMaxPlanNotice from './Components/extra/ProMaxPlanNotice'
@@ -136,6 +137,9 @@ function App() {
       <PaymentSuccessModal />
       <ScrollToTop />
       <Suspense fallback={<PageLoader />}>
+        {/* keyed by pathname sir — an error caught on one page resets the boundary the moment
+            the user navigates elsewhere, instead of the whole app staying stuck on the fallback */}
+        <ErrorBoundary key={location.pathname}>
         <AnimatePresence mode="wait" initial={false}>
           <Routes location={location}>
             {/* Public sir */}
@@ -213,6 +217,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </AnimatePresence>
+        </ErrorBoundary>
       </Suspense>
     </>
   )

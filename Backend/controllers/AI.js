@@ -207,7 +207,7 @@ exports.Calling = async (req, res) => {
         const { note, summary } = await summarizeExtractedText(id, text, sourceType, null, images)
 
         const streakUser = await User.findById(id).select('currentStreak lastStreakDate longestStreak')
-        await recordStudyActivity(streakUser)
+        await recordStudyActivity(streakUser, req.User.tzOffsetMinutes)
 
         return res.status(200).json({
             success: true,
@@ -267,7 +267,7 @@ exports.bulkSummarize = async (req, res) => {
         const succeeded = results.some((r) => r.ok)
         if (succeeded) {
             const streakUser = await User.findById(id).select('currentStreak lastStreakDate longestStreak')
-            await recordStudyActivity(streakUser)
+            await recordStudyActivity(streakUser, req.User.tzOffsetMinutes)
         }
 
         return res.status(200).json({

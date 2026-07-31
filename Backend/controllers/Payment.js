@@ -4,6 +4,15 @@ const Payment = require('../Models/Payment')
 const User = require('../Models/User')
 const { PLANS, CREDIT_PACKS, MODEL_CATALOG } = require('../utils/Plans')
 
+// short in-flight window sir — a double-click/double-submit on "Buy" (or a retried request
+// after a slow response) shouldn't mint a second live Razorpay order for the exact same
+// purchase. If the user already has a 'created' (unpaid/unverified) order for this same
+// plan/pack from the last couple minutes, hand that one back instead of creating a new one —
+// the frontend's Razorpay Checkout modal opens against whichever order id it gets either way.
+// Older abandoned 'created' rows (a user who opened checkout, closed it, came back an hour
+// later) are intentionally NOT deduped — that's a legitimately new attempt.
+const DUPLICATE_ORDER_WINDOW_MS = 2 * 60 * 1000
+
 // price table sir — only used once Razorpay keys are actually configured
 const PRICE_INR = {
     Pro: 499,
@@ -47,6 +56,24 @@ exports.createOrder = async (req, res) => {
                 })
             }
 
+            const recentDuplicate = await Payment.findOne({
+                user: req.User.id,
+                plan: 'CreditPack',
+                creditsGranted: pack.credits,
+                status: 'created',
+                createdAt: { $gte: new Date(Date.now() - DUPLICATE_ORDER_WINDOW_MS) },
+            }).sort({ createdAt: -1 })
+            if (recentDuplicate?.razorpayOrderId) {
+                try {
+                    const existingOrder = await instance.orders.fetch(recentDuplicate.razorpayOrderId)
+                    return res.status(200).json({ success: true, order: existingOrder, key: process.env.RAZORPAY_KEY_ID })
+                } catch (fetchErr) {
+                    // stale/deleted order on Razorpay's side sir — fall through and create a
+                    // fresh one rather than failing a legitimate new attempt
+                    console.log('Could not reuse existing order, creating a new one:', fetchErr.message)
+                }
+            }
+
             amount = pack.priceInr * 100 // paise sir
             paymentDoc = {
                 user: req.User.id,
@@ -68,6 +95,21 @@ exports.createOrder = async (req, res) => {
                     success: false,
                     message: 'Payments are coming soon — upgrades are not live yet, please check back later',
                 })
+            }
+
+            const recentDuplicate = await Payment.findOne({
+                user: req.User.id,
+                plan,
+                status: 'created',
+                createdAt: { $gte: new Date(Date.now() - DUPLICATE_ORDER_WINDOW_MS) },
+            }).sort({ createdAt: -1 })
+            if (recentDuplicate?.razorpayOrderId) {
+                try {
+                    const existingOrder = await instance.orders.fetch(recentDuplicate.razorpayOrderId)
+                    return res.status(200).json({ success: true, order: existingOrder, key: process.env.RAZORPAY_KEY_ID })
+                } catch (fetchErr) {
+                    console.log('Could not reuse existing order, creating a new one:', fetchErr.message)
+                }
             }
 
             amount = PRICE_INR[plan] * 100 // paise sir
