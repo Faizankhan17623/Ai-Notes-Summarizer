@@ -11,28 +11,29 @@ Turn any notes into a clear, structured summary — paste text, upload a PDF/Wor
 
 ## Features
 
-- **Summarize notes** from pasted/typed text, uploaded files (PDF/DOCX/TXT), a pasted article URL, or voice/audio (browser dictation or an uploaded audio file transcribed via Groq) — single or bulk (up to 20 files at once)
-- **Chat with your notes** — ask follow-up questions grounded strictly in the note you're viewing, or start a chat grounded across 2-10 notes at once for cross-note Q&A
+- **Summarize notes** from pasted/typed text, uploaded files (PDF/DOCX/TXT), a pasted article URL (readable text + images extracted via Tavily), or voice/audio (browser dictation or an uploaded audio file transcribed via Groq) — single or bulk (up to 20 files at once)
+- **Chat with your notes** — ask follow-up questions grounded strictly in the note you're viewing, or start a chat grounded across 2-10 notes at once for cross-note Q&A; replies stream token-by-token over SSE, with voice mode (speak a question, hear it answered via the browser's speech APIs)
 - **Plan-tiered summaries** — Basic (key points + structured action items: tasks/key dates/decisions), Pro (+ sections & key terms), Pro Max (+ an initial quiz & flashcard set) — with real credit gating enforced per plan, and AI-suggested tags applied automatically at creation time
 - **On-demand flashcards & quizzes** (Pro/Pro Max) — generate more of either from any note at any time; flashcards use SM-2 spaced repetition (again/hard/good/easy) with a dedicated Review page for everything due across all notes; export a full deck or quiz (with answer key) as a printable PDF
 - **Practice exam mode** (Pro/Pro Max) — build one timed AI-generated exam spanning up to 10 notes at once, with full attempt history (unlike single-note quizzes, every retake is kept) feeding into weak-topic insights
 - **Daily AI study plan** (Pro/Pro Max) — one tap builds a short checklist for today, AI-picked from your due flashcards, unattempted quizzes, and weak topics, plus your best study hour if there's enough history; idempotent per day so re-opening it never discards items you've already checked off
-- **Organize & find notes** — tags, folders, pin/favorite, full-text search, a "related notes" panel based on tag overlap, and manual note-to-note links (symmetric backlinks, shown on both linked notes)
+- **Organize & find notes** — tags, folders, pin/favorite, full-text search, a "related notes" panel based on tag overlap, manual note-to-note links (symmetric backlinks, shown on both linked notes), and a cross-content search page spanning notes/chats/flashcards/quizzes at once
 - **Edit a note's content & version history** — edit a note's title/source text after creation; every past state is snapshotted and restorable
 - **Weak-topic insights** — a dashboard widget surfaces which note tags you're struggling with, mined from flashcard ease scores and quiz/exam results
 - **AI weekly recap email** — the weekly digest includes a short AI-written recap (grounded in that week's real activity + current weak topics), not just a bare stat count
 - **Pick your model** (Pro/Pro Max) — choose which Groq model powers your summaries/chat/study tools instead of the plan default
-- **Auth** — signup with OTP email verification, JWT (httpOnly cookie + bearer), forgot/reset password, 2-day account delete/recover buffer
+- **Auth** — signup with OTP email verification, JWT (httpOnly cookie + bearer), forgot/reset password, optional 2FA (TOTP authenticator app) on login, OAuth social login (Google/Facebook/GitHub/LinkedIn, whichever are configured), and a 2-day account delete/recover buffer
 - **In-app notifications** — pushed live over SSE the instant they happen (low credits, plan expiry, support replies), with a slow poll kept underneath as a fallback
-- **Role-based Admin & Support dashboards** — Support gets a read-only/reply view (users, payments, AI logs, contact tickets — with private handoff notes and a per-ticket AI-activity lookup on each ticket); a Billing role can issue refunds without full Admin access; Admin adds ban/role changes, refunds (including credit-pack refunds), audit log, and site-wide announcements
-- **Saved admin filter views** — Support/Billing/Admin can save and reuse named filter combos on the Users, Payments, and AI-usage-log pages
+- **Bug reports & feature suggestions** — logged-in users can submit either with an optional screenshot (uploaded to Cloudinary); Support/Admin get a reply-and-resolve inbox for both, separate from the public contact form
+- **Role-based Admin & Support dashboards** — Support gets a read-only/reply view (users, payments, AI logs, contact tickets and bug/feature reports — with private handoff notes and a per-ticket AI-activity lookup) plus refund authority; Admin adds suspend (2-strike, appealable)/direct ban, bulk user actions, role changes, refunds (including credit-pack refunds), an audit log, site-wide announcements, and traffic/visitor analytics
+- **Saved admin filter views** — Support/Admin can save and reuse named filter combos on the Users, Payments, and AI-usage-log pages
 - **Payments** — Razorpay integration with plan purchases and one-time credit top-up packs
 
 ## Tech stack
 
-**Backend:** Node.js, Express, MongoDB (Mongoose), JWT, Groq SDK, `pdf-parse`, `mammoth` (docx), `pdfkit`/`docx` (export), Nodemailer (direct SMTP locally; in production relayed through a Vercel serverless function because Render's free tier blocks outbound SMTP), `node-cron`, `express-rate-limit`, Helmet, `csrf-csrf`
+**Backend:** Node.js, Express, MongoDB (Mongoose), JWT, Groq SDK, `pdf-parse`, `mammoth` (docx), `pdfkit`/`docx` (export), Tavily (article URL extraction), Cloudinary (screenshot uploads), `otplib`/`qrcode` (2FA), Nodemailer (direct SMTP locally; in production relayed through a Vercel serverless function because Render's free tier blocks outbound SMTP), `node-cron`, `express-rate-limit`, Helmet, `csrf-csrf`
 
-**Frontend:** React 19, Vite, Redux Toolkit, Tailwind CSS v4, Axios, React Router, react-hook-form, react-hot-toast
+**Frontend:** React 19, Vite, Redux Toolkit, Tailwind CSS v4, Axios, React Router, Recharts, Motion, react-hook-form, react-hot-toast, react-joyride
 
 ## Project structure
 
@@ -51,14 +52,21 @@ cd Backend
 npm install
 ```
 
-Create `Backend/.env` (see `.env` keys already scaffolded) with:
+Create `Backend/.env` with:
 
 ```
 PORT=4000
 MONGO_DB_URL=your MongoDB Atlas connection string
 JWT_PRIVATE_KEY=any long random string
+CSRF_SECRET=any long random string
 GROQ_API_KEY=free key from console.groq.com
 FRONTEND_URL=http://localhost:5173
+CORS_ORIGINS=                     # optional, comma-separated extra allowed origins
+TAVILY_API_KEY=                   # optional, needed for "summarize from URL"
+CLOUDINARY_CLOUD_NAME=            # optional, needed for bug/feature report screenshots
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+CLOUDINARY_UPLOAD_FOLDER=         # optional, defaults to notewise-uploads
 MAIL_HOST=smtp.gmail.com          # optional, needed for OTP/reset emails
 MAIL_USER=
 MAIL_PASS=
@@ -67,6 +75,8 @@ MAIL_RELAY_SECRET=                # shared secret for the relay — set the same
 RAZORPAY_KEY_ID=                  # optional, leave blank for payments stub mode
 RAZORPAY_KEY_SECRET=
 ```
+
+OAuth social login is optional and off by default — see `Backend/utils/OAuthProviders.js` for the per-provider env vars it looks for (only providers with credentials configured show up as sign-in options).
 
 ### Frontend
 
@@ -83,10 +93,6 @@ Frontend env (`Frontend/.env`):
 ```
 VITE_MAIN_BACKEND_URL=http://localhost:4000/api/v1
 ```
-
-## License
-
-Personal project — all rights reserved.
 
 <!--
 FULL FEATURE INVENTORY (internal notes — not for public README, keep inside this comment block)
