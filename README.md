@@ -197,7 +197,10 @@ ACCOUNT / SETTINGS
 - Toggle weekly digest email preference
 - Change password
 - Pro/ProMax API key management: generate (nsk_... shown once, SHA-256 hash stored), view status, revoke
-  -> used via POST /external/summarize with x-api-key header for programmatic summarization
+  -> was used via POST /external/summarize with x-api-key header for programmatic summarization.
+  Currently disabled on both ends (controller/routes/middleware kept intact, just not mounted) —
+  see the "API access temporarily disabled" comments in Backend/Routes/Auth.js, Backend/index.js,
+  and Frontend/src/Components/Dashboard/Account.jsx
 - Delete account (2-day recovery) / recover scheduled deletion (banner shown when active)
 
 ANALYTICS (USER-FACING)
@@ -299,9 +302,11 @@ FULL FRONTEND ROUTES
 
 FULL BACKEND API MAP (/api/v1)
 - Auth: POST /Send-otp, POST /Createuser, POST /Login, POST /forgot-password, POST /reset-password,
-  POST /refresh-token, POST /logout, GET /profile, PATCH /profile/first-name, PATCH /profile/last-name,
-  PATCH /profile/digest-preference, PATCH /profile/password, DELETE /profile, POST /profile/recover,
-  GET/POST/DELETE /api-key
+  POST /refresh-token, POST /logout, POST /appeal, GET /profile, PATCH /profile/first-name,
+  PATCH /profile/last-name, PATCH /profile/digest-preference, PATCH /profile/daily-goal,
+  GET /profile/model-catalog, PATCH /profile/model, PATCH /profile/onboarding-complete,
+  PATCH /profile/password, DELETE /profile, POST /profile/recover
+  (GET/POST/DELETE /api-key exists in code but is currently commented out/unmounted, see above)
 - Notes: POST /summarize, GET /shared/:shareId, GET /notes, GET /notes/tags, GET /notes/:noteId,
   GET /notes/:noteId/related, POST /notes/:noteId/links, DELETE /notes/:noteId/links/:targetNoteId,
   DELETE /notes/:noteId, PATCH /notes/:noteId/organize, PATCH /notes/:noteId/edit,
@@ -327,7 +332,7 @@ FULL BACKEND API MAP (/api/v1)
   POST /admin/contact-messages/:id/reply, POST /admin/contact-messages/:id/notes,
   GET /admin/contact-messages/:id/user-activity, GET/POST/DELETE /admin/saved-views,
   GET/POST /admin/announcements, PATCH /admin/announcements/:id/deactivate
-- External: POST /external/summarize (API-key auth)
+- External: POST /external/summarize (API-key auth) — route file exists but is currently
+  commented out/unmounted in Backend/index.js, not reachable right now
 - Misc: GET /csrf-token
 -->
-
