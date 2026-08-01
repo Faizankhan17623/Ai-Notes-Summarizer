@@ -4,11 +4,11 @@ const { Auth } = require('../Middlewares/Auth.js')
 const { authLimiter } = require('../Middlewares/RateLimit.js')
 const { getConfiguredProviders, startOAuth, oauthCallback, getOAuthSession } = require('../controllers/OAuth.js')
 
-// only ever one of these four sir — the controller looks the value up in a fixed config
+// only ever one of these two sir — the controller looks the value up in a fixed config
 // object (Backend/utils/OAuthProviders.js), never interpolates it into a URL/require path,
 // but a param-level check here means a bad provider name never even reaches that logic
 const validProvider = (req, res, next) => {
-    if (!['google', 'facebook', 'github', 'linkedin'].includes(req.params.provider)) {
+    if (!['google', 'github'].includes(req.params.provider)) {
         return res.status(400).json({ success: false, message: 'Unknown sign-in provider' })
     }
     next()

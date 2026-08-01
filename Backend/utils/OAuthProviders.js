@@ -29,21 +29,6 @@ const PROVIDERS = {
             lastName: raw.family_name || '',
         }),
     },
-    facebook: {
-        authUrl: 'https://www.facebook.com/v25.0/dialog/oauth',
-        tokenUrl: 'https://graph.facebook.com/v25.0/oauth/access_token',
-        // fields= sir — Graph API returns only id+name unless explicitly asked for more
-        userInfoUrl: 'https://graph.facebook.com/me?fields=id,first_name,last_name,email',
-        scope: 'email public_profile',
-        clientIdEnv: 'FACEBOOK_CLIENT_ID',
-        clientSecretEnv: 'FACEBOOK_CLIENT_SECRET',
-        mapProfile: (raw) => ({
-            providerId: raw.id,
-            email: raw.email || null,
-            firstName: raw.first_name || 'User',
-            lastName: raw.last_name || '',
-        }),
-    },
     github: {
         authUrl: 'https://github.com/login/oauth/authorize',
         tokenUrl: 'https://github.com/login/oauth/access_token',
@@ -60,22 +45,6 @@ const PROVIDERS = {
             providerId: String(raw.id),
             email: raw.email || null,
             ...splitName(raw.name || raw.login),
-        }),
-    },
-    linkedin: {
-        authUrl: 'https://www.linkedin.com/oauth/v2/authorization',
-        tokenUrl: 'https://www.linkedin.com/oauth/v2/accessToken',
-        // OpenID Connect sir — LinkedIn's older v2/me + v2/emailAddress two-call dance is
-        // retired in favor of this one unified endpoint, same shape as Google's OIDC userinfo
-        userInfoUrl: 'https://api.linkedin.com/v2/userinfo',
-        scope: 'openid profile email',
-        clientIdEnv: 'LINKEDIN_CLIENT_ID',
-        clientSecretEnv: 'LINKEDIN_CLIENT_SECRET',
-        mapProfile: (raw) => ({
-            providerId: raw.sub,
-            email: raw.email,
-            firstName: raw.given_name || 'User',
-            lastName: raw.family_name || '',
         }),
     },
 }

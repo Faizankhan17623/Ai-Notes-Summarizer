@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FaGoogle, FaFacebook, FaGithub, FaLinkedin } from 'react-icons/fa'
+import { FaGoogle, FaGithub } from 'react-icons/fa'
 import { GetOAuthProviders } from '../../Services/operations/Auth.js'
 import { OAuthData } from '../../Services/Apis/OAuthApi.js'
 
@@ -7,9 +7,7 @@ import { OAuthData } from '../../Services/Apis/OAuthApi.js'
 // the actual config (client id, scope, endpoints) lives entirely on the backend
 const PROVIDER_META = {
     google: { label: 'Google', icon: FaGoogle },
-    facebook: { label: 'Facebook', icon: FaFacebook },
     github: { label: 'GitHub', icon: FaGithub },
-    linkedin: { label: 'LinkedIn', icon: FaLinkedin },
 }
 
 // shown on both Login (User.jsx) and Signup (Join.jsx) sir — OAuth doesn't distinguish

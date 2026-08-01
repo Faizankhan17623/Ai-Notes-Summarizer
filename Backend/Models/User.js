@@ -34,7 +34,7 @@ const UserSchema = new mongoose.Schema(
         oauthProviders: [{
             provider: {
                 type: String,
-                enum: ['google', 'facebook', 'github', 'linkedin'],
+                enum: ['google', 'github'],
                 required: true
             },
             providerId: {
