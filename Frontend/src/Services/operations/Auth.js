@@ -174,11 +174,19 @@ export function LogoutUser(navigate) {
             // best-effort sir — clear local state regardless, the access token will simply expire on its own
             logError("Error logging out on the server", error)
         }
+        localStorage.removeItem("token")
+        localStorage.removeItem("user")
+        // wipes every slice back to its own initialState sir, see reducer/index.js — this is
+        // what prevents the NEXT user who logs in on this tab from still seeing the previous
+        // user's notes/chats/payment history sitting in the store (the SPA never does a full
+        // page reload on logout, so the store would otherwise stay populated).
+        // MUST come before the explicit auth clears below, not after: authSlice's initialState
+        // reads localStorage only once at module load and never again, so if this ran last it
+        // would reset `auth` back to that stale (still-logged-in) snapshot and undo them.
+        dispatch({ type: 'auth/logoutReset' })
         dispatch(setToken(null))
         dispatch(setUser(null))
         dispatch(setLogin(false))
-        localStorage.removeItem("token")
-        localStorage.removeItem("user")
         toast.success("Logged out")
         if (navigate) navigate("/")
     }

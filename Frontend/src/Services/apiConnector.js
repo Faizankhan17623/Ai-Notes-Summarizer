@@ -33,6 +33,19 @@ axiosinstance.interceptors.request.use((config) => {
 // all flow through this same shared axios instance
 let refreshPromise = null
 
+// same single-flight idea as refreshPromise above sir — without this, a burst of concurrent
+// state-changing requests that all hit a stale CSRF token at once (e.g. right after a session
+// change) would each independently fire their own GET /csrf-token instead of sharing one
+let csrfFetchPromise = null
+const fetchFreshCsrfToken = () => {
+    if (!csrfFetchPromise) {
+        csrfFetchPromise = axiosinstance
+            .get(`${import.meta.env.VITE_MAIN_BACKEND_URL}/csrf-token`)
+            .finally(() => { csrfFetchPromise = null })
+    }
+    return csrfFetchPromise
+}
+
 axiosinstance.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -48,7 +61,7 @@ axiosinstance.interceptors.response.use(
         if (isCsrfError && original && !original._csrfRetry) {
             original._csrfRetry = true
             try {
-                const csrfRes = await axiosinstance.get(`${import.meta.env.VITE_MAIN_BACKEND_URL}/csrf-token`)
+                const csrfRes = await fetchFreshCsrfToken()
                 if (csrfRes.data?.success) setCsrfToken(csrfRes.data.csrfToken)
                 return axiosinstance(original)
             } catch (csrfErr) {
@@ -76,7 +89,7 @@ axiosinstance.interceptors.response.use(
                 // it here, otherwise every state-changing request after a silent refresh fails with
                 // "Invalid or missing CSRF token".
                 try {
-                    const csrfRes = await axiosinstance.get(`${import.meta.env.VITE_MAIN_BACKEND_URL}/csrf-token`)
+                    const csrfRes = await fetchFreshCsrfToken()
                     if (csrfRes.data?.success) setCsrfToken(csrfRes.data.csrfToken)
                 } catch (csrfErr) {
                     // non-fatal sir — worst case the next state-changing request 403s and surfaces its own error
@@ -95,12 +108,16 @@ axiosinstance.interceptors.response.use(
     }
 )
 
-export const apiConnector = (method, url, bodyData = null, headers = {}, params) => {
+// signal is optional sir — pass an AbortController's .signal to let the caller cancel an
+// in-flight request (debounced search/filter inputs use this so a slow EARLIER response can't
+// land after and overwrite a faster LATER one; see SearchResults.jsx/History.jsx)
+export const apiConnector = (method, url, bodyData = null, headers = {}, params, signal) => {
     return axiosinstance({
         method: `${method}`,
         url: `${url}`,
         data: bodyData ? bodyData : null,
         headers: headers ? headers : null,
-        params: params ? params : null
+        params: params ? params : null,
+        ...(signal ? { signal } : null)
     })
 }

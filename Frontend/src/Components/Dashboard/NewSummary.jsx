@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
@@ -57,6 +57,9 @@ const NewSummary = () => {
     // advisory only sir — never blocks submit, just a heads-up before spending a credit on
     // something that's a near-duplicate of a note already summarized (see utils/Similarity.js)
     const [duplicate, setDuplicate] = useState(null)
+    // aborts the previous in-flight check sir — without this, a slower EARLIER response can
+    // land after a faster LATER one and overwrite the banner with a stale/wrong verdict
+    const abortRef = useRef(null)
 
     const dispatch = useDispatch()
     const navigate = useNavigate()
@@ -71,8 +74,11 @@ const NewSummary = () => {
     useEffect(() => {
         if (!text.trim()) return
         const handle = setTimeout(async () => {
-            const result = await CheckDuplicateNote(text, token)
-            setDuplicate(result)
+            abortRef.current?.abort()
+            const controller = new AbortController()
+            abortRef.current = controller
+            const result = await CheckDuplicateNote(text, token, controller.signal)
+            if (!controller.signal.aborted) setDuplicate(result)
         }, 500)
         return () => clearTimeout(handle)
     }, [text, token])

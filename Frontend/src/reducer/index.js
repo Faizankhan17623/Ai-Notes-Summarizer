@@ -11,7 +11,7 @@ import analyticsReducer from '../Slices/analyticsSlice'
 import notificationReducer from '../Slices/notificationSlice'
 import searchReducer from '../Slices/searchSlice'
 
-const rootReducers = combineReducers({
+const appReducer = combineReducers({
     auth: authReducer,
     notes: notesReducer,
     chat: chatReducer,
@@ -24,5 +24,18 @@ const rootReducers = combineReducers({
     notification: notificationReducer,
     search: searchReducer,
 })
+
+// LogoutUser (Services/operations/Auth.js) dispatches this sir — every slice here holds data
+// scoped to the logged-in user (notes, chats, payment history, admin lists, etc). The SPA
+// never does a full page reload on logout, so without this the Redux store would keep the
+// previous user's data mounted and visible to whoever logs in next in the same tab. Resetting
+// state to undefined makes every slice reinitialize to its own initialState, same effect as a
+// fresh page load would have had.
+const rootReducers = (state, action) => {
+    if (action.type === 'auth/logoutReset') {
+        state = undefined
+    }
+    return appReducer(state, action)
+}
 
 export default rootReducers

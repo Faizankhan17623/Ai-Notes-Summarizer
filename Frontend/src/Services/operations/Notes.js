@@ -133,26 +133,31 @@ export async function SummarizeArticleLink(url, token) {
 // not a thunk sir — same pattern as SummarizeArticleLink above, the caller (New-Summary,
 // debounced) owns its own local state and just awaits a plain value. Quiet failure: this is
 // an advisory nice-to-have, never worth surfacing a toast for a failed background check.
-export async function CheckDuplicateNote(text, token) {
+// signal is optional sir — NewSummary.jsx aborts the previous check before firing a new
+// debounced one, so a slow earlier response can't land after and overwrite a newer one
+export async function CheckDuplicateNote(text, token, signal) {
     try {
         const response = await apiConnector("GET", checkDuplicate, null, {
             Authorization: `Bearer ${token}`
-        }, { text })
+        }, { text }, signal)
         if (!response.data.success) return null
         return response.data.duplicate
     } catch (error) {
+        if (error.code === 'ERR_CANCELED') return null
         logError("Error checking for duplicate note", error)
         return null
     }
 }
 
-// filters is optional sir — { search, tag, folder, pinned, favorite } — all independent, pass only what's needed
-export function GetAllNotes(token, filters = {}) {
+// filters is optional sir — { search, tag, folder, pinned, favorite } — all independent, pass only what's needed.
+// signal is optional sir — History.jsx aborts the previous in-flight fetch before firing a
+// new debounced one, so a slow earlier response can't land after and overwrite a newer one
+export function GetAllNotes(token, filters = {}, signal) {
     return async (dispatch) => {
         try {
             const response = await apiConnector("GET", allNotes, null, {
                 Authorization: `Bearer ${token}`
-            }, filters)
+            }, filters, signal)
 
             if (!response.data.success) {
                 throw new Error(response.data.message)
@@ -160,6 +165,7 @@ export function GetAllNotes(token, filters = {}) {
 
             dispatch(setAllNotes(response.data.notes))
         } catch (error) {
+            if (error.code === 'ERR_CANCELED') return
             logError("Error fetching notes", error)
         }
     }

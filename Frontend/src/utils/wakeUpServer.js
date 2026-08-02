@@ -10,7 +10,12 @@
 // block any request literally named /health, which silently failed this entire retry loop
 // for those visitors. /api/v1/status is the identical check, just parked at a path
 // blocklists don't recognize. Backend/index.js serves both.
-const HEALTH_URL = import.meta.env.VITE_MAIN_BACKEND_URL.replace(/\/?$/, '') + '/status'
+// guarded fallback sir — every other file reading this env var just interpolates it into a
+// string (safely stringifies undefined), but calling .replace() directly on it here means a
+// missing/typo'd VITE_MAIN_BACKEND_URL on some deploy target would throw at MODULE LOAD TIME
+// (App.jsx calls wakeUpServer() unconditionally on every route), breaking the whole app's
+// initial render instead of just letting this one ping fail like the try/catch below expects
+const HEALTH_URL = (import.meta.env.VITE_MAIN_BACKEND_URL || '').replace(/\/?$/, '') + '/status'
 
 const MAX_ATTEMPTS = 4
 const RETRY_DELAY_MS = 5000

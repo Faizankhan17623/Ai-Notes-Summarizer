@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
@@ -28,6 +28,9 @@ const History = () => {
     const [favoritesOnly, setFavoritesOnly] = useState(false)
     const [selectedIds, setSelectedIds] = useState(new Set())
     const [bulkTagInput, setBulkTagInput] = useState('')
+    // aborts the previous in-flight fetch sir — without this, a slower EARLIER response can
+    // land after a faster LATER one and silently overwrite it with stale results
+    const abortRef = useRef(null)
 
     useEffect(() => {
         dispatch(GetTagsAndFolders(token))
@@ -42,7 +45,10 @@ const History = () => {
             if (folder) filters.folder = folder
             if (pinnedOnly) filters.pinned = true
             if (favoritesOnly) filters.favorite = true
-            dispatch(GetAllNotes(token, filters))
+            abortRef.current?.abort()
+            const controller = new AbortController()
+            abortRef.current = controller
+            dispatch(GetAllNotes(token, filters, controller.signal))
         }, 300)
         return () => clearTimeout(handle)
     }, [dispatch, token, search, tag, folder, pinnedOnly, favoritesOnly])

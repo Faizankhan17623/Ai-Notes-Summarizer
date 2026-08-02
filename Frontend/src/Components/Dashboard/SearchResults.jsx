@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
@@ -39,12 +39,18 @@ const SearchResults = () => {
     const { results, loading } = useSelector((state) => state.search)
     const [searchParams, setSearchParams] = useSearchParams()
     const [query, setQuery] = useState(searchParams.get('q') || '')
+    // aborts the previous in-flight search sir — without this, a slower EARLIER response can
+    // land after a faster LATER one and silently overwrite it with stale results
+    const abortRef = useRef(null)
 
     useEffect(() => {
         const handle = setTimeout(() => {
             if (query.trim()) {
                 setSearchParams({ q: query.trim() })
-                dispatch(SearchAll(query.trim(), token))
+                abortRef.current?.abort()
+                const controller = new AbortController()
+                abortRef.current = controller
+                dispatch(SearchAll(query.trim(), token, controller.signal))
             }
         }, 300)
         return () => clearTimeout(handle)

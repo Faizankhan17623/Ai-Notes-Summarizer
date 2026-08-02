@@ -4,9 +4,25 @@ import { showAiErrorToast } from "../../utils/creditErrorToast.jsx"
 import { apiConnector } from "../apiConnector.js"
 import { streamChatMessage } from "../streamChat.js"
 import { setAllChats, setCurrentChat, setLoading, setReplying, appendToLastMessage, insertUserMessage } from "../../Slices/chatSlice.js"
+import { store } from "../../store.js"
 import { ChatData } from "../Apis/ChatApi.js"
 
 const { createChat, allChats, singleChat, sendMessageStream, regenerateReplyStream, sendVoiceMessageStream, deleteChat } = ChatData
+
+// guards the stream-completion dispatches below sir — if the user has already navigated to a
+// DIFFERENT chat by the time a stream finishes/errors, blindly dispatching setReplying(false)
+// or rolling back to this stream's `currentChat` snapshot would stomp on whatever chat is now
+// actually on screen (e.g. clearing ITS "replying" spinner mid-stream, or reverting its
+// messages). Only act if the chat this stream belongs to is still the one open.
+const isStillCurrentChat = (chatId) => store.getState().chat.currentChat?._id === chatId
+
+const rollbackIfStillCurrent = (dispatch, chatId, snapshot) => {
+    if (isStillCurrentChat(chatId)) dispatch(setCurrentChat(snapshot))
+}
+
+const stopReplyingIfStillCurrent = (dispatch, chatId) => {
+    if (isStillCurrentChat(chatId)) dispatch(setReplying(false))
+}
 
 // start a chat grounded in an already-saved note sir. Pass either a single noteId (string,
 // original behavior) or an array of noteIds (2-10, cross-note chat) — same endpoint either way
@@ -97,14 +113,15 @@ export function SendMessage(chatId, message, token, currentChat) {
             url: `${sendMessageStream}/${chatId}/message/stream`,
             body: { message },
             token,
-            onToken: (chunk) => dispatch(appendToLastMessage(chunk)),
-            onDone: () => dispatch(setReplying(false)),
+            onToken: (chunk) => dispatch(appendToLastMessage({ chatId, chunk })),
+            onDone: () => stopReplyingIfStillCurrent(dispatch, chatId),
             onError: (error) => {
                 logError("Error sending the message", error)
                 showAiErrorToast(error, "Could not send the message")
-                // roll the optimistic bubble + placeholder back sir
-                dispatch(setCurrentChat(currentChat))
-                dispatch(setReplying(false))
+                // roll the optimistic bubble + placeholder back sir — but only if the user
+                // hasn't already switched to a different chat while this was in flight
+                rollbackIfStillCurrent(dispatch, chatId, currentChat)
+                stopReplyingIfStillCurrent(dispatch, chatId)
             },
         })
     }
@@ -134,18 +151,19 @@ export function SendVoiceMessage(chatId, audioBlob, token, currentChat, onReplyD
             url: `${sendVoiceMessageStream}/${chatId}/message/voice`,
             body: formData,
             token,
-            onTranscript: (text) => dispatch(insertUserMessage(text)),
-            onToken: (chunk) => dispatch(appendToLastMessage(chunk)),
+            onTranscript: (text) => dispatch(insertUserMessage({ chatId, text })),
+            onToken: (chunk) => dispatch(appendToLastMessage({ chatId, chunk })),
             onDone: (reply) => {
-                dispatch(setReplying(false))
+                stopReplyingIfStillCurrent(dispatch, chatId)
                 onReplyDone?.(reply)
             },
             onError: (error) => {
                 logError("Error sending the voice message", error)
                 showAiErrorToast(error, "Could not send the voice message")
-                // roll the optimistic placeholder back sir
-                dispatch(setCurrentChat(currentChat))
-                dispatch(setReplying(false))
+                // roll the optimistic placeholder back sir — but only if the user hasn't
+                // already switched to a different chat while this was in flight
+                rollbackIfStillCurrent(dispatch, chatId, currentChat)
+                stopReplyingIfStillCurrent(dispatch, chatId)
             },
         })
     }
@@ -169,14 +187,15 @@ export function RegenerateReply(chatId, token, currentChat) {
             url: `${regenerateReplyStream}/${chatId}/regenerate/stream`,
             body: null,
             token,
-            onToken: (chunk) => dispatch(appendToLastMessage(chunk)),
-            onDone: () => dispatch(setReplying(false)),
+            onToken: (chunk) => dispatch(appendToLastMessage({ chatId, chunk })),
+            onDone: () => stopReplyingIfStillCurrent(dispatch, chatId),
             onError: (error) => {
                 logError("Error regenerating the reply", error)
                 showAiErrorToast(error, "Could not regenerate the reply")
-                // roll back to the original reply sir
-                dispatch(setCurrentChat(currentChat))
-                dispatch(setReplying(false))
+                // roll back to the original reply sir — but only if the user hasn't already
+                // switched to a different chat while this was in flight
+                rollbackIfStillCurrent(dispatch, chatId, currentChat)
+                stopReplyingIfStillCurrent(dispatch, chatId)
             },
         })
     }
