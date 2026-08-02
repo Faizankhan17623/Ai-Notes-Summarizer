@@ -30,6 +30,10 @@ const paymentSchema = new mongoose.Schema(
         },
         razorpayOrderId: {
             type: String,
+            // unique sir — the last line of defense against verifyPayment double-crediting the
+            // same order twice (belt-and-suspenders alongside the atomic status-claim there)
+            unique: true,
+            sparse: true,
         },
         razorpayPaymentId: {
             type: String,

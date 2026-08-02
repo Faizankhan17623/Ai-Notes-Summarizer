@@ -319,10 +319,13 @@ const consumeChatMessage = async (userId) => {
     }
 
     // this message needs a real credit too sir — same atomic $lt-conditioned pattern as
-    // consumeCredit, combined into one update alongside the chatMessageCount bump
+    // consumeCredit, combined into one update alongside the chatMessageCount bump. Also mirrors
+    // consumeCredit's low-credit notify on the shared pool (count vs plan.credits) — this branch
+    // is exactly the one that spends a shared credit, so it's the one that can cross the 90% mark
+    const creditNotifyUpdate = maybeNotifyLowCredit(userId, user.count, user.count + 1, plan.credits, user.lowCreditNotified)
     const spent = await User.findOneAndUpdate(
         { ...featureFilter, count: { $lt: plan.credits } },
-        { $inc: { chatMessageCount: 1, count: 1 } },
+        { $inc: { chatMessageCount: 1, count: 1 }, ...(Object.keys(creditNotifyUpdate).length ? { $set: creditNotifyUpdate } : {}) },
         { new: true },
     ).select(USER_PLAN_FIELDS)
     if (spent) {

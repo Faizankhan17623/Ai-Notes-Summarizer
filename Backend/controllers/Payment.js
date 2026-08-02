@@ -192,9 +192,33 @@ exports.verifyPayment = async (req, res) => {
             })
         }
 
-        payment.status = 'paid'
-        payment.razorpayPaymentId = razorpay_payment_id
-        await payment.save()
+        // atomic claim sir — conditioned on the row still being 'created' so a retried/duplicated
+        // verify call (double-click, client timeout+retry, two tabs) can't re-run the reward
+        // logic below twice for the same order. Whichever request wins this update proceeds;
+        // the loser sees claimed === null and returns the already-recorded result instead.
+        const claimed = await Payment.findOneAndUpdate(
+            { _id: payment._id, status: 'created' },
+            { status: 'paid', razorpayPaymentId: razorpay_payment_id },
+            { new: true }
+        )
+
+        if (!claimed) {
+            // already processed sir — reload the current state and answer as if this call had
+            // done the work, instead of erroring or (worse) re-granting the reward
+            const existing = await Payment.findById(payment._id)
+            if (existing.plan === 'CreditPack') {
+                return res.status(200).json({
+                    success: true,
+                    message: `${existing.creditsGranted} credits added to your account`,
+                    creditsGranted: existing.creditsGranted,
+                })
+            }
+            return res.status(200).json({
+                success: true,
+                message: `Upgraded to ${existing.plan} successfully`,
+                plan: existing.plan,
+            })
+        }
 
         // credit-pack purchase sir — grants bonus credits only, never touches the subscription tier
         if (payment.plan === 'CreditPack') {

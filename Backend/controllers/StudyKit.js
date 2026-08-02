@@ -359,13 +359,16 @@ exports.generateExam = async (req, res) => {
         }
 
         const notes = await Note.find({ _id: { $in: noteIds }, user: id }).select('title rawText')
-        if (notes.length !== noteIds.length) {
+        // dedupe against noteIds.length sir — $in naturally collapses duplicate ids, so a
+        // caller-sent repeat (e.g. [A, A, B]) would otherwise false-404 even though every note
+        // is valid and owned (same fix as createChat above)
+        if (notes.length !== new Set(noteIds).size) {
             return res.status(404).json({ success: false, message: 'One or more of those notes could not be found' })
         }
         // keep the exam's note order matching what the caller sent sir — Note.find doesn't
         // guarantee $in order, and question.noteIndex below must line up with `sections`
         const notesById = new Map(notes.map((n) => [String(n._id), n]))
-        const orderedNotes = noteIds.map((nid) => notesById.get(nid))
+        const orderedNotes = [...new Set(noteIds)].map((nid) => notesById.get(nid))
 
         const plan = await requirePaidPlan(id, res)
         if (!plan) return

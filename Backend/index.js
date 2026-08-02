@@ -1,6 +1,17 @@
 require('dotenv').config({ quiet: true })
 require('colors')
 
+// fail fast sir — these four have no graceful-degradation path (unlike Razorpay/Cloudinary,
+// which self-report unconfigured via isConfigured and stub out cleanly). Without them the
+// server still boots and reports healthy, but auth/CSRF/AI silently 401/403/500 on every
+// request — a confusing way to discover a bad deploy. Crash loudly here instead.
+const REQUIRED_ENV_VARS = ['MONGO_DB_URL', 'JWT_PRIVATE_KEY', 'CSRF_SECRET', 'GROQ_API_KEY']
+const missingEnvVars = REQUIRED_ENV_VARS.filter((key) => !process.env[key])
+if (missingEnvVars.length > 0) {
+    console.error(`Missing required environment variable(s): ${missingEnvVars.join(', ')} — refusing to start`)
+    process.exit(1)
+}
+
 const express = require('express')
 const app = express()
 const cors = require('cors')
