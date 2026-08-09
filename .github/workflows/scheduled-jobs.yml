@@ -75,18 +75,18 @@ jobs:
         # production (Render blocks outbound SMTP, so mail goes via a Vercel relay function) — set
         # these, not MAIL_HOST/MAIL_USER/MAIL_PASS, unless you're intentionally using direct SMTP.
         #
-        # MONGO_DB_URL/GROQ_API_KEY/MAIL_PASS/MAIL_RELAY_SECRET are credentials that are currently
-        # stored as environment VARIABLES (vars.*) rather than SECRETS in this repo's GitHub
-        # settings — vars are plaintext-visible to anyone with read access to the repo/environment.
-        # Move them to "Environment secrets" and flip these four to secrets.* once done.
+        # MONGO_DB_URL/MAIL_PASS/MAIL_RELAY_SECRET are credentials, so they're Environment secrets
+        # (encrypted, redacted in logs); FRONTEND_URL/MAIL_HOST/MAIL_USER/MAIL_RELAY_URL aren't
+        # sensitive, so they're plain Environment variables — match each reference below to where
+        # it's actually stored, or it silently resolves empty.
         env:
           NODE_ENV: production
-          MONGO_DB_URL: ${{ vars.MONGO_DB_URL }}
+          MONGO_DB_URL: ${{ secrets.MONGO_DB_URL }}
           MAIL_RELAY_URL: ${{ vars.MAIL_RELAY_URL }}
-          MAIL_RELAY_SECRET: ${{ vars.MAIL_RELAY_SECRET }}
+          MAIL_RELAY_SECRET: ${{ secrets.MAIL_RELAY_SECRET }}
           MAIL_HOST: ${{ vars.MAIL_HOST }}
           MAIL_USER: ${{ vars.MAIL_USER }}
-          MAIL_PASS: ${{ vars.MAIL_PASS }}
+          MAIL_PASS: ${{ secrets.MAIL_PASS }}
           FRONTEND_URL: ${{ vars.FRONTEND_URL }}
         run: node jobs/runJob.js plan-expiry-warnings
 
@@ -115,12 +115,12 @@ jobs:
         # but set it for the full experience.
         env:
           NODE_ENV: production
-          MONGO_DB_URL: ${{ vars.MONGO_DB_URL }}
-          GROQ_API_KEY: ${{ vars.GROQ_API_KEY }}
+          MONGO_DB_URL: ${{ secrets.MONGO_DB_URL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           MAIL_RELAY_URL: ${{ vars.MAIL_RELAY_URL }}
-          MAIL_RELAY_SECRET: ${{ vars.MAIL_RELAY_SECRET }}
+          MAIL_RELAY_SECRET: ${{ secrets.MAIL_RELAY_SECRET }}
           MAIL_HOST: ${{ vars.MAIL_HOST }}
           MAIL_USER: ${{ vars.MAIL_USER }}
-          MAIL_PASS: ${{ vars.MAIL_PASS }}
+          MAIL_PASS: ${{ secrets.MAIL_PASS }}
           FRONTEND_URL: ${{ vars.FRONTEND_URL }}
         run: node jobs/runJob.js weekly-digest
