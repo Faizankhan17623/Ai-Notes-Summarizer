@@ -1,4 +1,3 @@
-const cron = require('node-cron')
 const Groq = require('groq-sdk')
 const User = require('../Models/User')
 const mailSender = require('./Nodemailer')
@@ -66,23 +65,22 @@ const sendDigestToUser = async (user) => {
     )
 }
 
-// every Monday at 08:00 server time sir
-const scheduleWeeklyDigest = () => {
-    cron.schedule('0 8 * * 1', async () => {
-        console.log('Running weekly digest job...')
-        const users = await User.find({ receiveDigest: true, isBanned: false }).select('_id firstName email')
+// the actual work sir — split out from the cron.schedule wrapper below so Backend/jobs/runJob.js
+// can call it directly once (via GitHub Actions) without registering a node-cron timer
+const runWeeklyDigest = async () => {
+    console.log('Running weekly digest job...')
+    const users = await User.find({ receiveDigest: true, isBanned: false }).select('_id firstName email')
 
-        // sequential, not Promise.all, sir — avoids hammering the SMTP provider with a burst of
-        // concurrent sends, and one user's failure (bad address, mail hiccup) never kills the batch
-        for (const user of users) {
-            try {
-                await sendDigestToUser(user)
-            } catch (err) {
-                console.log(`Digest failed for ${user.email}:`, err.message)
-            }
+    // sequential, not Promise.all, sir — avoids hammering the SMTP provider with a burst of
+    // concurrent sends, and one user's failure (bad address, mail hiccup) never kills the batch
+    for (const user of users) {
+        try {
+            await sendDigestToUser(user)
+        } catch (err) {
+            console.log(`Digest failed for ${user.email}:`, err.message)
         }
-        console.log(`Weekly digest sent to up to ${users.length} users`)
-    })
+    }
+    console.log(`Weekly digest sent to up to ${users.length} users`)
 }
 
-module.exports = { scheduleWeeklyDigest, sendDigestToUser }
+module.exports = { runWeeklyDigest, sendDigestToUser }

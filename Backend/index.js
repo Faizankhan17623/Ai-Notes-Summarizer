@@ -43,8 +43,6 @@ const notification = require('./Routes/Notification.js')
 const { globalLimiter } = require('./Middlewares/RateLimit.js')
 const { generateCsrfToken, invalidCsrfTokenError } = require('./Middlewares/Csrf.js')
 const { sanitizeBody } = require('./Middlewares/Sanitize.js')
-const { scheduleWeeklyDigest } = require('./utils/DigestJob.js')
-const { schedulePlanExpiryWarnings } = require('./utils/PlanExpiryJob.js')
 const { backfillProMaxCapNotice } = require('./utils/PlanChangeNotice.js')
 
 // deployed behind a proxy (Render/Railway/nginx) sir — needed so the rate limiter sees the REAL client IP
@@ -182,12 +180,9 @@ app.use((err, req, res, next) => {
 const startServer = async () => {
     await connectDB()
 
-    // weekly summary email sir — in-process cron, no separate infra needed since the
-    // web service process stays alive on Render
-    scheduleWeeklyDigest()
-
-    // daily in-app "plan expiring soon" notice sir — same in-process cron approach as above
-    schedulePlanExpiryWarnings()
+    // weekly digest + daily plan-expiry warnings run on GitHub Actions instead sir — see
+    // .github/workflows/scheduled-jobs.yml and Backend/jobs/runJob.js. Free, and doesn't tie a
+    // paid always-on worker to a job that only needs to run once a day/week.
 
     // one-time bell notice about the ProMax credit cap sir — idempotent, safe on every boot
     backfillProMaxCapNotice()

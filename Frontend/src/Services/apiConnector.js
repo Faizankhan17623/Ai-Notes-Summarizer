@@ -99,6 +99,10 @@ axiosinstance.interceptors.response.use(
                 return axiosinstance(original)
             } catch (refreshErr) {
                 store.dispatch(setToken(null))
+                // wipes every slice (notes/chats/payments/admin, etc.), not just auth sir — otherwise
+                // a different user logging in on the same tab right after can briefly see this
+                // session's leftover data before their own fetches land
+                store.dispatch({ type: 'auth/logoutReset' })
                 localStorage.removeItem("token")
                 localStorage.removeItem("user")
                 return Promise.reject(error)

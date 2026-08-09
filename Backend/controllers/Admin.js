@@ -688,6 +688,20 @@ exports.refundPayment = async (req, res) => {
             })
         }
 
+        // atomic claim on the status transition sir — same reasoning as Payment.js's verifyPayment:
+        // without this, two concurrent refund requests (double-click, retry) can both read
+        // status === 'paid' before either writes 'refunded', double-crediting the reversal
+        const claimed = await Payment.findOneAndUpdate(
+            { _id: payment._id, status: 'paid' },
+            { $set: { status: 'refunded' } }
+        )
+        if (!claimed) {
+            return res.status(400).json({
+                success: false,
+                message: 'This payment was already refunded',
+            })
+        }
+
         // reverse exactly what was granted sir — never below 0, in case some credits were
         // already spent since the purchase (that spend isn't undone, only the balance is clamped)
         const user = await User.findByIdAndUpdate(
@@ -696,8 +710,7 @@ exports.refundPayment = async (req, res) => {
             { returnDocument: 'after' }
         ).select('bonusCredits')
 
-        payment.status = 'refunded'
-        await payment.save()
+        claimed.status = 'refunded'
 
         writeAudit(req.User.id, 'refund_payment', payment.user, `${payment.creditsGranted} credits, ₹${payment.amount}`)
         notify({
@@ -709,7 +722,7 @@ exports.refundPayment = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: 'Payment refunded',
-            payment,
+            payment: claimed,
             bonusCredits: user?.bonusCredits,
         })
     } catch (error) {
