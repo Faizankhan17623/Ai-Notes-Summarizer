@@ -8,7 +8,16 @@ const { DEFAULT_MODEL } = require('./Plans')
 const { logAi } = require('./AdminLog')
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+// lazy sir — the Groq SDK throws at construction time if GROQ_API_KEY is missing, which would
+// otherwise crash this module just from being require()'d (e.g. by Backend/jobs/runJob.js, which
+// loads DigestJob.js even to run the unrelated plan-expiry-warnings job). Missing the key should
+// only mean "no recap paragraph" (see generateRecap's catch below), never a hard crash.
+let groq = null
+const getGroqClient = () => {
+    if (!process.env.GROQ_API_KEY) return null
+    if (!groq) groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+    return groq
+}
 
 // free sir — this is a passive weekly email, not a user-triggered action, so it never spends
 // a credit. If the AI call fails for any reason, the digest still sends WITHOUT the recap
@@ -21,9 +30,12 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 const RECAP_TIMEOUT_MS = 20000
 
 const generateRecap = async (data) => {
+    const client = getGroqClient()
+    if (!client) return null
+
     const t0 = Date.now()
     try {
-        const invoking = await groq.chat.completions.create({
+        const invoking = await client.chat.completions.create({
             messages: [
                 { role: 'system', content: buildDigestPrompt(data) },
                 { role: 'user', content: 'Return only the JSON.' },
