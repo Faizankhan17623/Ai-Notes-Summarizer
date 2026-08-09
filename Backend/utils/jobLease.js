@@ -34,13 +34,14 @@ const INSTANCE_ID = `${process.env.GITHUB_RUN_ID || process.env.HOSTNAME || 'loc
  * @param {string} jobName        unique name for the scheduled job
  * @param {number} leaseMs        how long the lease is held; must exceed the task's runtime
  * @param {() => Promise<void>} task
- * @returns {Promise<'ran'|'skipped'|'failed'>} 'skipped' means another caller held the lease
- *   (expected, not an error); 'failed' means the lease/DB itself errored or task() threw.
+ * @returns {Promise<{ status: 'ran'|'skipped'|'failed', error?: string }>} 'skipped' means
+ *   another caller held the lease (expected, not an error); 'failed' means the lease/DB itself
+ *   errored or task() threw — `error` carries the message so callers can report/alert on it.
  */
 const runWithLease = async (jobName, leaseMs, task) => {
     if (mongoose.connection?.readyState !== 1) {
         console.log(`skipping scheduled job "${jobName}", no database connection`)
-        return 'failed'
+        return { status: 'failed', error: 'no database connection' }
     }
 
     const now = new Date()
@@ -66,19 +67,19 @@ const runWithLease = async (jobName, leaseMs, task) => {
     } catch (err) {
         // upsert races throw a duplicate-key error when another caller inserted first sir —
         // that's the lease working as intended, not a failure. Anything else is worth logging.
-        if (err.code === 11000) return 'skipped'
+        if (err.code === 11000) return { status: 'skipped' }
         console.log(`failed to acquire job lease "${jobName}":`, err.message)
-        return 'failed'
+        return { status: 'failed', error: err.message }
     }
 
-    if (!acquired) return 'skipped'
+    if (!acquired) return { status: 'skipped' }
 
     try {
         await task()
-        return 'ran'
+        return { status: 'ran' }
     } catch (err) {
         console.log(`scheduled job "${jobName}" failed:`, err.message)
-        return 'failed'
+        return { status: 'failed', error: err.message }
     } finally {
         // release early so a fast run doesn't block the next one sir. If the process dies before
         // reaching this, the lease simply expires on its own.

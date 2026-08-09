@@ -2,37 +2,35 @@ import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'motion/react'
-import { FaDatabase, FaBolt, FaEnvelope, FaTachometerAlt, FaExclamationTriangle, FaSyncAlt } from 'react-icons/fa'
+import { FaDatabase, FaBolt, FaEnvelope, FaClock, FaExclamationTriangle, FaSyncAlt, FaCheckCircle, FaTimesCircle } from 'react-icons/fa'
 import { GetHealth } from '../../Services/operations/Admin.js'
 import { fadeUp, staggerContainer } from '../extra/motionVariants.js'
 import StatusBadge from './StatusBadge.jsx'
 
-// Expected GET /admin/health response shape sir (see Backend/index.js's bare /health for the
-// current stand-in — this is what /admin/health should return once built):
+// GET /admin/health response shape sir (see Backend/controllers/Admin.js's getHealth):
 //
 // {
 //   success: true,
 //   health: {
-//     status: 'healthy' | 'degraded' | 'down',          // overall rollup
-//     uptime: number,                                     // seconds, process.uptime()
-//     checkedAt: string,                                  // ISO timestamp, for the cache note below
-//     db: {
-//       ok: boolean,
-//       poolSize: number,        // total pool size configured (mongoose maxPoolSize)
-//       available: number,       // idle/available connections right now
-//       inUse: number,
-//     },
-//     ai: { ok: boolean, latencyMs: number | null },       // Groq ping
-//     mail: { ok: boolean, latencyMs: number | null },     // Vercel mail-relay reachability ping, no real email sent
-//     eventLoop: { meanMs: number, maxMs: number },
-//     env: { ok: boolean, missing: string[] },             // e.g. ['MONGO_DB_URL', 'GROQ_API_KEY', 'JWT_PRIVATE_KEY']
-//     cachedForSeconds: number,                            // ~30s server-side cache window
+//     status: 'healthy' | 'degraded' | 'down',    // down: DB unreachable or required env var missing.
+//                                                    degraded: DB/env fine but the last run of a
+//                                                    scheduled cron job failed
+//     uptime: number,                               // seconds, process.uptime() of THIS web process —
+//                                                    the cron jobs run as separate GitHub Actions
+//                                                    processes, so this doesn't cover them; see `jobs` below
+//     checkedAt: string,                            // ISO timestamp
+//     db: { ok: boolean },
+//     ai: { ok: boolean },                          // GROQ_API_KEY is configured, not a live ping
+//     mail: { ok: boolean },                        // mail relay or direct SMTP is configured, not a live send
+//     env: { ok: boolean, missing: string[] },      // e.g. ['MONGO_DB_URL', 'GROQ_API_KEY']
+//     jobs: {                                       // last GitHub Actions run of each scheduled job
+//       'weekly-digest': { result: 'ran'|'failed', finishedAt: string, error: string|null } | null,
+//       'plan-expiry-warnings': { result: 'ran'|'failed', finishedAt: string, error: string|null } | null,
+//     }
 //   }
 // }
 //
-// Rendered defensively below — every field is optional-chained since the backend for this
-// doesn't exist yet (see the conversation this was built in); once it's live this comment can
-// be trimmed but the optional chaining is harmless to leave.
+// Rendered defensively below — every field is optional-chained.
 
 const STATUS_TONE = { healthy: 'good', degraded: 'danger', down: 'danger' }
 const STATUS_LABEL = { healthy: 'Healthy', degraded: 'Degraded', down: 'Down' }
@@ -111,42 +109,75 @@ const Health = () => {
                         initial="hidden"
                         animate="show"
                         variants={staggerContainer(0.06)}
-                        className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
+                        className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"
                     >
                         <CheckCard
                             icon={FaDatabase}
                             label="Database"
                             ok={health.db?.ok}
                             delay={0}
-                            detail={health.db ? `${health.db.inUse ?? '—'} in use / ${health.db.available ?? '—'} available (pool ${health.db.poolSize ?? '—'})` : '—'}
+                            detail={health.db?.ok ? 'Connected' : 'Unreachable'}
                         />
                         <CheckCard
                             icon={FaBolt}
                             label="Groq AI"
                             ok={health.ai?.ok}
                             delay={60}
-                            detail={health.ai?.ok ? `${health.ai.latencyMs ?? '—'} ms` : 'Unreachable'}
+                            detail={health.ai?.ok ? 'Configured' : 'Not configured'}
                         />
                         <CheckCard
                             icon={FaEnvelope}
-                            label="Mail relay"
+                            label="Mail"
                             ok={health.mail?.ok}
                             delay={120}
-                            detail={health.mail?.ok ? `${health.mail.latencyMs ?? '—'} ms` : 'Unreachable'}
+                            detail={health.mail?.ok ? 'Configured' : 'Not configured'}
                         />
-                        <CheckCard
-                            icon={FaTachometerAlt}
-                            label="Event-loop lag"
-                            ok={health.eventLoop ? health.eventLoop.maxMs < 100 : undefined}
-                            delay={180}
-                            detail={health.eventLoop ? `mean ${health.eventLoop.meanMs?.toFixed?.(1) ?? health.eventLoop.meanMs} ms · max ${health.eventLoop.maxMs} ms` : '—'}
-                        />
+                    </motion.div>
+
+                    <p className="font-display text-lg font-semibold text-richblack-5 mb-4">Scheduled jobs</p>
+                    <motion.div
+                        initial="hidden"
+                        animate="show"
+                        variants={staggerContainer(0.06)}
+                        className="grid sm:grid-cols-2 gap-4 mb-6"
+                    >
+                        {Object.entries(health.jobs || {}).map(([jobName, run], i) => (
+                            <motion.div
+                                key={jobName}
+                                variants={fadeUp}
+                                style={{ '--delay': `${i * 60}ms` }}
+                                className="border border-border-soft bg-surface rounded-xl p-5"
+                            >
+                                <div className="flex items-start justify-between mb-3">
+                                    <span className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${run?.result === 'failed' ? 'bg-danger-soft/10 text-danger-soft' : 'bg-yellow-50/10 text-yellow-50'}`}>
+                                        <FaClock size={14} />
+                                    </span>
+                                    {run?.result === 'failed' ? (
+                                        <FaTimesCircle className="text-danger-soft mt-1" size={14} title="Last run failed" />
+                                    ) : run?.result === 'ran' ? (
+                                        <FaCheckCircle className="text-good mt-1" size={14} title="Last run succeeded" />
+                                    ) : (
+                                        <span className="w-2 h-2 rounded-full mt-1 bg-richblack-600" title="No runs recorded yet" />
+                                    )}
+                                </div>
+                                <p className="text-xs uppercase tracking-wide text-richblack-400 mb-1">{jobName}</p>
+                                {run ? (
+                                    <>
+                                        <p className="text-richblack-5 text-sm">
+                                            {run.result === 'failed' ? 'Failed' : 'Succeeded'} · {new Date(run.finishedAt).toLocaleString()}
+                                        </p>
+                                        {run.error && <p className="text-danger-soft text-xs mt-1 break-words">{run.error}</p>}
+                                    </>
+                                ) : (
+                                    <p className="text-richblack-300 text-sm">No runs recorded yet</p>
+                                )}
+                            </motion.div>
+                        ))}
                     </motion.div>
 
                     <p className="text-richblack-500 text-xs">
                         {health.checkedAt && `Checked ${new Date(health.checkedAt).toLocaleString()}`}
-                        {health.cachedForSeconds != null && ` · cached for up to ${health.cachedForSeconds}s`}
-                        {health.uptime != null && ` · process uptime ${Math.floor(health.uptime / 60)}m`}
+                        {health.uptime != null && ` · web process uptime ${Math.floor(health.uptime / 60)}m`}
                     </p>
                 </>
             )}

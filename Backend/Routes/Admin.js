@@ -6,6 +6,7 @@ const { validate } = require('../Middlewares/Validate.js')
 const { banUserRules, deleteUserRules, setRoleRules, bulkBanUsersRules, bulkDeleteUsersRules, bulkSetRoleRules, createSavedViewRules, deleteSavedViewRules, userActivityRules, messageIdParamRules, announcementIdParamRules } = require('../Middlewares/ValidationRules.js')
 const {
     getOverview,
+    getHealth,
     getAdminAnalytics,
     getUsers,
     suspendUser,
@@ -44,6 +45,7 @@ route.get('/announcements/active', getActiveAnnouncement)
 // read-only "view/help" routes sir — Support AND Admin both pass, nothing here can ban,
 // change roles, or post site-wide, so it's safe for Support to have on their own
 route.get('/admin/overview', Auth, isSupport, getOverview)
+route.get('/admin/health', Auth, isSupport, getHealth)
 route.get('/admin/users', Auth, isSupport, getUsers)
 route.get('/admin/payments', Auth, isSupport, getPayments)
 route.get('/admin/ai-logs', Auth, isSupport, getAiLogs)

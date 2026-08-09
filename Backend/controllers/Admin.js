@@ -13,6 +13,8 @@ const Notification = require('../Models/Notification')
 const Visit = require('../Models/Visit')
 const SavedView = require('../Models/SavedView')
 const ContactMessage = require('../Models/ContactMessage')
+const JobRun = require('../Models/JobRun')
+const mongoose = require('mongoose')
 const { PLANS } = require('../utils/Plans')
 const { safeSearchRegex } = require('../utils/SafeRegex')
 const { notify } = require('./Notification')
@@ -83,6 +85,62 @@ exports.getOverview = async (req, res) => {
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to load overview' })
+    }
+}
+
+// GET /admin/health — feeds Frontend/src/Components/Admin/Health.jsx sir. No caching layer:
+// every field here is either already-in-memory (mongoose.connection state, process.uptime) or a
+// single cheap query, so there's no real cost to computing it fresh on every request — simpler
+// than adding a cache that could show a stale "healthy" during a real outage.
+//
+// AI/mail checks are config-presence checks, not live pings sir — deliberately not spending a
+// real Groq call or sending a real email just to render a dashboard widget on every refresh.
+const REQUIRED_ENV_VARS = ['MONGO_DB_URL', 'JWT_PRIVATE_KEY', 'CSRF_SECRET', 'GROQ_API_KEY']
+const JOB_NAMES = ['weekly-digest', 'plan-expiry-warnings']
+
+exports.getHealth = async (req, res) => {
+    try {
+        const dbOk = mongoose.connection?.readyState === 1
+
+        const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key])
+
+        const aiOk = !!process.env.GROQ_API_KEY
+        const mailOk = !!(
+            (process.env.MAIL_RELAY_URL && process.env.MAIL_RELAY_SECRET) ||
+            (process.env.MAIL_HOST && process.env.MAIL_USER && process.env.MAIL_PASS)
+        )
+
+        // most recent attempt per job name sir — small fixed N (currently 2), a query per job
+        // is simpler than an aggregation pipeline for this size
+        const jobs = {}
+        await Promise.all(
+            JOB_NAMES.map(async (jobName) => {
+                const latest = await JobRun.findOne({ jobName }).sort({ createdAt: -1 })
+                jobs[jobName] = latest
+                    ? { result: latest.result, finishedAt: latest.finishedAt, error: latest.error || null }
+                    : null
+            })
+        )
+        const anyJobFailed = Object.values(jobs).some((j) => j?.result === 'failed')
+
+        const status = !dbOk || missing.length > 0 ? 'down' : anyJobFailed ? 'degraded' : 'healthy'
+
+        return res.status(200).json({
+            success: true,
+            health: {
+                status,
+                uptime: process.uptime(),
+                checkedAt: new Date().toISOString(),
+                db: { ok: dbOk },
+                ai: { ok: aiOk },
+                mail: { ok: mailOk },
+                env: { ok: missing.length === 0, missing },
+                jobs,
+            },
+        })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to load health' })
     }
 }
 

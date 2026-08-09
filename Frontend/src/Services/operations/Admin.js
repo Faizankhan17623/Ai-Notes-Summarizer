@@ -425,9 +425,11 @@ export function DeleteReport(reportId, token) {
     }
 }
 
-// system health for the Admin Health page sir — DB, Groq, mail relay, event-loop lag, env
-// sanity, all in one payload (the backend response is cached ~30s server-side, so polling
-// this from the dashboard doesn't burn real Groq/mail quota)
+// system health for the Admin Health page sir — DB connection state, AI/mail config presence,
+// required env vars, and the latest outcome of each scheduled cron job (weekly-digest,
+// plan-expiry-warnings — see Backend/jobs/runJob.js), all in one payload. No caching layer and
+// no real Groq call/email send on each request — see Backend/controllers/Admin.js's getHealth
+// for why that's deliberate.
 export function GetHealth(token) {
     return async (dispatch) => {
         dispatch(setHealthLoading(true))
