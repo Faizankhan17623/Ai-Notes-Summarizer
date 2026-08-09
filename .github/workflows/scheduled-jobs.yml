@@ -48,6 +48,11 @@ jobs:
   plan-expiry-warnings:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'plan-expiry-warnings' || github.event.schedule == '0 8 * * *'
     runs-on: ubuntu-latest
+    # targets the "Production – ai-notes-summarizer" environment sir — that's where
+    # MONGO_DB_URL/MAIL_*/FRONTEND_URL/GROQ_API_KEY actually live (added there originally for the
+    # Vercel integration). Without this, ${{ secrets.* }}/${{ vars.* }} below all resolve empty,
+    # since repo-level and environment-level values are separate scopes.
+    environment: Production – ai-notes-summarizer
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -69,20 +74,26 @@ jobs:
         # MAIL_RELAY_URL/MAIL_RELAY_SECRET are how this repo's Nodemailer.js actually sends mail in
         # production (Render blocks outbound SMTP, so mail goes via a Vercel relay function) — set
         # these, not MAIL_HOST/MAIL_USER/MAIL_PASS, unless you're intentionally using direct SMTP.
+        #
+        # MONGO_DB_URL/GROQ_API_KEY/MAIL_PASS/MAIL_RELAY_SECRET are credentials that are currently
+        # stored as environment VARIABLES (vars.*) rather than SECRETS in this repo's GitHub
+        # settings — vars are plaintext-visible to anyone with read access to the repo/environment.
+        # Move them to "Environment secrets" and flip these four to secrets.* once done.
         env:
           NODE_ENV: production
-          MONGO_DB_URL: ${{ secrets.MONGO_DB_URL }}
-          MAIL_RELAY_URL: ${{ secrets.MAIL_RELAY_URL }}
-          MAIL_RELAY_SECRET: ${{ secrets.MAIL_RELAY_SECRET }}
-          MAIL_HOST: ${{ secrets.MAIL_HOST }}
-          MAIL_USER: ${{ secrets.MAIL_USER }}
-          MAIL_PASS: ${{ secrets.MAIL_PASS }}
-          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          MONGO_DB_URL: ${{ vars.MONGO_DB_URL }}
+          MAIL_RELAY_URL: ${{ vars.MAIL_RELAY_URL }}
+          MAIL_RELAY_SECRET: ${{ vars.MAIL_RELAY_SECRET }}
+          MAIL_HOST: ${{ vars.MAIL_HOST }}
+          MAIL_USER: ${{ vars.MAIL_USER }}
+          MAIL_PASS: ${{ vars.MAIL_PASS }}
+          FRONTEND_URL: ${{ vars.FRONTEND_URL }}
         run: node jobs/runJob.js plan-expiry-warnings
 
   weekly-digest:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'weekly-digest' || github.event.schedule == '0 8 * * 1'
     runs-on: ubuntu-latest
+    environment: Production – ai-notes-summarizer
     # must stay under jobs/runJob.js's weekly-digest leaseMs (15 min) sir — otherwise a run that
     # hits this ceiling gets SIGKILLed before the lease's finally-block release runs, holding the
     # lease for minutes longer than the job that actually needed it
@@ -104,12 +115,12 @@ jobs:
         # but set it for the full experience.
         env:
           NODE_ENV: production
-          MONGO_DB_URL: ${{ secrets.MONGO_DB_URL }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          MAIL_RELAY_URL: ${{ secrets.MAIL_RELAY_URL }}
-          MAIL_RELAY_SECRET: ${{ secrets.MAIL_RELAY_SECRET }}
-          MAIL_HOST: ${{ secrets.MAIL_HOST }}
-          MAIL_USER: ${{ secrets.MAIL_USER }}
-          MAIL_PASS: ${{ secrets.MAIL_PASS }}
-          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          MONGO_DB_URL: ${{ vars.MONGO_DB_URL }}
+          GROQ_API_KEY: ${{ vars.GROQ_API_KEY }}
+          MAIL_RELAY_URL: ${{ vars.MAIL_RELAY_URL }}
+          MAIL_RELAY_SECRET: ${{ vars.MAIL_RELAY_SECRET }}
+          MAIL_HOST: ${{ vars.MAIL_HOST }}
+          MAIL_USER: ${{ vars.MAIL_USER }}
+          MAIL_PASS: ${{ vars.MAIL_PASS }}
+          FRONTEND_URL: ${{ vars.FRONTEND_URL }}
         run: node jobs/runJob.js weekly-digest
