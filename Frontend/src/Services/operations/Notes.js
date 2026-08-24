@@ -14,7 +14,6 @@ export function ImportNote(payload, token, navigate) {
     return async (dispatch) => {
         dispatch(setLoadingLabel("Importing your note..."))
         dispatch(setLoading(true))
-        const toastId = toast.loading("Importing your note...")
         try {
             const isFormData = payload instanceof FormData
             const response = await apiConnector("POST", importNote, payload, {
@@ -33,7 +32,6 @@ export function ImportNote(payload, token, navigate) {
             toast.error(error?.response?.data?.message || "Could not import that note")
         } finally {
             dispatch(setLoading(false))
-            toast.dismiss(toastId)
         }
     }
 }
@@ -43,7 +41,6 @@ export function SummarizeNotes(payload, token, navigate) {
     return async (dispatch) => {
         dispatch(setLoadingLabel("Summarizing the notes..."))
         dispatch(setLoading(true))
-        const toastId = toast.loading("Summarizing your notes...")
         try {
             const isFormData = payload instanceof FormData
             const response = await apiConnector("POST", summarize, payload, {
@@ -63,7 +60,6 @@ export function SummarizeNotes(payload, token, navigate) {
             showAiErrorToast(error, "Could not summarize your notes")
         } finally {
             dispatch(setLoading(false))
-            toast.dismiss(toastId)
         }
     }
 }
@@ -75,7 +71,6 @@ export function BulkSummarizeNotes(formData, token, onDone) {
     return async (dispatch) => {
         dispatch(setLoadingLabel("Summarizing the notes..."))
         dispatch(setLoading(true))
-        const toastId = toast.loading("Summarizing your files...")
         try {
             const response = await apiConnector("POST", summarize, formData, {
                 Authorization: `Bearer ${token}`
@@ -104,7 +99,6 @@ export function BulkSummarizeNotes(formData, token, onDone) {
             showAiErrorToast(error, "Could not summarize those files")
         } finally {
             dispatch(setLoading(false))
-            toast.dismiss(toastId)
         }
     }
 }
