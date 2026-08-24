@@ -18,6 +18,7 @@ import CookieConsent from './Components/extra/CookieConsent'
 import ProMaxPlanNotice from './Components/extra/ProMaxPlanNotice'
 import CommandPalette from './Components/extra/CommandPalette'
 import PaymentVerifyOverlay from './Components/extra/PaymentVerifyOverlay'
+import SummarizeLoaderOverlay from './Components/extra/SummarizeLoaderOverlay'
 import PaymentSuccessModal from './Components/extra/PaymentSuccessModal'
 import { pageTransition } from './Components/extra/motionVariants.js'
 import { FetchCsrfToken } from './Services/operations/Auth.js'
@@ -134,6 +135,7 @@ function App() {
       <CookieConsent />
       <CommandPalette />
       <PaymentVerifyOverlay />
+      <SummarizeLoaderOverlay />
       <PaymentSuccessModal />
       <ScrollToTop />
       <Suspense fallback={<PageLoader />}>

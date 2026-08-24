@@ -3,7 +3,7 @@ import toast from "react-hot-toast"
 import { showAiErrorToast } from "../../utils/creditErrorToast.jsx"
 import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { NotesData } from "../Apis/NotesApi.js"
-import { setAllNotes, setCurrentNote, setTagsAndFolders, setRelatedNotes, setNoteVersions, setLoading } from "../../Slices/notesSlice.js"
+import { setAllNotes, setCurrentNote, setTagsAndFolders, setRelatedNotes, setNoteVersions, setLoading, setLoadingLabel } from "../../Slices/notesSlice.js"
 
 const { summarize, allNotes, tags, importNote, singleNote, deleteNote, organizeNote, enableShare, disableShare, sharedNote, exportNote, relatedNotes, editNote, noteVersions, restoreVersion, checkDuplicate, noteLinks } = NotesData
 
@@ -12,6 +12,7 @@ const { summarize, allNotes, tags, importNote, singleNote, deleteNote, organizeN
 // below just routed to a different endpoint that skips the Groq call entirely.
 export function ImportNote(payload, token, navigate) {
     return async (dispatch) => {
+        dispatch(setLoadingLabel("Importing your note..."))
         dispatch(setLoading(true))
         const toastId = toast.loading("Importing your note...")
         try {
@@ -40,6 +41,7 @@ export function ImportNote(payload, token, navigate) {
 // summarize sir — pass either { notes: text, sourceType } or a FormData with a `notes` file field
 export function SummarizeNotes(payload, token, navigate) {
     return async (dispatch) => {
+        dispatch(setLoadingLabel("Summarizing the notes..."))
         dispatch(setLoading(true))
         const toastId = toast.loading("Summarizing your notes...")
         try {
@@ -71,6 +73,7 @@ export function SummarizeNotes(payload, token, navigate) {
 // success (some files summarized, some failed) isn't treated as a hard error
 export function BulkSummarizeNotes(formData, token, onDone) {
     return async (dispatch) => {
+        dispatch(setLoadingLabel("Summarizing the notes..."))
         dispatch(setLoading(true))
         const toastId = toast.loading("Summarizing your files...")
         try {

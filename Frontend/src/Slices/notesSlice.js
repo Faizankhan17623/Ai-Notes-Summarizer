@@ -11,7 +11,11 @@ const initialState = {
     relatedNotes: [],
     // version history for whichever note the Report page currently has open sir
     noteVersions: [],
-    loading: false
+    loading: false,
+    // label the full-screen overlay shows while loading is true sir — SummarizeLoaderOverlay
+    // reads this instead of hardcoding one string, since Import uses different wording than
+    // Summarize/Bulk (no AI call, so "Importing" not "Summarizing")
+    loadingLabel: 'Summarizing the notes...'
 }
 
 const notesSlice = createSlice({
@@ -36,9 +40,12 @@ const notesSlice = createSlice({
         },
         setLoading(state, value) {
             state.loading = value.payload
+        },
+        setLoadingLabel(state, value) {
+            state.loadingLabel = value.payload
         }
     }
 })
 
-export const { setAllNotes, setCurrentNote, setTagsAndFolders, setRelatedNotes, setNoteVersions, setLoading } = notesSlice.actions
+export const { setAllNotes, setCurrentNote, setTagsAndFolders, setRelatedNotes, setNoteVersions, setLoading, setLoadingLabel } = notesSlice.actions
 export default notesSlice.reducer
