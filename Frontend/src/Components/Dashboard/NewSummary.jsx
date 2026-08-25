@@ -409,7 +409,7 @@ const NewSummary = () => {
                 <div className="border border-border-soft rounded-lg bg-surface min-h-[360px] flex items-center justify-center px-8 py-12 text-center">
                     <div>
                         <p className="text-richblack-300 text-sm mb-1">Your structured summary will appear here</p>
-                        <p className="text-richblack-500 text-xs">Submit your notes on the left to get a TLDR, key points, and action items.</p>
+                        <p className="text-richblack-500 text-xs">Submit your notes on the left to get a summary, key points, and action items.</p>
                     </div>
                 </div>
             </form>

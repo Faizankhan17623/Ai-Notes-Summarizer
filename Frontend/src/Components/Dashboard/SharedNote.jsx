@@ -38,7 +38,7 @@ const SharedNote = () => {
                 <h1 className="text-2xl font-bold text-richblack-5 mb-6">{summary.title}</h1>
 
                 <div className="border border-border-soft bg-surface rounded-lg p-6 mb-6">
-                    <h2 className="text-richblack-5 font-semibold mb-2">TLDR</h2>
+                    <h2 className="text-richblack-5 font-semibold mb-2">Summary</h2>
                     <p className="text-richblack-200">{summary.tldr}</p>
                 </div>
 
