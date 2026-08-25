@@ -1,6 +1,6 @@
 import axios from "axios"
 import { store } from "../store.js"
-import { setToken } from "../Slices/authSlice.js"
+import { setToken, setSessionChecked } from "../Slices/authSlice.js"
 
 // withCredentials so the httpOnly auth cookie flows sir
 export const axiosinstance = axios.create({
@@ -81,7 +81,8 @@ axiosinstance.interceptors.response.use(
                 const newToken = refreshRes.data.token
 
                 store.dispatch(setToken(newToken))
-                localStorage.setItem("token", JSON.stringify(newToken))
+                // no localStorage write here sir — see authSlice.js/Auth.js RestoreSession for
+                // why the access token now lives only in memory + the httpOnly cookie
 
                 // refresh-token mints a new access-token cookie, and the CSRF token is signed
                 // against that cookie's value (see Backend/Middlewares/Csrf.js getSessionIdentifier),
@@ -103,8 +104,10 @@ axiosinstance.interceptors.response.use(
                 // a different user logging in on the same tab right after can briefly see this
                 // session's leftover data before their own fetches land
                 store.dispatch({ type: 'auth/logoutReset' })
-                localStorage.removeItem("token")
-                localStorage.removeItem("user")
+                // logoutReset wipes auth back to initialState (sessionChecked: false too) sir —
+                // restore it immediately so route guards don't briefly show a loading state for
+                // what is actually just a normal "your session expired" case
+                store.dispatch(setSessionChecked(true))
                 return Promise.reject(error)
             }
         }

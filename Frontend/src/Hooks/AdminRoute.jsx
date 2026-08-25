@@ -5,8 +5,12 @@ import { Navigate } from "react-router-dom"
 // never this one. A Support user landing here (e.g. by typing the URL) is bounced to
 // their own dashboard, not shown anything Admin-only.
 function AdminRoute({ children }) {
-    const { token, user } = useSelector((state) => state.auth)
+    const { token, user, sessionChecked } = useSelector((state) => state.auth)
 
+    // see PrivateRoute.jsx sir — same reasoning, wait for the cookie-based restore before deciding
+    if (!sessionChecked) {
+        return null
+    }
     if (token === null) {
         return <Navigate to="/Login" />
     }

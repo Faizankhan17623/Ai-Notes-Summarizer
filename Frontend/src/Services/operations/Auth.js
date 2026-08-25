@@ -3,7 +3,7 @@ import toast from "react-hot-toast"
 import { apiConnector, setCsrfToken } from "../apiConnector.js"
 import { UserData } from "../Apis/UserApi.js"
 import { OAuthData } from "../Apis/OAuthApi.js"
-import { setLoading, setToken, setUser, setLogin, setSignupData } from "../../Slices/authSlice.js"
+import { setLoading, setToken, setUser, setLogin, setSignupData, setSessionChecked } from "../../Slices/authSlice.js"
 import { setProfile, setPlan, setActivity, setModelCatalog } from "../../Slices/profileSlice.js"
 
 const {
@@ -86,8 +86,10 @@ export const applySession = (dispatch, { token, user }, navigate) => {
     dispatch(setToken(token))
     dispatch(setUser(user))
     dispatch(setLogin(true))
-    localStorage.setItem("token", JSON.stringify(token))
-    localStorage.setItem("user", JSON.stringify(user))
+    dispatch(setSessionChecked(true))
+    // no localStorage write here sir — the access token now lives only in this Redux state
+    // (reset on every page load) and the httpOnly cookie the backend actually trusts. See
+    // RestoreSession below for how a page refresh recovers this same state from the cookie.
     // the CSRF secret cookie is freshly (re)set on login sir — refresh the in-memory token to match
     dispatch(FetchCsrfToken())
     // each role lands on its own separate dashboard sir, never another role's
@@ -174,19 +176,15 @@ export function LogoutUser(navigate) {
             // best-effort sir — clear local state regardless, the access token will simply expire on its own
             logError("Error logging out on the server", error)
         }
-        localStorage.removeItem("token")
-        localStorage.removeItem("user")
         // wipes every slice back to its own initialState sir, see reducer/index.js — this is
         // what prevents the NEXT user who logs in on this tab from still seeing the previous
         // user's notes/chats/payment history sitting in the store (the SPA never does a full
         // page reload on logout, so the store would otherwise stay populated).
-        // MUST come before the explicit auth clears below, not after: authSlice's initialState
-        // reads localStorage only once at module load and never again, so if this ran last it
-        // would reset `auth` back to that stale (still-logged-in) snapshot and undo them.
         dispatch({ type: 'auth/logoutReset' })
         dispatch(setToken(null))
         dispatch(setUser(null))
         dispatch(setLogin(false))
+        dispatch(setSessionChecked(true))
         toast.success("Logged out")
         if (navigate) navigate("/")
     }
@@ -261,11 +259,42 @@ export function GetProfile(token) {
             // dashboard load and is the only thing that can ever move a banned user OUT of
             // 'pending' into 'denied' (an admin's Deny) without them logging out and back in
             dispatch(setUser(response.data.user))
-            localStorage.setItem("user", JSON.stringify(response.data.user))
         } catch (error) {
             logError("Error fetching profile", error)
         } finally {
             dispatch(setLoading(false))
+        }
+    }
+}
+
+// called once on app mount (App.jsx) sir — the httpOnly cookie is the only thing that
+// survives a page refresh now that the access token is no longer mirrored into localStorage
+// (see authSlice.js), so this is what turns "cookie still valid" back into restored Redux
+// state (isLoggedIn/user/token) instead of the app treating a refresh as a fresh logout.
+// GET /profile requires Auth, which accepts the cookie alone — no token needs to be known
+// ahead of time to call it. A 401 here just means there's no valid session, which is the
+// normal logged-out case, not an error worth surfacing to the user.
+export function RestoreSession() {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", profile)
+            if (response.data?.success) {
+                // no real access-token VALUE is available here sir (it lives only in the
+                // httpOnly cookie, unreadable from JS) — a truthy placeholder is enough since
+                // every consumer of state.auth.token only ever checks it for truthiness or
+                // stamps it onto an Authorization header the backend doesn't actually need
+                // (the cookie already authenticates the request either way)
+                dispatch(setToken('cookie-session'))
+                dispatch(setUser(response.data.user))
+                dispatch(setPlan(response.data.plan))
+                dispatch(setActivity(response.data.activity))
+                dispatch(setLogin(true))
+            }
+        } catch {
+            // not logged in sir — expected on first visit / after the session cookie expires,
+            // nothing to log or surface
+        } finally {
+            dispatch(setSessionChecked(true))
         }
     }
 }

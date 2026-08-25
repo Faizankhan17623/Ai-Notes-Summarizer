@@ -126,7 +126,6 @@ function VerifyPayment(paymentResponse, token, silent = false) {
                 if (user) {
                     const updatedUser = { ...user, SubType: response.data.plan }
                     dispatch(setUser(updatedUser))
-                    localStorage.setItem("user", JSON.stringify(updatedUser))
                 }
             }
             return true

@@ -5,8 +5,14 @@ import { Navigate } from "react-router-dom"
 // (/Admin, /Support) and don't belong here, same way a plain User is bounced OUT of those by
 // AdminRoute/SupportRoute
 function PrivateRoute({ children }) {
-    const { token, user } = useSelector((state) => state.auth)
+    const { token, user, sessionChecked } = useSelector((state) => state.auth)
 
+    // wait for RestoreSession (App.jsx) to resolve before deciding sir — otherwise a page
+    // refresh briefly shows token === null (nothing persists it anymore, see authSlice.js)
+    // and bounces a genuinely logged-in user to /Login before the cookie-based check lands
+    if (!sessionChecked) {
+        return null
+    }
     if (token === null) {
         return <Navigate to="/Login" />
     }

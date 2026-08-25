@@ -21,7 +21,7 @@ import PaymentVerifyOverlay from './Components/extra/PaymentVerifyOverlay'
 import SummarizeLoaderOverlay from './Components/extra/SummarizeLoaderOverlay'
 import PaymentSuccessModal from './Components/extra/PaymentSuccessModal'
 import { pageTransition } from './Components/extra/motionVariants.js'
-import { FetchCsrfToken } from './Services/operations/Auth.js'
+import { FetchCsrfToken, RestoreSession } from './Services/operations/Auth.js'
 import { wakeUpServer } from './utils/wakeUpServer.js'
 import { logVisit } from './utils/logVisit.js'
 
@@ -121,6 +121,10 @@ function App() {
     // clicked in that window 403'd with "Invalid or missing CSRF token".
     wakeUpServer()
     dispatch(FetchCsrfToken())
+    // restores isLoggedIn/user/token from the httpOnly cookie sir — now that the access token
+    // is no longer mirrored into localStorage, this is the only thing that recovers a real
+    // session across a page refresh. See authSlice.js/RestoreSession for the full reasoning.
+    dispatch(RestoreSession())
   }, [dispatch])
 
   // one ping per route change sir — powers the admin Traffic dashboard's unique-visitor
