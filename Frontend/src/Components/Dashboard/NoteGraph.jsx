@@ -42,6 +42,11 @@ const NoteGraph = () => {
     useEffect(() => {
         const el = containerRef.current
         if (!el) return
+        // measure synchronously on mount sir — ResizeObserver's first callback can lag a frame
+        // behind, and with the graph gated on dimensions.width > 0 that gap meant it sometimes
+        // never got a size in time and fell back to ForceGraph2D's own default (the overflow bug)
+        const rect = el.getBoundingClientRect()
+        setDimensions({ width: rect.width, height: rect.height })
         const observer = new ResizeObserver((entries) => {
             const { width, height } = entries[0].contentRect
             setDimensions({ width, height })
