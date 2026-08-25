@@ -78,7 +78,7 @@ const NoteGraph = () => {
     }, [graph])
 
     return (
-        <div className="px-6 md:px-10 py-10">
+        <div className="px-6 md:px-10 py-10 max-w-full overflow-x-hidden">
             <Helmet><title>Note Graph — Notewise</title></Helmet>
 
             <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
@@ -91,14 +91,14 @@ const NoteGraph = () => {
                     </p>
                 </div>
                 {!fetching && graph && (
-                    <p className="text-richblack-400 text-xs font-mono bg-surface-raised border border-border-soft rounded-md px-3 py-1.5">
+                    <p className="text-richblack-400 text-xs font-mono bg-surface-raised border border-border-soft rounded-md px-3 py-1.5 shrink-0">
                         {graph.nodes.length} notes · {graph.edges.length} connections
                         {isolatedCount > 0 && ` · ${isolatedCount} untagged`}
                     </p>
                 )}
             </div>
 
-            <div ref={containerRef} className="border border-border-soft rounded-lg bg-surface overflow-hidden" style={{ height: '70vh' }}>
+            <div ref={containerRef} className="w-full max-w-full border border-border-soft rounded-lg bg-surface overflow-hidden" style={{ height: '70vh' }}>
                 {fetching ? (
                     <Loading text="Mapping your notes..." />
                 ) : !graph?.nodes.length ? (
@@ -109,7 +109,7 @@ const NoteGraph = () => {
                             Summarize a few notes and tag them to see how they connect here.
                         </p>
                     </div>
-                ) : (
+                ) : dimensions.width === 0 ? null : (
                     <ForceGraph2D
                         ref={fgRef}
                         width={dimensions.width}
