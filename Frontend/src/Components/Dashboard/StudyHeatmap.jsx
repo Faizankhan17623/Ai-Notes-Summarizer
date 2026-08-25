@@ -1,4 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+const formatTooltipDate = (dateKey) => {
+    const [y, m, d] = dateKey.split('-').map(Number)
+    return `${MONTH_NAMES[m - 1]} ${d}, ${y}`
+}
 
 // GitHub-style contribution calendar sir — one cell per day over the last ~12 months,
 // shaded by activity count (notes created + flashcards reviewed + quizzes attempted, see
@@ -18,6 +25,8 @@ const intensityClass = (count) => {
 const dayKey = (d) => d.toISOString().slice(0, 10)
 
 const StudyHeatmap = ({ heatmap }) => {
+    const [hovered, setHovered] = useState(null)
+
     // builds a Sunday-start grid ending today sir, same convention GitHub's own calendar uses
     const { weeks, totalActive } = useMemo(() => {
         const countByDay = new Map((heatmap || []).map((d) => [d.date, d.count]))
@@ -53,14 +62,37 @@ const StudyHeatmap = ({ heatmap }) => {
                 <p className="text-richblack-400 text-xs">{totalActive} active day{totalActive === 1 ? '' : 's'} in the last year</p>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto relative">
+                {hovered && (
+                    <div
+                        className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-md border border-border-soft bg-richblack-800 px-3 py-1.5 text-xs shadow-lg whitespace-nowrap"
+                        style={{ left: hovered.x, top: hovered.y - 8 }}
+                    >
+                        <span className="text-richblack-5 font-medium">
+                            {hovered.count} activit{hovered.count === 1 ? 'y' : 'ies'}
+                        </span>
+                        <span className="text-richblack-400"> on {formatTooltipDate(hovered.date)}</span>
+                        <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-richblack-800" />
+                    </div>
+                )}
                 <div className="flex gap-[3px] w-max">
                     {weeks.map((week, wi) => (
                         <div key={wi} className="flex flex-col gap-[3px]">
                             {week.map((day) => (
                                 <div
                                     key={day.date}
-                                    title={day.future ? '' : `${day.date}: ${day.count} activit${day.count === 1 ? 'y' : 'ies'}`}
+                                    onMouseEnter={(e) => {
+                                        if (day.future) return
+                                        const rect = e.currentTarget.getBoundingClientRect()
+                                        const parentRect = e.currentTarget.closest('.relative').getBoundingClientRect()
+                                        setHovered({
+                                            date: day.date,
+                                            count: day.count,
+                                            x: rect.left - parentRect.left + rect.width / 2,
+                                            y: rect.top - parentRect.top,
+                                        })
+                                    }}
+                                    onMouseLeave={() => setHovered(null)}
                                     className={`w-2.5 h-2.5 rounded-sm ${day.future ? 'bg-transparent' : intensityClass(day.count)}`}
                                 />
                             ))}
