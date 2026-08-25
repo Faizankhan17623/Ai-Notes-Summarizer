@@ -94,7 +94,13 @@ const DashboardLayout = () => {
     return (
         <div className="min-h-screen bg-richblack-900">
             {!isBanned && profile && !profile.hasCompletedOnboarding && <ProductTour token={token} />}
-            <Navbar showMegaMenu />
+            {/* sticky sir — the sidebar below is `sticky top-[73px]`, i.e. it assumes the navbar
+                permanently occupies the top 73px. Without the navbar itself being sticky too,
+                scrolling the page scrolled the navbar away while the sidebar stayed pinned,
+                leaving a blank 73px gap where the navbar used to be. */}
+            <div className="sticky top-0 z-30 bg-richblack-900">
+                <Navbar showMegaMenu />
+            </div>
             <div className="flex">
                 <aside className={`hidden md:flex flex-col shrink-0 border-r border-border-soft bg-surface-raised px-3 py-5 h-[calc(100vh-73px)] sticky top-[73px] overflow-y-auto scrollbar-thin transition-[width] duration-200
                     ${collapsed ? 'w-16 items-center' : 'w-56'}`}>
