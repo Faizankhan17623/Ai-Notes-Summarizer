@@ -32,6 +32,23 @@ const NoteGraph = () => {
     const [fetching, setFetching] = useState(true)
     const [hoverNode, setHoverNode] = useState(null)
     const fgRef = useRef(null)
+    const containerRef = useRef(null)
+    const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
+
+    // ForceGraph2D sizes its <canvas> from explicit width/height props sir — without them it
+    // falls back to a default that doesn't match our flex/percentage container, which is why
+    // nodes were rendering bunched in a corner instead of spread across the box. ResizeObserver
+    // keeps it in sync with the container across window resizes and sidebar collapse/expand.
+    useEffect(() => {
+        const el = containerRef.current
+        if (!el) return
+        const observer = new ResizeObserver((entries) => {
+            const { width, height } = entries[0].contentRect
+            setDimensions({ width, height })
+        })
+        observer.observe(el)
+        return () => observer.disconnect()
+    }, [])
 
     useEffect(() => {
         let cancelled = false
@@ -81,7 +98,7 @@ const NoteGraph = () => {
                 )}
             </div>
 
-            <div className="border border-border-soft rounded-lg bg-surface overflow-hidden" style={{ height: '70vh' }}>
+            <div ref={containerRef} className="border border-border-soft rounded-lg bg-surface overflow-hidden" style={{ height: '70vh' }}>
                 {fetching ? (
                     <Loading text="Mapping your notes..." />
                 ) : !graph?.nodes.length ? (
@@ -95,6 +112,8 @@ const NoteGraph = () => {
                 ) : (
                     <ForceGraph2D
                         ref={fgRef}
+                        width={dimensions.width}
+                        height={dimensions.height}
                         graphData={graphData}
                         nodeId="id"
                         nodeLabel={(n) => n.title}

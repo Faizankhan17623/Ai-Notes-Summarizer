@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { FaHome, FaPlus, FaHistory, FaClipboardCheck, FaComments, FaUserCog, FaLink, FaLock, FaSearch, FaCalendarCheck, FaClipboardList, FaProjectDiagram } from 'react-icons/fa'
+import { FaHome, FaPlus, FaHistory, FaClipboardCheck, FaComments, FaUserCog, FaLink, FaLock, FaSearch, FaCalendarCheck, FaClipboardList, FaProjectDiagram, FaChevronLeft, FaChevronRight } from 'react-icons/fa'
 import Navbar from '../Home/Navbar.jsx'
 import AnimatedOutlet from '../extra/AnimatedOutlet.jsx'
 import BannedNotice from './BannedNotice.jsx'
@@ -53,11 +53,35 @@ const navItems = [
 // persistent sidebar shell for every logged-in page sir — wraps the private routes via
 // an Outlet (see App.jsx), so Navbar + nav + the credits widget render exactly once
 // instead of every page re-rendering its own copy
+// key sir the collapse state is remembered under in localStorage — so it survives a reload/
+// tab close instead of resetting to expanded every time
+const SIDEBAR_COLLAPSED_KEY = 'notewise-sidebar-collapsed'
+
 const DashboardLayout = () => {
     const dispatch = useDispatch()
     const { token, user } = useSelector((state) => state.auth)
     const { plan, profile } = useSelector((state) => state.profile)
     const isBanned = !!user?.isBanned
+    const [collapsed, setCollapsed] = useState(() => {
+        try {
+            return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
+        } catch {
+            return false
+        }
+    })
+
+    const toggleCollapsed = () => {
+        setCollapsed((prev) => {
+            const next = !prev
+            try {
+                localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next))
+            } catch {
+                // localStorage can throw in private-browsing/blocked-storage contexts sir —
+                // the toggle still works for the session, it just won't persist
+            }
+            return next
+        })
+    }
 
     // fresh ban/appeal status on every dashboard load sir — not just right after login. This
     // is what lets a user's "pending" appeal actually flip to "denied" in their own view once
@@ -72,8 +96,19 @@ const DashboardLayout = () => {
             {!isBanned && profile && !profile.hasCompletedOnboarding && <ProductTour token={token} />}
             <Navbar showMegaMenu />
             <div className="flex">
-                <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border-soft bg-surface-raised px-3 py-5 h-[calc(100vh-73px)] sticky top-[73px] overflow-y-auto">
-                    <nav className="flex flex-col gap-1">
+                <aside className={`hidden md:flex flex-col shrink-0 border-r border-border-soft bg-surface-raised px-3 py-5 h-[calc(100vh-73px)] sticky top-[73px] overflow-y-auto scrollbar-thin transition-[width] duration-200
+                    ${collapsed ? 'w-16 items-center' : 'w-56'}`}>
+                    <button
+                        type="button"
+                        onClick={toggleCollapsed}
+                        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        className={`flex items-center justify-center w-7 h-7 rounded-md text-richblack-400 hover:text-richblack-5 hover:bg-surface-hover transition-colors mb-3 shrink-0
+                            ${collapsed ? '' : 'self-end'}`}
+                    >
+                        {collapsed ? <FaChevronRight size={12} /> : <FaChevronLeft size={12} />}
+                    </button>
+
+                    <nav className="flex flex-col gap-1 w-full">
                         {navItems.map(({ to, label, icon: Icon, end, dataTour }) => (
                             isBanned ? (
                                 // locked sir — no href/onClick at all, just a visual list with a
@@ -82,10 +117,11 @@ const DashboardLayout = () => {
                                     key={to}
                                     aria-disabled="true"
                                     title="Locked while your account is suspended"
-                                    className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-richblack-500 cursor-not-allowed select-none"
+                                    className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-richblack-500 cursor-not-allowed select-none
+                                        ${collapsed ? 'justify-center' : ''}`}
                                 >
-                                    <FaLock className="w-4 h-4 opacity-60" />
-                                    {label}
+                                    <FaLock className="w-4 h-4 opacity-60 shrink-0" />
+                                    {!collapsed && label}
                                 </span>
                             ) : (
                                 <NavLink
@@ -93,20 +129,22 @@ const DashboardLayout = () => {
                                     to={to}
                                     end={end}
                                     data-tour={dataTour}
+                                    title={collapsed ? label : undefined}
                                     className={({ isActive }) =>
                                         `flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors
+                                        ${collapsed ? 'justify-center' : ''}
                                         ${isActive ? 'bg-yellow-50/10 text-richblack-5 font-semibold' : 'text-richblack-300 hover:bg-surface-hover hover:text-richblack-5'}`
                                     }
                                 >
-                                    <Icon className="w-4 h-4 opacity-80" />
-                                    {label}
+                                    <Icon className="w-4 h-4 opacity-80 shrink-0" />
+                                    {!collapsed && label}
                                 </NavLink>
                             )
                         ))}
                     </nav>
 
-                    {!isBanned && plan && (
-                        <div data-tour="credits" className="mt-auto border border-border-soft rounded-lg p-3 bg-surface space-y-3">
+                    {!isBanned && plan && !collapsed && (
+                        <div data-tour="credits" className="mt-auto border border-border-soft rounded-lg p-3 bg-surface space-y-3 w-full">
                             <UsageBar label="Credits" used={plan.creditsUsed} limit={plan.creditsLimit} />
 
                             {plan.creditsLimit !== null && plan.creditsUsed / plan.creditsLimit >= 0.9 && (

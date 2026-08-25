@@ -212,3 +212,25 @@ body {
   outline: 2px solid var(--color-yellow-50);
   outline-offset: 2px;
 }
+
+/* thin scrollbar sir — default browser scrollbars (esp. Chrome/Edge on Windows) render ~15px
+   wide, which looks oversized on narrow panels like the dashboard sidebar. Firefox reads the
+   `scrollbar-width`/`scrollbar-color` properties; WebKit/Chromium needs the ::-webkit- rules. */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-soft) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-soft);
+  border-radius: 9999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-richblack-600);
+}
