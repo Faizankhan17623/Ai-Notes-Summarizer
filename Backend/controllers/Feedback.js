@@ -2,6 +2,7 @@ const FeedbackReport = require('../Models/FeedbackReport')
 const AuditLog = require('../Models/AuditLog')
 const mailSender = require('../utils/Nodemailer')
 const { isConfigured: cloudinaryConfigured, uploadBuffer } = require('../utils/Cloudinary')
+const { validateUploadedImage } = require('../utils/FileValidation')
 const { feedbackReportTemplate, feedbackReplyTemplate } = require('../Templates/FeedbackReport')
 const { notify } = require('./Notification')
 
@@ -31,8 +32,10 @@ exports.submitFeedbackReport = async (req, res) => {
         const screenshot = req.files?.screenshot
 
         if (screenshot) {
-            if (!screenshot.mimetype?.startsWith('image/')) {
-                return res.status(400).json({ success: false, message: 'The attachment must be an image' })
+            try {
+                await validateUploadedImage(screenshot)
+            } catch (validationErr) {
+                return res.status(400).json({ success: false, message: validationErr.message })
             }
             if (!cloudinaryConfigured) {
                 return res.status(503).json({

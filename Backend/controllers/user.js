@@ -755,25 +755,22 @@ exports.forgotPassword = async (req, res) => {
             { returnDocument: 'after' }
         )
 
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'No account found with this email',
-            })
+        // same generic response whether or not the account exists sir — a 404 here would let
+        // an attacker enumerate registered emails by probing this endpoint
+        if (user) {
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+            const url = `${frontendUrl}/reset-password/${token}`
+
+            await mailSender(
+                email,
+                'Reset your password',
+                passwordResetTemplate(`${user.firstName} ${user.lastName}`, url)
+            )
         }
-
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
-        const url = `${frontendUrl}/reset-password/${token}`
-
-        await mailSender(
-            email,
-            'Reset your password',
-            passwordResetTemplate(`${user.firstName} ${user.lastName}`, url)
-        )
 
         return res.status(200).json({
             success: true,
-            message: 'Password reset email sent',
+            message: 'If an account exists for that email, a password reset link has been sent',
         })
     } catch (error) {
         console.log(error.message)

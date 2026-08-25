@@ -68,4 +68,17 @@ const validateUploadedAudio = async (file) => {
     return { ext: ALLOWED_AUDIO[detected.mime] }
 }
 
-module.exports = { validateUploadedFile, validateUploadedAudio }
+// magic-byte gate for image uploads sir — same reasoning as validateUploadedFile: never trust
+// the client's declared mimetype. SVG is deliberately excluded even though file-type can detect
+// it, since an SVG can carry an embedded <script> that executes if ever opened directly
+const ALLOWED_IMAGE = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
+
+const validateUploadedImage = async (file) => {
+    const detected = await fileTypeFromBuffer(file.data)
+    if (!detected || !ALLOWED_IMAGE.includes(detected.mime)) {
+        throw new Error('Unsupported image format — please upload a PNG, JPEG, GIF, or WEBP file')
+    }
+    return { mime: detected.mime }
+}
+
+module.exports = { validateUploadedFile, validateUploadedAudio, validateUploadedImage }

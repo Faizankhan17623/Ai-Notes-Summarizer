@@ -183,7 +183,14 @@ exports.verifyPayment = async (req, res) => {
             .update(`${razorpay_order_id}|${razorpay_payment_id}`)
             .digest('hex')
 
-        if (expectedSignature !== razorpay_signature) {
+        // timing-safe compare sir — a plain !== leaks byte-by-byte match info via response
+        // timing, which crypto.timingSafeEqual avoids; length check first since it throws on
+        // mismatched buffer lengths rather than returning false
+        const expectedBuf = Buffer.from(expectedSignature)
+        const providedBuf = Buffer.from(razorpay_signature)
+        const signatureValid = expectedBuf.length === providedBuf.length && crypto.timingSafeEqual(expectedBuf, providedBuf)
+
+        if (!signatureValid) {
             payment.status = 'failed'
             await payment.save()
             return res.status(400).json({
