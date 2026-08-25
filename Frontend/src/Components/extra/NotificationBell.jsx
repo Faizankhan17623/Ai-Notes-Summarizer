@@ -16,12 +16,12 @@ const POLL_INTERVAL_MS = 90000
 const NotificationBell = () => {
     const dispatch = useDispatch()
     const navigate = useNavigate()
-    const { token } = useSelector((state) => state.auth)
+    const { token, isLoggedIn } = useSelector((state) => state.auth)
     const { notifications, unreadCount } = useSelector((state) => state.notification)
     const [open, setOpen] = useState(false)
     const rootRef = useRef(null)
 
-    useNotificationStream(token)
+    useNotificationStream(isLoggedIn)
 
     useEffect(() => {
         dispatch(GetNotifications(token))
