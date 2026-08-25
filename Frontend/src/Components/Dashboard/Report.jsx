@@ -91,7 +91,7 @@ const Report = () => {
                     {/* main content column sir */}
                     <div className="min-w-0 space-y-6">
                         <div className="border border-border-soft bg-surface rounded-lg p-6">
-                            <p className="text-xs uppercase tracking-wide text-yellow-50 font-semibold mb-2">TL;DR</p>
+                            <p className="text-xs uppercase tracking-wide text-yellow-50 font-semibold mb-2">TLDR</p>
                             <p className="text-richblack-100 text-base leading-relaxed">{summary.tldr}</p>
                         </div>
 
