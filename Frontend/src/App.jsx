@@ -57,6 +57,7 @@ const StudyPlan = lazy(() => import('./Components/Dashboard/StudyPlan'))
 const Exams = lazy(() => import('./Components/Dashboard/Exams'))
 const ExamPlayer = lazy(() => import('./Components/Dashboard/ExamPlayer'))
 const History = lazy(() => import('./Components/Dashboard/History'))
+const NoteGraph = lazy(() => import('./Components/Dashboard/NoteGraph'))
 const Chat = lazy(() => import('./Components/Dashboard/Chat'))
 const SearchResults = lazy(() => import('./Components/Dashboard/SearchResults'))
 const Account = lazy(() => import('./Components/Dashboard/Account'))
@@ -182,6 +183,7 @@ function App() {
               <Route path="/Dashboard/Exams" element={<Exams />} />
               <Route path="/Dashboard/Exam/:examId" element={<ExamPlayer />} />
               <Route path="/Dashboard/History" element={<History />} />
+              <Route path="/Dashboard/Graph" element={<NoteGraph />} />
               <Route path="/Dashboard/Chats" element={<Chat />} />
               <Route path="/Dashboard/Chat/:chatId" element={<Chat />} />
               <Route path="/Dashboard/Search" element={<SearchResults />} />

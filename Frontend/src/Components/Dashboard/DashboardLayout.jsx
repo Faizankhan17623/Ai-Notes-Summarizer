@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { FaHome, FaPlus, FaHistory, FaClipboardCheck, FaComments, FaUserCog, FaLink, FaLock, FaSearch, FaCalendarCheck, FaClipboardList } from 'react-icons/fa'
+import { FaHome, FaPlus, FaHistory, FaClipboardCheck, FaComments, FaUserCog, FaLink, FaLock, FaSearch, FaCalendarCheck, FaClipboardList, FaProjectDiagram } from 'react-icons/fa'
 import Navbar from '../Home/Navbar.jsx'
 import AnimatedOutlet from '../extra/AnimatedOutlet.jsx'
 import BannedNotice from './BannedNotice.jsx'
@@ -41,6 +41,7 @@ const navItems = [
     { to: '/Dashboard/New-Summary', label: 'New summary', icon: FaPlus, dataTour: 'new-summary' },
     { to: '/Dashboard/Articles', label: 'Articles', icon: FaLink },
     { to: '/Dashboard/History', label: 'All notes', icon: FaHistory, dataTour: 'history' },
+    { to: '/Dashboard/Graph', label: 'Note graph', icon: FaProjectDiagram },
     { to: '/Dashboard/Search', label: 'Search', icon: FaSearch },
     { to: '/Dashboard/Review', label: 'Review queue', icon: FaClipboardCheck, dataTour: 'review' },
     { to: '/Dashboard/StudyPlan', label: 'Study plan', icon: FaCalendarCheck },

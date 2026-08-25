@@ -20,6 +20,7 @@ const {
     enableShare,
     disableShare,
     getSharedNote,
+    getNoteGraph,
     getRelatedNotes,
     bulkDeleteNotes,
     bulkAddTag,
@@ -40,6 +41,8 @@ route.get('/notes', Auth, blockIfBanned, getNotes)
 route.get('/notes/tags', Auth, blockIfBanned, getTags)
 // pure text-similarity check sir, no AI call — must come before /notes/:noteId too, same ordering reason
 route.get('/notes/check-duplicate', Auth, blockIfBanned, checkDuplicateNote)
+// must come before /notes/:noteId too, same ordering reason as /notes/tags above
+route.get('/notes/graph', Auth, blockIfBanned, getNoteGraph)
 // no aiLimiter sir — this is deliberately NOT an AI call (no Groq request, no credit/feature
 // spend), that's the entire point of import. globalLimiter is the only rate limit that applies.
 // Must come before /notes/:noteId too, same ordering reason as /notes/tags above.

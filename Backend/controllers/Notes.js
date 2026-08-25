@@ -431,6 +431,53 @@ exports.getNote = async (req, res) => {
     }
 }
 
+// only the user's most recent notes go into the graph sir — same idea as
+// DUPLICATE_CHECK_POOL above: bounds the O(n^2) pairwise tag-overlap loop below, and a
+// visualization with thousands of nodes stops being readable long before it stops being fast
+const GRAPH_NODE_LIMIT = 500
+
+// GET /notes/graph — every note as a node, an edge between any two notes that share at least
+// one tag sir. No AI call, no embeddings — reuses the same tag-overlap idea as getRelatedNotes
+// below, just computed once across the whole set instead of "top 5 for this one note".
+// Must be registered before /notes/:noteId in Routes/Notes.js, same ordering reason as
+// /notes/tags — otherwise Express reads "graph" as a noteId.
+exports.getNoteGraph = async (req, res) => {
+    try {
+        const id = req.User.id
+        const notes = await Note.find({ user: id })
+            .select('title tags folder createdAt')
+            .sort({ createdAt: -1 })
+            .limit(GRAPH_NODE_LIMIT)
+
+        const nodes = notes.map((n) => ({
+            id: n._id,
+            title: n.title,
+            folder: n.folder,
+            tagCount: n.tags.length,
+        }))
+
+        const edges = []
+        for (let i = 0; i < notes.length; i++) {
+            for (let j = i + 1; j < notes.length; j++) {
+                const sharedTags = notes[i].tags.filter((t) => notes[j].tags.includes(t))
+                if (sharedTags.length) {
+                    edges.push({
+                        source: notes[i]._id,
+                        target: notes[j]._id,
+                        weight: sharedTags.length,
+                        sharedTags,
+                    })
+                }
+            }
+        }
+
+        return res.status(200).json({ success: true, nodes, edges })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to load the note graph' })
+    }
+}
+
 // GET /notes/:noteId/related — other notes by this user sharing at least one tag sir,
 // ranked by overlap count then recency. No AI call — pure tag overlap, keeps this free
 exports.getRelatedNotes = async (req, res) => {

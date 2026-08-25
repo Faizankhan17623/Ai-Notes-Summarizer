@@ -5,7 +5,7 @@ import { apiConnector, axiosinstance } from "../apiConnector.js"
 import { NotesData } from "../Apis/NotesApi.js"
 import { setAllNotes, setCurrentNote, setTagsAndFolders, setRelatedNotes, setNoteVersions, setLoading, setLoadingLabel } from "../../Slices/notesSlice.js"
 
-const { summarize, allNotes, tags, importNote, singleNote, deleteNote, organizeNote, enableShare, disableShare, sharedNote, exportNote, relatedNotes, editNote, noteVersions, restoreVersion, checkDuplicate, noteLinks } = NotesData
+const { summarize, allNotes, tags, importNote, singleNote, deleteNote, organizeNote, enableShare, disableShare, sharedNote, exportNote, relatedNotes, editNote, noteVersions, restoreVersion, checkDuplicate, noteLinks, noteGraph } = NotesData
 
 // import sir — creates a Note directly, NO AI call, NO credit/feature spend. Pass either
 // { text } or a FormData with a `notes` file field, same payload shape as SummarizeNotes
@@ -143,6 +143,21 @@ export async function CheckDuplicateNote(text, token, signal) {
         if (error.code === 'ERR_CANCELED') return null
         logError("Error checking for duplicate note", error)
         return null
+    }
+}
+
+// page-local sir, same as CheckDuplicateNote above — the Note Graph page is the only place
+// this data is ever needed, so no Redux slice for it, just a plain fetch-and-return
+export async function GetNoteGraph(token) {
+    try {
+        const response = await apiConnector("GET", noteGraph, null, {
+            Authorization: `Bearer ${token}`
+        })
+        if (!response.data.success) throw new Error(response.data.message)
+        return { nodes: response.data.nodes, edges: response.data.edges }
+    } catch (error) {
+        logError("Error fetching note graph", error)
+        return { nodes: [], edges: [] }
     }
 }
 
