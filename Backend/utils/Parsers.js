@@ -3,6 +3,7 @@ const mammoth = require('mammoth')
 const Groq = require('groq-sdk')
 const { toFile } = require('groq-sdk')
 const { validateUploadedFile, validateUploadedAudio } = require('./FileValidation')
+const { assertPublicHttpUrl } = require('./SsrfGuard')
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
@@ -50,6 +51,12 @@ const extractText = async (file) => {
 // don't run a vision model on them (current Groq catalog is text-only), we store them on
 // the Note so the Report page can display them alongside the summary
 const extractFromUrl = async (url) => {
+    // SSRF guard sir — isURL({require_protocol:true}) at the route-validation layer only
+    // checks the URL's *shape*, not where it actually resolves to. Block internal/private/
+    // loopback/link-local targets (e.g. cloud metadata at 169.254.169.254) right before we
+    // hand the URL to Tavily to fetch. See utils/SsrfGuard.js.
+    await assertPublicHttpUrl(url)
+
     const response = await fetch('https://api.tavily.com/extract', {
         method: 'POST',
         headers: {
