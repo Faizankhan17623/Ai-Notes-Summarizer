@@ -57,6 +57,19 @@ const chatLimiter = rateLimit({
     message: tooMany('You are chatting too fast, please wait a minute and try again'),
 })
 
+// payment order-creation sir — no dedicated limiter existed before (only the generous global
+// 300/15min applied), flagged in the 2026-09-02 security audit: unmetered order creation is
+// real API abuse against our Razorpay account plus Payment-row spam in Mongo. /payment/verify
+// doesn't need this one — it's already signature-gated (a forged/replayed signature just fails
+// crypto.timingSafeEqual) — this is specifically for order creation.
+const paymentLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 15,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: tooMany('Too many payment attempts, please try again after 15 minutes'),
+})
+
 // contact form sends a real email too sir — same abuse profile as otpLimiter, same limit
 const contactLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -86,4 +99,4 @@ const visitLimiter = rateLimit({
     message: tooMany('Too many requests, please slow down'),
 })
 
-module.exports = { globalLimiter, authLimiter, otpLimiter, aiLimiter, chatLimiter, contactLimiter, feedbackLimiter, visitLimiter }
+module.exports = { globalLimiter, authLimiter, otpLimiter, aiLimiter, chatLimiter, contactLimiter, feedbackLimiter, visitLimiter, paymentLimiter }
