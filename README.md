@@ -265,8 +265,8 @@ SITE-WIDE / MISC UI
 
 THIRD-PARTY INTEGRATIONS
 - Groq (LLM inference) for summarization/chat/flashcards/quizzes — all calls logged to AiLog for cost monitoring
-  - Current catalog (2026-07): openai/gpt-oss-20b (default, all tiers), + gpt-oss-120b (Pro/ProMax),
-    + qwen/qwen3.6-27b preview (ProMax); whisper-large-v3-turbo for audio transcription
+  - Current catalog (2026-09): openai/gpt-oss-20b (default, all tiers), + gpt-oss-120b (Pro/ProMax),
+    + qwen/qwen3.8-27b preview (ProMax); whisper-large-v3-turbo for audio transcription
   - Groq rotates/retires models — check console.groq.com/docs/deprecations before touching MODEL_CATALOG
   - All prompt inputs capped at ~20k chars to fit the free tier's 8,000 tokens-per-minute limit;
     413/429 from Groq surface as a friendly "wait a minute" message

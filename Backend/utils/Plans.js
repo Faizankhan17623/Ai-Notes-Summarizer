@@ -47,9 +47,12 @@ const CHAT_MESSAGES_PER_CREDIT = 20
 
 // the model each tier is stuck with if they haven't picked (or aren't allowed to pick) sir —
 // the universal fallback, so an invalid/cleared preference never breaks a request.
-// Catalog refreshed 2026-07-19: the old default qwen/qwen3-32b was SHUT DOWN by Groq on
-// 2026-07-17 (deepseek-r1-distill-llama-70b and gemma2-9b-it died back in Oct 2025, and
-// llama-3.1-8b-instant retires 2026-08-16) — every ID below is a current production model
+// Catalog refreshed 2026-09-02: qwen/qwen3.6-27b is DEPRECATED by Groq as of today, being
+// decommissioned 2026-09-14 with requests auto-routed to qwen/qwen3.8-27b after that date —
+// swapped straight to qwen3.8-27b (same 27B size, same family, still free-tier on Groq).
+// (Catalog before that, refreshed 2026-07-19: the old default qwen/qwen3-32b was SHUT DOWN by
+// Groq on 2026-07-17 (deepseek-r1-distill-llama-70b and gemma2-9b-it died back in Oct 2025, and
+// llama-3.1-8b-instant retires 2026-08-16)) — every ID below is a current production model
 // except the clearly-labelled preview. Check console.groq.com/docs/deprecations before
 // adding or swapping any ID here.
 const DEFAULT_MODEL = 'openai/gpt-oss-20b'
@@ -68,7 +71,7 @@ const MODEL_CATALOG = {
     ProMax: [
         { id: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B (default)' },
         { id: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B' },
-        { id: 'qwen/qwen3.6-27b', label: 'Qwen 3.6 27B (preview)' },
+        { id: 'qwen/qwen3.8-27b', label: 'Qwen 3.8 27B (preview)' },
     ],
 }
 
