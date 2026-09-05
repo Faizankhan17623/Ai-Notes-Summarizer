@@ -30,12 +30,14 @@ const { jobFailedEmail } = require('../Templates/JobFailed')
 
 const { runWeeklyDigest } = require('../utils/DigestJob')
 const { runPlanExpiryWarnings } = require('../utils/PlanExpiryJob')
+const { runReminders } = require('../utils/ReminderJob')
 
 // leaseMs must comfortably exceed the job's realistic runtime while staying well under its
 // interval sir
 const JOBS = {
     'weekly-digest': { leaseMs: 15 * 60 * 1000, task: runWeeklyDigest },
     'plan-expiry-warnings': { leaseMs: 10 * 60 * 1000, task: runPlanExpiryWarnings },
+    reminders: { leaseMs: 10 * 60 * 1000, task: runReminders },
 }
 
 // GitHub Actions exposes the run in this shape sir — used to link straight to the failing log
