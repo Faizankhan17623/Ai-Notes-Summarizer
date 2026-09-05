@@ -4,7 +4,7 @@ import { useParams, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'motion/react'
 import { FaClock, FaArrowLeft } from 'react-icons/fa'
-import { GetExam, AttemptExam } from '../../Services/operations/StudyKit.js'
+import { GetExam, AttemptExam, GenerateAdaptivePractice } from '../../Services/operations/StudyKit.js'
 import { setActiveExam } from '../../Slices/studyKitSlice.js'
 import Loading from '../extra/Loading.jsx'
 import { fadeUp, staggerContainer, scaleIn } from '../extra/motionVariants.js'
@@ -24,6 +24,7 @@ const ExamSession = ({ exam, examId, token }) => {
 
     const [answers, setAnswers] = useState(() => Array(exam.questions.length).fill(null))
     const [result, setResult] = useState(() => lastAttempt ? { score: lastAttempt.score, total: lastAttempt.total } : null)
+    const [adaptive, setAdaptive] = useState(null)
     const [secondsLeft, setSecondsLeft] = useState(() => (!lastAttempt && exam.timeLimitSeconds) ? exam.timeLimitSeconds : null)
     const [submitting, setSubmitting] = useState(false)
     const startedAtRef = useRef(null)
@@ -108,6 +109,8 @@ const ExamSession = ({ exam, examId, token }) => {
                     >
                         <p className="text-yellow-50 font-bold text-lg">{result.score} / {result.total}</p>
                         <p className="text-richblack-300 text-sm">correct</p>
+                        <button type="button" onClick={async () => setAdaptive(await dispatch(GenerateAdaptivePractice('exam', examId, token)))} className="mt-3 text-xs text-yellow-50 underline cursor-pointer">Practice my wrong answers</button>
+                        {adaptive?.cards?.length > 0 && <p className="text-good text-xs mt-2">{adaptive.cards.length} targeted cards added to Review.</p>}
                     </motion.div>
                 )}
 

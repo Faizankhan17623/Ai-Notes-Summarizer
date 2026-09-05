@@ -7,6 +7,7 @@ const Quiz = require('../Models/Quiz')
 const Exam = require('../Models/Exam')
 const User = require('../Models/User')
 const StudyPlan = require('../Models/StudyPlan')
+const AdaptiveSession = require('../Models/AdaptiveSession')
 const { ObjectId } = mongoose.Types
 
 const { consumeCredit, getUserPlan, DEFAULT_MODEL } = require('../utils/Plans')
@@ -551,6 +552,35 @@ exports.deleteExam = async (req, res) => {
         console.log(error.message)
         return res.status(500).json({ success: false, message: 'Failed to delete the exam' })
     }
+}
+
+// Creates targeted remediation from the latest wrong answers. One bounded Groq request returns
+// explanations and cards; cards are due immediately so the existing review queue adapts.
+exports.generateAdaptivePractice = async (req, res) => {
+    try {
+        const id = req.User.id; const { sourceType, sourceId } = req.body
+        if (!['quiz', 'exam'].includes(sourceType) || !mongoose.isValidObjectId(sourceId)) return res.status(400).json({ success: false, message: 'A valid quiz or exam is required' })
+        const source = sourceType === 'quiz' ? await Quiz.findOne({ _id: sourceId, user: id }) : await Exam.findOne({ _id: sourceId, user: id })
+        if (!source) return res.status(404).json({ success: false, message: 'Practice attempt not found' })
+        const attempt = sourceType === 'quiz' ? source.lastAttempt : source.attempts?.at(-1)
+        if (!attempt) return res.status(400).json({ success: false, message: 'Complete an attempt first' })
+        const wrong = source.questions.map((q, i) => ({ q, answer: attempt.answers[i] })).filter(x => x.answer !== x.q.correctIndex)
+        if (!wrong.length) return res.json({ success: true, message: 'Excellent work — no weak answers to remediate', cards: [], explanations: [], progress: await AdaptiveSession.find({ user: id }).sort({ createdAt: -1 }).limit(10) })
+        const noteIds = sourceType === 'quiz' ? [source.note] : [...new Set(wrong.map(x => String(x.q.note)))]
+        const notes = await Note.find({ _id: { $in: noteIds }, user: id }).select('title rawText tags')
+        const context = notes.map(n => `${n.title}: ${n.rawText.slice(0, Math.floor(12000 / Math.max(notes.length, 1)))}`).join('\n\n')
+        const prompt = `You are a study tutor. Using ONLY these notes, remediate the incorrectly answered questions. Return JSON only: {"items":[{"question":"...","correctAnswer":"...","explanation":"short explanation grounded in notes","front":"flashcard question","back":"flashcard answer","topic":"one note topic"}]}\nNOTES:\n${context}\nWRONG QUESTIONS:\n${wrong.slice(0, 12).map(x => `Question: ${x.q.question}\nChosen: ${x.q.options[x.answer] || 'not answered'}\nCorrect: ${x.q.options[x.q.correctIndex]}`).join('\n\n')}`
+        const plan = await requirePaidPlan(id, res); if (!plan) return
+        const spend = await consumeCredit(id); if (!spend.ok) return res.status(403).json({ success: false, message: spend.message })
+        const invoking = await groq.chat.completions.create({ messages: [{ role: 'system', content: prompt }, { role: 'user', content: 'Return only JSON.' }], model: spend.model || DEFAULT_MODEL, temperature: 0.2, response_format: { type: 'json_object' } })
+        const parsed = JSON.parse(cleanJson(invoking.choices?.[0]?.message?.content || '{}')); const items = Array.isArray(parsed.items) ? parsed.items.slice(0, 12) : []
+        const cards = await Flashcard.insertMany(items.filter(x => x.front && x.back).map(x => ({ user: id, note: notes.find(n => n.tags?.includes(x.topic))?._id || notes[0]._id, front: String(x.front).slice(0, 500), back: String(x.back).slice(0, 1000), dueDate: new Date() })))
+        const topics = [...new Set(items.map(x => x.topic).filter(Boolean))]
+        const sessions = await AdaptiveSession.create({ user: id, sourceType, source: sourceId, score: attempt.score, total: attempt.total, wrongTopics: topics, cardsCreated: cards.length })
+        const exam = await Exam.findOne({ user: id, schedule: { $elemMatch: { done: false } } })
+        if (exam) { const day = exam.schedule.find(d => !d.done); if (day) { day.task = `Adaptive practice: ${topics.slice(0, 2).join(', ') || 'weak questions'}`; day.minutes = Math.max(day.minutes || 30, 20); await exam.save() } }
+        return res.json({ success: true, cards, explanations: items, topics, progress: await AdaptiveSession.find({ user: id }).sort({ createdAt: -1 }).limit(10), message: `${cards.length} targeted flashcards added to your review queue` })
+    } catch (error) { console.log(error.message); return res.status(500).json({ success: false, message: 'Could not build adaptive practice' }) }
 }
 
 const makeExamSchedule = (exam) => {

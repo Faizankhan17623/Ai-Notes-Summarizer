@@ -27,4 +27,5 @@ export const StudyKitData = {
     todayStudyPlan: BASE_URL + "/study/plan/today",
     toggleStudyPlanItem: BASE_URL + "/study/plan",   // + /:planId/items/:itemId
     examSchedule: BASE_URL + "/study/exams",         // + /:id/schedule
+    adaptivePractice: BASE_URL + "/study/adaptive/generate",
 }

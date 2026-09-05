@@ -10,6 +10,7 @@ const {
     generateQuiz, quizzesForNote, attemptQuiz, deleteQuiz, exportReviewQueue, exportFlashcardDeck, exportQuiz,
     generateExam, exams, exam, attemptExam, deleteExam,
     weakTopics, generateStudyPlan, todayStudyPlan, toggleStudyPlanItem, examSchedule,
+    adaptivePractice,
 } = StudyKitData
 
 // ---------- Flashcards ----------
@@ -440,6 +441,19 @@ export function ToggleExamScheduleItem(examId, date, token) {
             if (!response.data.success) throw new Error(response.data.message)
             return response.data.item
         } catch (error) { toast.error(error?.response?.data?.message || 'Could not update calendar progress'); return null }
+    }
+}
+
+export function GenerateAdaptivePractice(sourceType, sourceId, token) {
+    return async () => {
+        const toastId = toast.loading('Building targeted practice...')
+        try {
+            const response = await apiConnector('POST', adaptivePractice, { sourceType, sourceId }, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success(response.data.message || 'Targeted practice added')
+            return response.data
+        } catch (error) { toast.error(error?.response?.data?.message || 'Could not build targeted practice'); return null }
+        finally { toast.dismiss(toastId) }
     }
 }
 

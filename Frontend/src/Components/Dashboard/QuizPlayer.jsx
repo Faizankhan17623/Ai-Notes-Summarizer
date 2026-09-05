@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { AnimatePresence, motion } from 'motion/react'
-import { AttemptQuiz } from '../../Services/operations/StudyKit.js'
+import { AttemptQuiz, GenerateAdaptivePractice } from '../../Services/operations/StudyKit.js'
 import { fadeUp, staggerContainer, scaleIn } from '../extra/motionVariants.js'
 
 // take-the-quiz view sir — one question at a time, submits all answers together at the end
@@ -10,6 +10,7 @@ const QuizPlayer = ({ quiz }) => {
     const { token } = useSelector((state) => state.auth)
     const [answers, setAnswers] = useState(Array(quiz.questions.length).fill(null))
     const [result, setResult] = useState(quiz.lastAttempt?.total ? quiz.lastAttempt : null)
+    const [adaptive, setAdaptive] = useState(null)
 
     const selectAnswer = (qIndex, optIndex) => {
         if (result) return
@@ -38,6 +39,8 @@ const QuizPlayer = ({ quiz }) => {
                     >
                         <p className="text-yellow-50 font-bold text-lg">{result.score} / {result.total}</p>
                         <p className="text-richblack-300 text-sm">correct</p>
+                        <button type="button" onClick={async () => setAdaptive(await dispatch(GenerateAdaptivePractice('quiz', quiz._id, token)))} className="mt-3 text-xs text-yellow-50 underline cursor-pointer">Practice my wrong answers</button>
+                        {adaptive?.cards?.length > 0 && <p className="text-good text-xs mt-2">{adaptive.cards.length} targeted cards added to Review.</p>}
                     </motion.div>
                 )}
             </AnimatePresence>
