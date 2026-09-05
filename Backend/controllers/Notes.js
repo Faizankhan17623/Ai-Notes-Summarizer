@@ -242,11 +242,15 @@ exports.editNote = async (req, res) => {
             user: id,
             title: note.title,
             rawText: note.rawText,
+            sourcePages: note.sourcePages,
             summary: note.summary,
         })
 
         if (title !== undefined) note.title = String(title).trim().slice(0, 80) || note.title
-        if (rawText !== undefined) note.rawText = String(rawText)
+        if (rawText !== undefined && String(rawText) !== note.rawText) {
+            note.rawText = String(rawText)
+            note.sourcePages = [] // Edited text no longer has reliable PDF page boundaries.
+        }
         if (summary !== undefined) note.summary = summary
         await note.save()
 
@@ -311,10 +315,12 @@ exports.restoreNoteVersion = async (req, res) => {
             user: id,
             title: note.title,
             rawText: note.rawText,
+            sourcePages: note.sourcePages,
             summary: note.summary,
         })
 
         note.title = version.title
+        note.sourcePages = version.sourcePages || []
         note.rawText = version.rawText
         note.summary = version.summary
         await note.save()

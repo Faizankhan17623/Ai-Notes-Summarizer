@@ -3,7 +3,7 @@ import toast from "react-hot-toast"
 import { showAiErrorToast } from "../../utils/creditErrorToast.jsx"
 import { apiConnector } from "../apiConnector.js"
 import { streamChatMessage } from "../streamChat.js"
-import { setAllChats, setCurrentChat, setLoading, setReplying, appendToLastMessage, insertUserMessage } from "../../Slices/chatSlice.js"
+import { finishReply, setAllChats, setCurrentChat, setLoading, setReplying, appendToLastMessage, insertUserMessage } from "../../Slices/chatSlice.js"
 import { store } from "../../store.js"
 import { ChatData } from "../Apis/ChatApi.js"
 
@@ -114,7 +114,7 @@ export function SendMessage(chatId, message, token, currentChat) {
             body: { message },
             token,
             onToken: (chunk) => dispatch(appendToLastMessage({ chatId, chunk })),
-            onDone: () => stopReplyingIfStillCurrent(dispatch, chatId),
+            onDone: (reply, citations) => dispatch(finishReply({ chatId, reply, citations })),
             onError: (error) => {
                 logError("Error sending the message", error)
                 showAiErrorToast(error, "Could not send the message")
@@ -153,7 +153,8 @@ export function SendVoiceMessage(chatId, audioBlob, token, currentChat, onReplyD
             token,
             onTranscript: (text) => dispatch(insertUserMessage({ chatId, text })),
             onToken: (chunk) => dispatch(appendToLastMessage({ chatId, chunk })),
-            onDone: (reply) => {
+            onDone: (reply, citations) => {
+                dispatch(finishReply({ chatId, reply, citations }))
                 stopReplyingIfStillCurrent(dispatch, chatId)
                 onReplyDone?.(reply)
             },

@@ -26,4 +26,5 @@ export const StudyKitData = {
     generateStudyPlan: BASE_URL + "/study/plan/generate",
     todayStudyPlan: BASE_URL + "/study/plan/today",
     toggleStudyPlanItem: BASE_URL + "/study/plan",   // + /:planId/items/:itemId
+    examSchedule: BASE_URL + "/study/exams",         // + /:id/schedule
 }

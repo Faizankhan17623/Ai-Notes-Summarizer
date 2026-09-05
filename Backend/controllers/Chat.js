@@ -10,6 +10,8 @@ const { buildChatSystemPrompt } = require('../utils/Prompts')
 const { logAi } = require('../utils/AdminLog')
 const { extractFromAudio } = require('../utils/Parsers')
 
+const { buildSources, sourceText, citationRules, resolveCitations } = require('../utils/Citations')
+
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 // fallback for how many past messages we replay sir — the real number comes from the user's plan
 const CONTEXT_WINDOW = 10
@@ -19,22 +21,11 @@ const CONTEXT_WINDOW = 10
 // { title, text } sections for a multi-note chat. Same 20k-char combined budget either way,
 // split evenly across notes when there's more than one (same reasoning as generateExam).
 const loadChatGrounding = async (chat) => {
-    if (chat.notes?.length > 0) {
-        const notes = await Note.find({ _id: { $in: chat.notes } }).select('title rawText')
-        if (notes.length === 0) return null
-        const notesById = new Map(notes.map((n) => [String(n._id), n]))
-        const perNoteCap = Math.floor(20000 / chat.notes.length)
-        return chat.notes
-            .map((nid) => notesById.get(String(nid)))
-            .filter(Boolean)
-            .map((n) => ({ title: n.title, text: n.rawText.slice(0, perNoteCap) }))
-    }
-
-    const note = await Note.findById(chat.note)
-    if (!note) return null
-    // 20k-char cap sir — Groq free tier allows 8,000 tokens/min, and notes created before
-    // AI.js's input cap can carry rawText far beyond that
-    return note.rawText.slice(0, 20000)
+    const ids = chat.notes?.length ? chat.notes : [chat.note]
+    const notes = await Note.find({ _id: { $in: ids }, user: chat.user }).select('title rawText sourcePages').lean()
+    const ordered = ids.map(id => notes.find(n => String(n._id) === String(id))).filter(Boolean)
+    const sources = buildSources(ordered)
+    return sources.length ? sources : null
 }
 
 const MAX_MULTI_NOTE_CHAT_NOTES = 10
@@ -62,7 +53,7 @@ const prepareChatCompletion = async (chat, plan, extraUserMessage) => {
     const Messages = [
         {
             role: 'system',
-            content: buildChatSystemPrompt(plan?.key, grounding)
+            content: buildChatSystemPrompt(plan?.key, sourceText(grounding)) + citationRules
         },
         ...history.slice(-contextWindow).map((m) => ({
             role: m.role,
@@ -73,7 +64,7 @@ const prepareChatCompletion = async (chat, plan, extraUserMessage) => {
         Messages.push({ role: 'user', content: extraUserMessage })
     }
 
-    return { Messages }
+    return { Messages, sources: grounding }
 }
 
 // writes one SSE event sir — always {event}\ndata:{json}\n\n so the frontend parser has one shape to handle
@@ -97,7 +88,7 @@ const openSseStream = (res) => {
 // before/after differs, passed in via `applyToChat`. `streamOpen` lets a caller that
 // already opened the SSE stream itself (voice mode, to write a `transcript` event first)
 // skip re-opening it here.
-const streamCompletion = async ({ res, id, chat, plan, Messages, applyToChat, streamOpen = false }) => {
+const streamCompletion = async ({ res, id, chat, plan, Messages, sources, applyToChat, streamOpen = false }) => {
     if (!streamOpen) openSseStream(res)
 
     const t0 = Date.now()
@@ -139,10 +130,13 @@ const streamCompletion = async ({ res, id, chat, plan, Messages, applyToChat, st
         return res.end()
     }
 
+    const resolved = resolveCitations(raw, sources)
+    raw = resolved.content
     applyToChat(raw)
+    chat.messages[chat.messages.length - 1].citations = resolved.citations
     await chat.save()
 
-    writeSseEvent(res, 'done', { reply: raw })
+    writeSseEvent(res, 'done', { reply: raw, citations: resolved.citations })
     return res.end()
 }
 
@@ -293,7 +287,7 @@ exports.sendMessage = async (req, res) => {
         const Messages = [
             {
                 role: 'system',
-                content: buildChatSystemPrompt(plan?.key, grounding)
+                content: buildChatSystemPrompt(plan?.key, sourceText(grounding)) + citationRules
             },
             ...chat.messages.slice(-contextWindow).map((m) => ({
                 role: m.role,
@@ -340,12 +334,15 @@ exports.sendMessage = async (req, res) => {
         raw = raw.trim()
 
         chat.messages.push({ role: 'user', content: message.trim() })
-        chat.messages.push({ role: 'assistant', content: raw })
+        const resolved = resolveCitations(raw, grounding)
+        raw = resolved.content
+        chat.messages.push({ role: 'assistant', content: raw, citations: resolved.citations })
         await chat.save()
 
         return res.status(200).json({
             success: true,
-            reply: raw
+            reply: raw,
+            citations: resolved.citations
         })
     } catch (error) {
         console.log(error)
@@ -412,7 +409,7 @@ exports.regenerateReply = async (req, res) => {
         const Messages = [
             {
                 role: 'system',
-                content: buildChatSystemPrompt(plan?.key, grounding)
+                content: buildChatSystemPrompt(plan?.key, sourceText(grounding)) + citationRules
             },
             ...historyWithoutLastReply.slice(-contextWindow).map((m) => ({
                 role: m.role,
@@ -455,12 +452,15 @@ exports.regenerateReply = async (req, res) => {
         raw = raw.trim()
 
         chat.messages = historyWithoutLastReply
-        chat.messages.push({ role: 'assistant', content: raw })
+        const resolved = resolveCitations(raw, grounding)
+        raw = resolved.content
+        chat.messages.push({ role: 'assistant', content: raw, citations: resolved.citations })
         await chat.save()
 
         return res.status(200).json({
             success: true,
-            reply: raw
+            reply: raw,
+            citations: resolved.citations
         })
     } catch (error) {
         console.log(error)
@@ -499,7 +499,7 @@ exports.sendMessageStream = async (req, res) => {
 
         const plan = await getUserPlan(id)
         const trimmedMessage = message.trim()
-        const { error, Messages } = await prepareChatCompletion(chat, plan, trimmedMessage)
+        const { error, Messages, sources } = await prepareChatCompletion(chat, plan, trimmedMessage)
         if (error) {
             return res.status(404).json({ success: false, message: error })
         }
@@ -510,6 +510,7 @@ exports.sendMessageStream = async (req, res) => {
             chat,
             plan,
             Messages,
+            sources,
             applyToChat: (raw) => {
                 chat.messages.push({ role: 'user', content: trimmedMessage })
                 chat.messages.push({ role: 'assistant', content: raw })
@@ -566,7 +567,7 @@ exports.sendVoiceMessageStream = async (req, res) => {
         }
 
         const plan = await getUserPlan(id)
-        const { error, Messages } = await prepareChatCompletion(chat, plan, transcript)
+        const { error, Messages, sources } = await prepareChatCompletion(chat, plan, transcript)
         if (error) {
             return res.status(404).json({ success: false, message: error })
         }
@@ -580,6 +581,7 @@ exports.sendVoiceMessageStream = async (req, res) => {
             chat,
             plan,
             Messages,
+            sources,
             streamOpen: true,
             applyToChat: (raw) => {
                 chat.messages.push({ role: 'user', content: transcript })
@@ -622,7 +624,7 @@ exports.regenerateReplyStream = async (req, res) => {
         }
 
         const plan = await getUserPlan(id)
-        const { error, Messages } = await prepareChatCompletion(chat, plan, null)
+        const { error, Messages, sources } = await prepareChatCompletion(chat, plan, null)
         if (error) {
             return res.status(404).json({ success: false, message: error })
         }
@@ -635,6 +637,7 @@ exports.regenerateReplyStream = async (req, res) => {
             chat,
             plan,
             Messages,
+            sources,
             applyToChat: (raw) => {
                 chat.messages = historyWithoutLastReply
                 chat.messages.push({ role: 'assistant', content: raw })

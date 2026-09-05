@@ -24,6 +24,9 @@ const {
     generateStudyPlan,
     getTodayStudyPlan,
     toggleStudyPlanItem,
+    getExamSchedule,
+    updateExamSchedule,
+    toggleExamScheduleItem,
 } = require('../controllers/StudyKit.js')
 const { exportReviewQueue, exportFlashcardDeck, exportQuiz } = require('../controllers/Export.js')
 
@@ -56,6 +59,9 @@ route.get('/study/exams', Auth, blockIfBanned, getExams)
 route.get('/study/exams/:id', Auth, blockIfBanned, getExam)
 route.post('/study/exams/:id/attempt', doubleCsrfProtection, attemptExamRules, validate, Auth, blockIfBanned, attemptExam)
 route.delete('/study/exams/:id', doubleCsrfProtection, Auth, blockIfBanned, deleteExam)
+route.get('/study/exams/:id/schedule', Auth, blockIfBanned, getExamSchedule)
+route.put('/study/exams/:id/schedule', doubleCsrfProtection, Auth, blockIfBanned, updateExamSchedule)
+route.patch('/study/exams/:id/schedule/:date', doubleCsrfProtection, Auth, blockIfBanned, toggleExamScheduleItem)
 
 // weak-topic analytics sir — mined from existing flashcard/quiz/exam data, no AI call, no credit spend
 route.get('/study/weak-topics', Auth, blockIfBanned, getWeakTopics)

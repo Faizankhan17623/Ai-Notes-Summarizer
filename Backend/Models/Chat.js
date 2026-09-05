@@ -42,6 +42,12 @@ const chatSchema = new mongoose.Schema(
                     type: String,
                     required: true
                 },
+                // Snapshots preserve the evidence even after a source note is edited.
+                citations: { type: [{
+                    _id: false, id: String, note: mongoose.Schema.ObjectId,
+                    title: String, excerpt: String, start: Number, end: Number,
+                    page: Number, revision: String,
+                }], default: [] },
                 createdAt: {
                     type: Date,
                     default: Date.now

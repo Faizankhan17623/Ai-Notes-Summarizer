@@ -7,6 +7,7 @@ import { FaPaperPlane, FaTrash, FaComments, FaRedo, FaLayerGroup, FaTimes, FaHea
 import Swal from 'sweetalert2'
 import { GetAllChats, GetSingleChat, SendMessage, SendVoiceMessage, RegenerateReply, DeleteChat, CreateChat } from '../../Services/operations/Chat.js'
 import { GetAllNotes } from '../../Services/operations/Notes.js'
+import CitedAnswer from './CitedAnswer.jsx'
 import MicButton from '../extra/MicButton.jsx'
 import VoiceRecordButton from '../extra/VoiceRecordButton.jsx'
 import useTextToSpeech from '../../Hooks/useTextToSpeech.js'
@@ -77,7 +78,7 @@ const Chat = () => {
     const handleVoiceRecorded = useCallback((blob) => {
         if (!chatId) return
         stopSpeaking()
-        dispatch(SendVoiceMessage(chatId, blob, token, currentChat, (reply) => speak(stripMarkdown(reply))))
+        dispatch(SendVoiceMessage(chatId, blob, token, currentChat, (reply) => speak(stripMarkdown(reply).replace(/\[S\d+\]/g, ''))))
     }, [chatId, token, currentChat, dispatch, speak, stopSpeaking])
 
     const handleRegenerate = () => {
@@ -250,7 +251,7 @@ const Chat = () => {
                                                         : 'bg-surface border border-border-soft text-richblack-100'
                                                         }`}
                                                 >
-                                                    {m.role === 'assistant' ? stripMarkdown(m.content) : m.content}
+                                                    {m.role === 'assistant' ? <CitedAnswer content={stripMarkdown(m.content)} citations={m.citations} /> : m.content}
                                                 </div>
                                                 {isLastAssistantReply && !replying && (
                                                     <button

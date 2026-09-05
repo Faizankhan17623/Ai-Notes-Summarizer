@@ -14,6 +14,15 @@ const chatSlice = createSlice({
     name: "chat",
     initialState,
     reducers: {
+        finishReply(state, { payload }) {
+            if (state.currentChat?._id !== payload.chatId) return
+            const last = state.currentChat.messages.at(-1)
+            if (last?.role === 'assistant') {
+                last.content = payload.reply
+                last.citations = payload.citations || []
+            }
+            state.replying = false
+        },
         setAllChats(state, value) {
             state.allChats = value.payload
         },
@@ -54,5 +63,5 @@ const chatSlice = createSlice({
     }
 })
 
-export const { setAllChats, setCurrentChat, setLoading, setReplying, appendToLastMessage, insertUserMessage } = chatSlice.actions
+export const { finishReply, setAllChats, setCurrentChat, setLoading, setReplying, appendToLastMessage, insertUserMessage } = chatSlice.actions
 export default chatSlice.reducer

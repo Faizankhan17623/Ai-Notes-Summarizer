@@ -21,7 +21,7 @@ const DOC_SOURCE_TYPES = new Set(['pdf', 'docx', 'txt'])
 // on any failure so each caller can decide how to report it (500 vs per-item bulk result).
 // `feature` overrides which gate to spend against: 'bulkSummary' when called per-file from
 // bulkSummarize below, otherwise inferred from sourceType (docSummary/audioSummary/shared pool)
-const summarizeExtractedText = async (userId, text, sourceType, feature = null, images = []) => {
+const summarizeExtractedText = async (userId, text, sourceType, feature = null, images = [], sourcePages = []) => {
     // Groq's free tier caps tokens-per-MINUTE at 8,000 for our models sir — a long article
     // can be 11k+ tokens on its own and 413s instantly ("Request too large"). Cap the input
     // at ~20k chars (~5k tokens), leaving room for the system prompt + the JSON completion.
@@ -119,6 +119,7 @@ const summarizeExtractedText = async (userId, text, sourceType, feature = null, 
         title: summary.title,
         sourceType,
         rawText: text,
+        sourcePages: sourcePages.filter(p => p.start < text.length).map(p => ({ ...p, end: Math.min(p.end, text.length) })),
         plan: spend.plan,
         summary,
         tags: suggestedTags,
@@ -143,6 +144,7 @@ exports.Calling = async (req, res) => {
         let text = ''
         let sourceType = 'text'
         let images = []
+        let sourcePages = []
 
         const file = rawFiles
         const audioFile = req.files?.audio
@@ -154,6 +156,7 @@ exports.Calling = async (req, res) => {
                 const extracted = await extractText(file)
                 text = extracted.text
                 sourceType = extracted.sourceType
+                sourcePages = extracted.sourcePages || []
             } catch (parseErr) {
                 return res.status(400).json({
                     success: false,
@@ -204,7 +207,7 @@ exports.Calling = async (req, res) => {
             })
         }
 
-        const { note, summary } = await summarizeExtractedText(id, text, sourceType, null, images)
+        const { note, summary } = await summarizeExtractedText(id, text, sourceType, null, images, sourcePages)
 
         const streakUser = await User.findById(id).select('currentStreak lastStreakDate longestStreak')
         await recordStudyActivity(streakUser, req.User.tzOffsetMinutes)
@@ -256,7 +259,7 @@ exports.bulkSummarize = async (req, res) => {
                     continue
                 }
 
-                const { note, summary } = await summarizeExtractedText(id, extracted.text, extracted.sourceType, 'bulkSummary')
+                const { note, summary } = await summarizeExtractedText(id, extracted.text, extracted.sourceType, 'bulkSummary', [], extracted.sourcePages || [])
                 results.push({ fileName, ok: true, noteId: note._id, title: summary.title })
             } catch (fileErr) {
                 console.log(`Bulk summarize failed for ${fileName}:`, fileErr.message)

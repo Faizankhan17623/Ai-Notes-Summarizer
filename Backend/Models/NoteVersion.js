@@ -28,6 +28,7 @@ const noteVersionSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
+        sourcePages: { type: [{ _id: false, page: Number, start: Number, end: Number }], default: [] },
         summary: {
             type: mongoose.Schema.Types.Mixed,
             required: true,

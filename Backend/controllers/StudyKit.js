@@ -553,6 +553,50 @@ exports.deleteExam = async (req, res) => {
     }
 }
 
+const makeExamSchedule = (exam) => {
+    if (!exam.examDate) return []
+    const start = new Date(exam.prepStartDate || new Date())
+    const end = new Date(exam.examDate)
+    const days = []
+    for (let day = new Date(start); day < end; day.setDate(day.getDate() + 1)) {
+        const index = days.length
+        days.push({ date: day.toISOString().slice(0, 10), minutes: exam.dailyMinutes || 30, note: exam.notes[index % Math.max(exam.notes.length, 1)], task: index % 2 ? 'Practice questions' : 'Review notes', done: false })
+    }
+    return days
+}
+
+exports.getExamSchedule = async (req, res) => {
+    try {
+        const exam = await Exam.findOne({ _id: req.params.id, user: req.User.id }).populate('notes', 'title')
+        if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' })
+        if (!exam.schedule?.length && exam.examDate) { exam.schedule = makeExamSchedule(exam); await exam.save() }
+        return res.json({ success: true, schedule: exam.schedule || [], examDate: exam.examDate, prepStartDate: exam.prepStartDate, dailyMinutes: exam.dailyMinutes })
+    } catch (error) { return res.status(500).json({ success: false, message: 'Failed to load exam schedule' }) }
+}
+
+exports.updateExamSchedule = async (req, res) => {
+    try {
+        const { examDate, prepStartDate, dailyMinutes } = req.body
+        const date = new Date(examDate); const start = prepStartDate ? new Date(prepStartDate) : new Date()
+        if (!examDate || Number.isNaN(date.getTime()) || date <= start) return res.status(400).json({ success: false, message: 'Choose a future exam date after the preparation start date' })
+        const exam = await Exam.findOne({ _id: req.params.id, user: req.User.id }).populate('notes', 'title')
+        if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' })
+        exam.examDate = date; exam.prepStartDate = start; exam.dailyMinutes = Math.min(240, Math.max(10, Number(dailyMinutes) || 30)); exam.schedule = makeExamSchedule(exam); await exam.save()
+        return res.json({ success: true, schedule: exam.schedule, examDate: exam.examDate, prepStartDate: exam.prepStartDate, dailyMinutes: exam.dailyMinutes })
+    } catch (error) { return res.status(500).json({ success: false, message: 'Failed to save exam schedule' }) }
+}
+
+exports.toggleExamScheduleItem = async (req, res) => {
+    try {
+        const exam = await Exam.findOne({ _id: req.params.id, user: req.User.id })
+        if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' })
+        const item = exam.schedule.find(day => day.date === req.params.date)
+        if (!item) return res.status(404).json({ success: false, message: 'Calendar day not found' })
+        item.done = !item.done; await exam.save()
+        return res.json({ success: true, item })
+    } catch (error) { return res.status(500).json({ success: false, message: 'Failed to update calendar progress' }) }
+}
+
 // GET /study/weak-topics — surfaces which of the user's note TAGS they're actually struggling
 // with. The actual computation lives in utils/WeakTopics.js (shared with the weekly AI digest
 // job) sir — mined from data already being recorded (SM-2 ease factor per flashcard, right/wrong

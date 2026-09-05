@@ -9,7 +9,7 @@ const {
     generateFlashcards, flashcardsForNote, dueFlashcards, reviewFlashcard, deleteFlashcard,
     generateQuiz, quizzesForNote, attemptQuiz, deleteQuiz, exportReviewQueue, exportFlashcardDeck, exportQuiz,
     generateExam, exams, exam, attemptExam, deleteExam,
-    weakTopics, generateStudyPlan, todayStudyPlan, toggleStudyPlanItem,
+    weakTopics, generateStudyPlan, todayStudyPlan, toggleStudyPlanItem, examSchedule,
 } = StudyKitData
 
 // ---------- Flashcards ----------
@@ -416,6 +416,30 @@ export function DeleteExam(examId, token, onSettled) {
             toast.dismiss(toastId)
             if (onSettled) onSettled()
         }
+    }
+}
+
+export function SaveExamSchedule(examId, payload, token) {
+    return async () => {
+        try {
+            const response = await apiConnector('PUT', `${examSchedule}/${examId}/schedule`, payload, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success('Exam preparation calendar saved')
+            return response.data
+        } catch (error) {
+            toast.error(error?.response?.data?.message || 'Could not save the calendar')
+            return null
+        }
+    }
+}
+
+export function ToggleExamScheduleItem(examId, date, token) {
+    return async () => {
+        try {
+            const response = await apiConnector('PATCH', `${examSchedule}/${examId}/schedule/${date}`, null, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            return response.data.item
+        } catch (error) { toast.error(error?.response?.data?.message || 'Could not update calendar progress'); return null }
     }
 }
 

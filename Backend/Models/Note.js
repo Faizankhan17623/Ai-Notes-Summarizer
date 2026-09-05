@@ -27,6 +27,7 @@ const noteSchema = new mongoose.Schema(
             type: String,
             required: true
         },
+        sourcePages: { type: [{ _id: false, page: Number, start: Number, end: Number }], default: [] },
         // which plan generated this summary sir — kept so History can show the tier badge
         plan: {
             type: String,

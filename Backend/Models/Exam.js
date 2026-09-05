@@ -29,6 +29,10 @@ const examSchema = new mongoose.Schema(
             type: Number,
             default: null,
         },
+        examDate: { type: Date, default: null, index: true },
+        prepStartDate: { type: Date, default: null },
+        dailyMinutes: { type: Number, default: 30, min: 10, max: 240 },
+        schedule: { type: [{ _id: false, date: String, minutes: Number, task: String, note: mongoose.Schema.ObjectId, done: Boolean }], default: [] },
         questions: [
             {
                 question: { type: String, required: true },

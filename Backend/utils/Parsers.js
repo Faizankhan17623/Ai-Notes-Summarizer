@@ -19,11 +19,20 @@ const extractText = async (file) => {
 
     if (name.endsWith('.pdf')) {
         const parser = new PDFParse({ data: file.data })
-        const result = await parser.getText()
-        if (!result?.text?.trim()) {
-            throw new Error('Could not read any text from that PDF')
+        try {
+            const result = await parser.getText()
+            if (!result?.text?.trim()) throw new Error('Could not read any text from that PDF')
+            let text = ''
+            const sourcePages = []
+            for (const page of result.pages || []) {
+                const start = text.length
+                text += page.text + '\n\n'
+                sourcePages.push({ page: page.num, start, end: text.length })
+            }
+            return { text: text || result.text, sourceType: 'pdf', sourcePages }
+        } finally {
+            await parser.destroy()
         }
-        return { text: result.text, sourceType: 'pdf' }
     }
 
     if (name.endsWith('.docx')) {

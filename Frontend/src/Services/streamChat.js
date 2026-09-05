@@ -64,7 +64,7 @@ export const streamChatMessage = async ({ url, body, token, onToken, onDone, onE
             } else if (eventName === "token") {
                 onToken(payload.token)
             } else if (eventName === "done") {
-                onDone(payload.reply)
+                onDone(payload.reply, payload.citations || [])
                 return
             } else if (eventName === "error") {
                 onError({ response: { status: 502, data: { success: false, message: payload.message } } })
