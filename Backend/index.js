@@ -40,6 +40,7 @@ const admin = require('./Routes/Admin.js')
 const contact = require('./Routes/Contact.js')
 const feedback = require('./Routes/Feedback.js')
 const notification = require('./Routes/Notification.js')
+const studyRoom = require('./Routes/StudyRoom.js')
 const { globalLimiter } = require('./Middlewares/RateLimit.js')
 const { generateCsrfToken, invalidCsrfTokenError } = require('./Middlewares/Csrf.js')
 const { sanitizeBody } = require('./Middlewares/Sanitize.js')
@@ -137,6 +138,7 @@ app.use('/api/v1', admin)
 app.use('/api/v1', contact)
 app.use('/api/v1', feedback)
 app.use('/api/v1', notification)
+app.use('/api/v1/study-rooms', studyRoom)
 
 app.get('/', (req, res) => {
     return res.json({

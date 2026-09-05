@@ -55,6 +55,7 @@ const SharedNote = lazy(() => import('./Components/Dashboard/SharedNote'))
 const Review = lazy(() => import('./Components/Dashboard/Review'))
 const StudyPlan = lazy(() => import('./Components/Dashboard/StudyPlan'))
 const Exams = lazy(() => import('./Components/Dashboard/Exams'))
+const StudyRooms = lazy(() => import('./Components/Dashboard/StudyRooms'))
 const ExamPlayer = lazy(() => import('./Components/Dashboard/ExamPlayer'))
 const History = lazy(() => import('./Components/Dashboard/History'))
 const NoteGraph = lazy(() => import('./Components/Dashboard/NoteGraph'))
@@ -185,6 +186,7 @@ function App() {
               <Route path="/Dashboard/Review" element={<Review />} />
               <Route path="/Dashboard/StudyPlan" element={<StudyPlan />} />
               <Route path="/Dashboard/Exams" element={<Exams />} />
+              <Route path="/Dashboard/StudyRooms" element={<StudyRooms />} />
               <Route path="/Dashboard/Exam/:examId" element={<ExamPlayer />} />
               <Route path="/Dashboard/History" element={<History />} />
               <Route path="/Dashboard/Graph" element={<NoteGraph />} />

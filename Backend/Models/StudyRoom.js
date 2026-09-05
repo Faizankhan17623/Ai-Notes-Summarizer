@@ -1,0 +1,5 @@
+const mongoose = require('mongoose')
+const taskSchema = new mongoose.Schema({ title: { type: String, required: true, maxlength: 160 }, assignee: { type: mongoose.Schema.ObjectId, ref: 'User' }, dueDate: Date, done: { type: Boolean, default: false }, completedBy: mongoose.Schema.ObjectId }, { _id: true })
+const studyRoomSchema = new mongoose.Schema({ name: { type: String, required: true, trim: true, maxlength: 80 }, owner: { type: mongoose.Schema.ObjectId, ref: 'User', required: true }, members: [{ user: { type: mongoose.Schema.ObjectId, ref: 'User' }, role: { type: String, enum: ['owner', 'member'], default: 'member' } }], notes: [{ type: mongoose.Schema.ObjectId, ref: 'Note' }], examDate: Date, tasks: [taskSchema] }, { timestamps: true })
+studyRoomSchema.index({ owner: 1, updatedAt: -1 })
+module.exports = mongoose.model('StudyRoom', studyRoomSchema)
