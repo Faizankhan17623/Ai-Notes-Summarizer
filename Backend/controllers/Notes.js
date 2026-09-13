@@ -1,0 +1,721 @@
+const crypto = require('crypto')
+const mongoose = require('mongoose')
+const Note = require('../Models/Note')
+const Chat = require('../Models/Chat')
+const Flashcard = require('../Models/Flashcard')
+const Quiz = require('../Models/Quiz')
+const User = require('../Models/User')
+const NoteVersion = require('../Models/NoteVersion')
+const { extractText } = require('../utils/Parsers')
+const { getEffectivePlan } = require('../utils/Plans')
+const { shingles, jaccardSimilarity } = require('../utils/Similarity')
+
+// GET /notes — the history list sir, rawText left out to keep the payload light
+// supports ?search=, ?tag=, ?folder=, ?pinned=true as optional filters
+exports.getNotes = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { search, tag, folder, pinned, favorite } = req.query
+
+        const filter = { user: id }
+        if (tag) filter.tags = tag
+        if (folder) filter.folder = folder
+        if (pinned === 'true') filter.pinned = true
+        if (favorite === 'true') filter.favorite = true
+
+        // full-text search sir — hits the { title, rawText } text index on Note,
+        // which also matches the source content behind the summary, not just the title
+        if (search && search.trim()) {
+            filter.$text = { $search: search.trim() }
+        }
+
+        // hard ceiling sir — the frontend still treats this as "the whole list" (History's
+        // select-all, Chat/Exams' note pickers, Dashboard's total-notes tile all assume every
+        // note the user has), so this isn't real pagination, just a backstop against an
+        // unbounded query/payload for the rare account with a huge note history
+        const HARD_LIMIT = 2000
+        let query = Note.find(filter).select('title sourceType plan tags folder pinned favorite createdAt updatedAt').limit(HARD_LIMIT)
+
+        // text-search results are most useful sorted by relevance sir, otherwise pinned-then-newest
+        if (search && search.trim()) {
+            query = query.select({ score: { $meta: 'textScore' } }).sort({ score: { $meta: 'textScore' } })
+        } else {
+            query = query.sort({ pinned: -1, createdAt: -1 })
+        }
+
+        const notes = await query
+
+        return res.status(200).json({
+            success: true,
+            notes
+        })
+    } catch (error) {
+        console.log(error)
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while getting your notes',
+        })
+    }
+}
+
+// GET /notes/tags — every distinct tag the user has used sir, powers the filter dropdown
+exports.getTags = async (req, res) => {
+    try {
+        const id = req.User.id
+        const tags = await Note.distinct('tags', { user: id })
+        const folders = await Note.distinct('folder', { user: id, folder: { $ne: null } })
+        return res.status(200).json({ success: true, tags, folders })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to load tags' })
+    }
+}
+
+// similarity above this is flagged as a likely duplicate sir — tuned by hand: two genuinely
+// different notes on the same topic rarely clear ~0.35 Jaccard over 5-word shingles, but a
+// pasted-again note (even lightly re-formatted) almost always does
+const DUPLICATE_THRESHOLD = 0.35
+// only the user's most recent notes are checked sir — bounds the cost of shingling every
+// comparison note on every debounced keystroke; a near-duplicate of something from months
+// and hundreds of notes ago is a much weaker signal anyway (recency matters for this use case)
+const DUPLICATE_CHECK_POOL = 30
+// no point shingling a one-line fragment sir — too short to mean anything, and avoids
+// flagging e.g. two notes that both start "Meeting notes:" as false-positive duplicates
+const MIN_TEXT_LENGTH_FOR_CHECK = 40
+
+// GET /notes/check-duplicate?text=... sir — pure text-similarity check (Jaccard over 5-word
+// shingles, see utils/Similarity.js), NO AI call, run client-side (debounced) while the user
+// types in New-Summary so they can catch "didn't I already summarize this?" before spending
+// a credit. Advisory only — never blocks the actual /summarize or /notes/import call.
+exports.checkDuplicateNote = async (req, res) => {
+    try {
+        const id = req.User.id
+        const text = (req.query.text || '').toString().slice(0, 20000)
+
+        if (text.trim().length < MIN_TEXT_LENGTH_FOR_CHECK) {
+            return res.status(200).json({ success: true, duplicate: null })
+        }
+
+        const candidates = await Note.find({ user: id })
+            .select('title rawText createdAt')
+            .sort({ createdAt: -1 })
+            .limit(DUPLICATE_CHECK_POOL)
+
+        const targetShingles = shingles(text)
+        let best = null
+        for (const note of candidates) {
+            const score = jaccardSimilarity(targetShingles, shingles(note.rawText))
+            if (score >= DUPLICATE_THRESHOLD && (!best || score > best.score)) {
+                best = { score, noteId: note._id, title: note.title, createdAt: note.createdAt }
+            }
+        }
+
+        return res.status(200).json({ success: true, duplicate: best })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to check for duplicates' })
+    }
+}
+
+// POST /notes/import sir — creates a Note directly from pasted text or an uploaded file,
+// with NO AI call and NO credit/feature-usage spend. This is the entire point of the
+// feature: a way to add a note without touching Groq or the plan's usage caps at all.
+// Reuses extractText (utils/Parsers.js) for file uploads, same as controllers/AI.js's
+// Calling — a .pdf/.docx/.txt import goes through the identical extraction path, just
+// skips the summarize step afterward.
+exports.importNote = async (req, res) => {
+    try {
+        const id = req.User.id
+        const file = req.files?.notes
+        const pastedText = req.body?.text
+
+        let text = ''
+        let sourceType = 'import'
+
+        if (file) {
+            try {
+                const extracted = await extractText(file)
+                text = extracted.text
+            } catch (parseErr) {
+                return res.status(400).json({ success: false, message: parseErr.message })
+            }
+        } else if (pastedText && pastedText.trim()) {
+            text = pastedText.trim()
+        }
+
+        if (!text || !text.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please paste some text or upload a file to import',
+            })
+        }
+
+        // same tier badge as a summarized note would show sir (History page reads note.plan),
+        // even though no credit/feature-usage gate was actually checked here
+        const user = await User.findById(id).select('SubType SubscriptionExpires')
+        const plan = getEffectivePlan(user)
+
+        // title from the first non-empty line sir, same convention as a filename-derived
+        // title would read — falls back to the schema default if the text starts blank
+        const firstLine = text.split('\n').find((line) => line.trim())?.trim().slice(0, 80)
+
+        const note = await Note.create({
+            user: id,
+            title: firstLine || 'Imported note',
+            sourceType,
+            rawText: text,
+            plan: plan.key,
+            // minimal valid shape sir — Note.summary is schema-required, and Report.jsx
+            // already renders keyPoints/sections/keyTerms safely via optional chaining when
+            // they're absent, so this doesn't need to fabricate the full AI-summary shape
+            summary: { title: firstLine || 'Imported note', tldr: '' },
+        })
+
+        return res.status(201).json({ success: true, message: 'Note imported', noteId: note._id })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to import the note' })
+    }
+}
+
+// PATCH /notes/:noteId/organize — set tags/folder/pinned sir, all optional/independent
+exports.organizeNote = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId } = req.params
+        const { tags, folder, pinned, favorite } = req.body
+
+        if (!mongoose.isValidObjectId(noteId)) {
+            return res.status(400).json({ success: false, message: 'Invalid note id' })
+        }
+
+        const update = {}
+        if (tags !== undefined) {
+            if (!Array.isArray(tags)) {
+                return res.status(400).json({ success: false, message: 'Tags must be an array of strings' })
+            }
+            update.tags = tags.map((t) => String(t).trim()).filter(Boolean).slice(0, 20)
+        }
+        if (folder !== undefined) update.folder = folder ? String(folder).trim().slice(0, 60) : null
+        if (pinned !== undefined) update.pinned = Boolean(pinned)
+        if (favorite !== undefined) update.favorite = Boolean(favorite)
+
+        const note = await Note.findOneAndUpdate({ _id: noteId, user: id }, update, { returnDocument: 'after' })
+        if (!note) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        return res.status(200).json({ success: true, note })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to update the note' })
+    }
+}
+
+// PATCH /notes/:noteId/edit sir — the ONLY place a note's content (title/rawText/summary)
+// changes after creation. Snapshots the note's CURRENT state into NoteVersion before
+// overwriting it, so every past state stays recoverable. organizeNote above is deliberately
+// separate and does NOT version — tags/folder/pin/favorite are organization, not content.
+exports.editNote = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId } = req.params
+        const { title, rawText, summary } = req.body
+
+        if (!mongoose.isValidObjectId(noteId)) {
+            return res.status(400).json({ success: false, message: 'Invalid note id' })
+        }
+        if (title === undefined && rawText === undefined && summary === undefined) {
+            return res.status(400).json({ success: false, message: 'Nothing to update' })
+        }
+
+        const note = await Note.findOne({ _id: noteId, user: id })
+        if (!note) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        // snapshot BEFORE overwriting sir — this row is the note's state as it existed up to
+        // this moment, i.e. the version a "restore" back to would bring back
+        await NoteVersion.create({
+            note: note._id,
+            user: id,
+            title: note.title,
+            rawText: note.rawText,
+            sourcePages: note.sourcePages,
+            summary: note.summary,
+        })
+
+        if (title !== undefined) note.title = String(title).trim().slice(0, 80) || note.title
+        if (rawText !== undefined && String(rawText) !== note.rawText) {
+            note.rawText = String(rawText)
+            note.sourcePages = [] // Edited text no longer has reliable PDF page boundaries.
+        }
+        if (summary !== undefined) note.summary = summary
+        await note.save()
+
+        return res.status(200).json({ success: true, note })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to update the note' })
+    }
+}
+
+// GET /notes/:noteId/versions sir — newest first, content omitted (title + timestamp only)
+// to keep the list payload light; the full snapshot is fetched per-version on demand
+exports.getNoteVersions = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId } = req.params
+
+        if (!mongoose.isValidObjectId(noteId)) {
+            return res.status(400).json({ success: false, message: 'Invalid note id' })
+        }
+
+        // ownership check via the live note sir, same pattern as getRelatedNotes — a
+        // NoteVersion carries `user` too, but re-deriving from Note keeps a single source of
+        // truth for "do I own this" rather than trusting the denormalized copy for authorization
+        const note = await Note.findOne({ _id: noteId, user: id }).select('_id')
+        if (!note) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        const versions = await NoteVersion.find({ note: noteId }).select('title createdAt').sort({ createdAt: -1 })
+        return res.status(200).json({ success: true, versions })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to load version history' })
+    }
+}
+
+// POST /notes/:noteId/versions/:versionId/restore sir — restores the note to that past
+// snapshot. Snapshots the CURRENT state first (same as editNote), so restoring is itself
+// undoable — nothing is ever destructively lost, a restore is just another edit.
+exports.restoreNoteVersion = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId, versionId } = req.params
+
+        if (!mongoose.isValidObjectId(noteId) || !mongoose.isValidObjectId(versionId)) {
+            return res.status(400).json({ success: false, message: 'Invalid id' })
+        }
+
+        const note = await Note.findOne({ _id: noteId, user: id })
+        if (!note) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        const version = await NoteVersion.findOne({ _id: versionId, note: noteId })
+        if (!version) {
+            return res.status(404).json({ success: false, message: 'Version not found' })
+        }
+
+        await NoteVersion.create({
+            note: note._id,
+            user: id,
+            title: note.title,
+            rawText: note.rawText,
+            sourcePages: note.sourcePages,
+            summary: note.summary,
+        })
+
+        note.title = version.title
+        note.sourcePages = version.sourcePages || []
+        note.rawText = version.rawText
+        note.summary = version.summary
+        await note.save()
+
+        return res.status(200).json({ success: true, note })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to restore this version' })
+    }
+}
+
+// POST /notes/:noteId/share — turn on a public read-only link sir, generates a fresh shareId if none exists yet
+exports.enableShare = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId } = req.params
+
+        if (!mongoose.isValidObjectId(noteId)) {
+            return res.status(400).json({ success: false, message: 'Invalid note id' })
+        }
+
+        const note = await Note.findOne({ _id: noteId, user: id })
+        if (!note) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        if (!note.shareId) {
+            note.shareId = crypto.randomBytes(12).toString('hex')
+        }
+        note.shareEnabled = true
+        await note.save()
+
+        return res.status(200).json({ success: true, shareId: note.shareId })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to enable sharing' })
+    }
+}
+
+// DELETE /notes/:noteId/share — turn sharing off sir. shareId is kept (not wiped) so re-enabling
+// gives back the SAME link — deliberate: rotating the link is a separate "regenerate" action we don't expose yet
+exports.disableShare = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId } = req.params
+
+        if (!mongoose.isValidObjectId(noteId)) {
+            return res.status(400).json({ success: false, message: 'Invalid note id' })
+        }
+
+        const note = await Note.findOneAndUpdate({ _id: noteId, user: id }, { shareEnabled: false }, { returnDocument: 'after' })
+        if (!note) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        return res.status(200).json({ success: true, message: 'Sharing disabled' })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to disable sharing' })
+    }
+}
+
+// GET /shared/:shareId — PUBLIC, no auth sir. Summary only — never rawText, flashcards, or quiz,
+// since the raw source text and study material can contain more sensitive/personal content than the summary
+exports.getSharedNote = async (req, res) => {
+    try {
+        const { shareId } = req.params
+
+        const note = await Note.findOne({ shareId, shareEnabled: true }).select('title summary plan createdAt')
+        if (!note) {
+            return res.status(404).json({ success: false, message: 'This share link is invalid or has been disabled' })
+        }
+
+        return res.status(200).json({ success: true, note })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to load the shared note' })
+    }
+}
+
+// GET /notes/:noteId — the full note + summary sir
+exports.getNote = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId } = req.params
+
+        if (!mongoose.isValidObjectId(noteId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid note id',
+            })
+        }
+
+        const note = await Note.findOne({ _id: noteId, user: id })
+            .populate('linkedNotes', 'title plan createdAt')
+        if (!note) {
+            return res.status(404).json({
+                success: false,
+                message: 'Note not found',
+            })
+        }
+
+        return res.status(200).json({
+            success: true,
+            note
+        })
+    } catch (error) {
+        console.log(error)
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while getting the note',
+        })
+    }
+}
+
+// only the user's most recent notes go into the graph sir — same idea as
+// DUPLICATE_CHECK_POOL above: bounds the O(n^2) pairwise tag-overlap loop below, and a
+// visualization with thousands of nodes stops being readable long before it stops being fast
+const GRAPH_NODE_LIMIT = 500
+
+// GET /notes/graph — every note as a node, an edge between any two notes that share at least
+// one tag sir. No AI call, no embeddings — reuses the same tag-overlap idea as getRelatedNotes
+// below, just computed once across the whole set instead of "top 5 for this one note".
+// Must be registered before /notes/:noteId in Routes/Notes.js, same ordering reason as
+// /notes/tags — otherwise Express reads "graph" as a noteId.
+exports.getNoteGraph = async (req, res) => {
+    try {
+        const id = req.User.id
+        const notes = await Note.find({ user: id })
+            .select('title tags folder createdAt')
+            .sort({ createdAt: -1 })
+            .limit(GRAPH_NODE_LIMIT)
+
+        const nodes = notes.map((n) => ({
+            id: n._id,
+            title: n.title,
+            folder: n.folder,
+            tagCount: n.tags.length,
+        }))
+
+        const edges = []
+        for (let i = 0; i < notes.length; i++) {
+            for (let j = i + 1; j < notes.length; j++) {
+                const sharedTags = notes[i].tags.filter((t) => notes[j].tags.includes(t))
+                if (sharedTags.length) {
+                    edges.push({
+                        source: notes[i]._id,
+                        target: notes[j]._id,
+                        weight: sharedTags.length,
+                        sharedTags,
+                    })
+                }
+            }
+        }
+
+        return res.status(200).json({ success: true, nodes, edges })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to load the note graph' })
+    }
+}
+
+// GET /notes/:noteId/related — other notes by this user sharing at least one tag sir,
+// ranked by overlap count then recency. No AI call — pure tag overlap, keeps this free
+exports.getRelatedNotes = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId } = req.params
+
+        if (!mongoose.isValidObjectId(noteId)) {
+            return res.status(400).json({ success: false, message: 'Invalid note id' })
+        }
+
+        const note = await Note.findOne({ _id: noteId, user: id }).select('tags')
+        if (!note) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        if (!note.tags.length) {
+            return res.status(200).json({ success: true, notes: [] })
+        }
+
+        const related = await Note.aggregate([
+            {
+                $match: {
+                    user: new mongoose.Types.ObjectId(id),
+                    _id: { $ne: note._id },
+                    tags: { $in: note.tags },
+                },
+            },
+            {
+                $addFields: {
+                    overlap: { $size: { $setIntersection: ['$tags', note.tags] } },
+                },
+            },
+            { $sort: { overlap: -1, createdAt: -1 } },
+            { $limit: 5 },
+            { $project: { title: 1, tags: 1, plan: 1, createdAt: 1, overlap: 1 } },
+        ])
+
+        return res.status(200).json({ success: true, notes: related })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to load related notes' })
+    }
+}
+
+// POST /notes/:noteId/links sir — manual backlink, kept symmetric on both notes so it
+// shows up in the "linked notes" panel from either side, same idea as a wiki backlink
+exports.addNoteLink = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId } = req.params
+        const { targetNoteId } = req.body
+
+        if (!mongoose.isValidObjectId(noteId) || !mongoose.isValidObjectId(targetNoteId)) {
+            return res.status(400).json({ success: false, message: 'Invalid note id' })
+        }
+
+        if (noteId === targetNoteId) {
+            return res.status(400).json({ success: false, message: 'A note cannot be linked to itself' })
+        }
+
+        const [note, target] = await Promise.all([
+            Note.findOne({ _id: noteId, user: id }),
+            Note.findOne({ _id: targetNoteId, user: id }),
+        ])
+        if (!note || !target) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        await Promise.all([
+            Note.updateOne({ _id: note._id }, { $addToSet: { linkedNotes: target._id } }),
+            Note.updateOne({ _id: target._id }, { $addToSet: { linkedNotes: note._id } }),
+        ])
+
+        const updated = await Note.findById(note._id).populate('linkedNotes', 'title plan createdAt')
+        return res.status(200).json({ success: true, message: 'Notes linked', note: updated })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to link notes' })
+    }
+}
+
+// DELETE /notes/:noteId/links/:targetNoteId sir — removes the link from both sides
+exports.removeNoteLink = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId, targetNoteId } = req.params
+
+        if (!mongoose.isValidObjectId(noteId) || !mongoose.isValidObjectId(targetNoteId)) {
+            return res.status(400).json({ success: false, message: 'Invalid note id' })
+        }
+
+        const note = await Note.findOne({ _id: noteId, user: id })
+        if (!note) {
+            return res.status(404).json({ success: false, message: 'Note not found' })
+        }
+
+        await Promise.all([
+            Note.updateOne({ _id: noteId }, { $pull: { linkedNotes: targetNoteId } }),
+            Note.updateOne({ _id: targetNoteId, user: id }, { $pull: { linkedNotes: noteId } }),
+        ])
+
+        const updated = await Note.findById(noteId).populate('linkedNotes', 'title plan createdAt')
+        return res.status(200).json({ success: true, message: 'Link removed', note: updated })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to remove the link' })
+    }
+}
+
+// DELETE /notes/:noteId — remove a note and any chats grounded in it sir
+exports.deleteNote = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteId } = req.params
+
+        if (!mongoose.isValidObjectId(noteId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid note id',
+            })
+        }
+
+        const note = await Note.findOneAndDelete({ _id: noteId, user: id })
+        if (!note) {
+            return res.status(404).json({
+                success: false,
+                message: 'Note not found',
+            })
+        }
+
+        // a note's chats/flashcards/quizzes/versions are meaningless without it sir, clean them all up too
+        const orphanedChats = await Chat.find({ note: note._id }).select('_id')
+        await Promise.all([
+            Chat.deleteMany({ note: note._id }),
+            // multi-note chats sir — just pull this note out rather than deleting the whole
+            // chat, the chat is still meaningful as long as at least one other note remains
+            Chat.updateMany({ notes: note._id }, { $pull: { notes: note._id } }),
+            Flashcard.deleteMany({ note: note._id }),
+            Quiz.deleteMany({ note: note._id }),
+            NoteVersion.deleteMany({ note: note._id }),
+            // pull this note out of every other note's linkedNotes sir, otherwise deleting
+            // a note leaves dangling backlink references on whatever it was linked to
+            Note.updateMany({ linkedNotes: note._id }, { $pull: { linkedNotes: note._id } }),
+        ])
+        await User.findByIdAndUpdate(id, {
+            $pull: {
+                Notes: note._id,
+                Chats: { $in: orphanedChats.map((c) => c._id) }
+            }
+        })
+
+        return res.status(200).json({
+            success: true,
+            message: 'Note deleted successfully',
+        })
+    } catch (error) {
+        console.log(error)
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while deleting the note',
+        })
+    }
+}
+
+// DELETE /notes/bulk sir — loops the exact same single-delete logic above per id (not a
+// bulk Mongo op) so each note's Chat/Flashcard/Quiz cascade and User.Notes/Chats pull still
+// happen correctly; a bad id in the batch is skipped and reported, not a hard failure
+exports.bulkDeleteNotes = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteIds } = req.body
+
+        const deleted = []
+        const failed = []
+        for (const noteId of noteIds) {
+            try {
+                if (!mongoose.isValidObjectId(noteId)) {
+                    failed.push({ noteId, message: 'Invalid note id' })
+                    continue
+                }
+                const note = await Note.findOneAndDelete({ _id: noteId, user: id })
+                if (!note) {
+                    failed.push({ noteId, message: 'Note not found' })
+                    continue
+                }
+                const orphanedChats = await Chat.find({ note: note._id }).select('_id')
+                await Promise.all([
+                    Chat.deleteMany({ note: note._id }),
+                    Chat.updateMany({ notes: note._id }, { $pull: { notes: note._id } }),
+                    Flashcard.deleteMany({ note: note._id }),
+                    Quiz.deleteMany({ note: note._id }),
+                    NoteVersion.deleteMany({ note: note._id }),
+                    Note.updateMany({ linkedNotes: note._id }, { $pull: { linkedNotes: note._id } }),
+                ])
+                await User.findByIdAndUpdate(id, {
+                    $pull: { Notes: note._id, Chats: { $in: orphanedChats.map((c) => c._id) } }
+                })
+                deleted.push(noteId)
+            } catch {
+                failed.push({ noteId, message: 'Failed to delete this note' })
+            }
+        }
+
+        return res.status(200).json({ success: true, message: `Deleted ${deleted.length} of ${noteIds.length} notes`, deleted, failed })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to run the bulk delete' })
+    }
+}
+
+// PATCH /notes/bulk-tag sir — $addToSet, not a full tags replace like organizeNote above,
+// so bulk-adding one tag never touches a note's other existing tags
+exports.bulkAddTag = async (req, res) => {
+    try {
+        const id = req.User.id
+        const { noteIds, tag } = req.body
+
+        const trimmedTag = String(tag).trim().slice(0, 40)
+        if (!trimmedTag) {
+            return res.status(400).json({ success: false, message: 'Tag cannot be empty' })
+        }
+
+        const result = await Note.updateMany(
+            { _id: { $in: noteIds }, user: id },
+            { $addToSet: { tags: trimmedTag } }
+        )
+
+        return res.status(200).json({ success: true, message: `Tagged ${result.modifiedCount} of ${noteIds.length} notes` })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to run the bulk tag update' })
+    }
+}
