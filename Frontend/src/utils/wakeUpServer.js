@@ -1,0 +1,36 @@
+// Render's free tier spins the backend down after ~15 min of no traffic sir, and the next
+// request then eats a 30-60s cold start. So the moment ANYONE lands on the site we fire a
+// tiny ping at /api/v1/status — "hey sir, wake up, we have arrived" — so the server is
+// already booting (or booted) by the time the user actually clicks Login/Summarize/anything.
+//
+// Plain fetch instead of the shared axios instance on purpose sir — no cookies, no CSRF,
+// no 401-refresh interceptor; this must stay a zero-dependency fire-and-forget ping.
+//
+// Using /api/v1/status here, NOT /health sir — ad-blockers (uBlock, Brave Shields) commonly
+// block any request literally named /health, which silently failed this entire retry loop
+// for those visitors. /api/v1/status is the identical check, just parked at a path
+// blocklists don't recognize. Backend/index.js serves both.
+// guarded fallback sir — every other file reading this env var just interpolates it into a
+// string (safely stringifies undefined), but calling .replace() directly on it here means a
+// missing/typo'd VITE_MAIN_BACKEND_URL on some deploy target would throw at MODULE LOAD TIME
+// (App.jsx calls wakeUpServer() unconditionally on every route), breaking the whole app's
+// initial render instead of just letting this one ping fail like the try/catch below expects
+const HEALTH_URL = (import.meta.env.VITE_MAIN_BACKEND_URL || '').replace(/\/?$/, '') + '/status'
+
+const MAX_ATTEMPTS = 4
+const RETRY_DELAY_MS = 5000
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+export async function wakeUpServer() {
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+            const res = await fetch(HEALTH_URL, { cache: 'no-store' })
+            if (res.ok) return true
+        } catch {
+            // cold start in progress or network blip sir — wait and try again
+        }
+        if (attempt < MAX_ATTEMPTS) await sleep(RETRY_DELAY_MS)
+    }
+    return false
+}

@@ -1,0 +1,243 @@
+@import "tailwindcss";
+
+@theme {
+  --color-richblack-5: #f2f1fb;
+  --color-richblack-25: #dcdce6;
+  --color-richblack-100: #b0b1c4;
+  --color-richblack-200: #9a9bb0;
+  --color-richblack-300: #848599;
+  --color-richblack-400: #6f7085;
+  --color-richblack-500: #595a70;
+  --color-richblack-600: #43445a;
+  --color-richblack-700: #2d2e42;
+  --color-richblack-800: #181a2a;
+  --color-richblack-900: #0b0e17;
+
+  --color-yellow-5: #fffaeb;
+  --color-yellow-50: #ffd60a;
+  --color-yellow-100: #e7a113;
+
+  /* secondary brand accent sir — soft violet, used for variety alongside the yellow
+     (secondary badges/buttons, highlights), never replacing yellow as the primary CTA color */
+  --color-violet-200: #ddd6fe;
+  --color-violet-300: #c4b5fd;
+  --color-violet-400: #a78bfa;
+  --color-violet-500: #8b6ef2;
+
+  --color-caribbeangreen-100: #d2fdec;
+  --color-caribbeangreen-200: #a5fad9;
+  --color-caribbeangreen-300: #79f9c8;
+  --color-caribbeangreen-400: #4bf7b7;
+  --color-caribbeangreen-800: #06a06a;
+
+  --color-pink-200: #ffadce;
+
+  /* lifted-surface tokens sir — cards sit on a surface distinct from the page background,
+     not just an outline on top of it */
+  --color-surface: #12151f;
+  --color-surface-raised: #171b28;
+  --color-surface-hover: #1c2130;
+  --color-border-soft: #1f2433;
+
+  /* status colors sir — distinct from the yellow accent, used only for state (review
+     urgency, success/warning/danger), never as a second brand color */
+  --color-good: #4bd39c;
+  --color-warn: #ffb454;
+  --color-danger-soft: #ff8fa3;
+
+  /* chart series colors sir — the brand accents (yellow/violet/green above) are tuned bright
+     for buttons/badges and fail the chart-series lightness band, so Admin/Analytics charts use
+     these instead: validated via the dataviz skill's validate_palette.js against this exact
+     dark surface (#12151f), one hue per single-series chart (revenue/signups/topups) */
+  --color-chart-1: #3987e5;
+  --color-chart-2: #008300;
+  --color-chart-3: #9085e9;
+
+  /* --font-sans used to reference 'Inter', which was never actually loaded anywhere (no
+     link tag, no @font-face) sir — it was silently falling back to system-ui this whole
+     time. Making that fallback the honest default instead of a broken promise. Fraunces is
+     a new display font for headings only, loaded for real via the @font-face rules below */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+}
+
+@font-face {
+  font-family: 'Fraunces';
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/fraunces-light.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/fraunces-semibold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/jbmono-regular.woff2') format('woff2');
+}
+
+/* light theme sir — redefines the same tokens rather than inverting per-component, so every
+   existing bg-richblack-900/text-yellow-50/etc. class switches automatically. Warm-neutral
+   ground (not stark white) to match the dark theme's warm-navy feel, yellow deepened to gold
+   so it stays legible on a light surface instead of washing out */
+:root[data-theme="light"] {
+  --color-richblack-5: #1c1d22;
+  --color-richblack-25: #2a2b31;
+  --color-richblack-100: #3d3f47;
+  --color-richblack-200: #53555e;
+  --color-richblack-300: #6b6d78;
+  --color-richblack-400: #83858f;
+  --color-richblack-500: #9a9ca5;
+  --color-richblack-600: #b3b5bc;
+  --color-richblack-700: #d8d6cd;
+  --color-richblack-800: #ece9e1;
+  --color-richblack-900: #faf9f6;
+
+  --color-yellow-50: #b8860a;
+  --color-yellow-100: #96690a;
+
+  --color-violet-200: #ede9fe;
+  --color-violet-300: #ddd0fc;
+  --color-violet-400: #7c5cd6;
+  --color-violet-500: #6845c4;
+
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-hover: #f3f1ec;
+  --color-border-soft: #e4e1d8;
+
+  --color-good: #1f8f68;
+  --color-warn: #b8720a;
+  --color-danger-soft: #c2415a;
+
+  /* same chart series tokens, re-stepped for the light surface (#ffffff) sir — validated
+     via the dataviz skill's validate_palette.js */
+  --color-chart-1: #2a78d6;
+  --color-chart-2: #008300;
+  --color-chart-3: #4a3aa7;
+}
+
+body {
+  background-color: var(--color-richblack-900);
+  color: var(--color-richblack-25);
+  font-family: var(--font-sans);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* theme-switch fade sir — every element's color/background/border reads from the
+   --color-* tokens redefined under :root[data-theme="light"] above, so flipping the
+   attribute recomputes them everywhere at once. Without this they'd all snap instantly;
+   this makes that recompute animate instead. Scoped to just the color-ish properties (not
+   `transition: all`) so it can't fight layout/transform transitions components already use
+   (e.g. hover scales, the fade-in-up entrance above) — those keep their own timing. */
+* {
+  transition: background-color 0.6s ease, border-color 0.6s ease, color 0.6s ease, fill 0.6s ease, stroke 0.6s ease;
+}
+
+/* shared entrance animation sir — used by dashboard-style cards/rows (Admin/Payments etc.)
+   that fade+rise in on mount, each element offsetting via inline --delay for a stagger */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.45s ease both;
+  animation-delay: var(--delay, 0s);
+}
+
+/* theme toggle icon swap sir — both icons are always mounted (see Navbar.jsx) and cross-fade:
+   the outgoing one rotates+shrinks+fades out while the incoming one rotates+grows+fades in,
+   so the swap reads as one continuous motion instead of an instant snap or a mount-only fade */
+@keyframes theme-icon-out {
+  from { opacity: 1; transform: rotate(0deg) scale(1); }
+  to { opacity: 0; transform: rotate(90deg) scale(0.4); }
+}
+@keyframes theme-icon-in {
+  from { opacity: 0; transform: rotate(-90deg) scale(0.4); }
+  to { opacity: 1; transform: rotate(0deg) scale(1); }
+}
+.animate-theme-icon-out {
+  animation: theme-icon-out 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.animate-theme-icon-in {
+  animation: theme-icon-in 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Pricing page glitter sir — a soft diagonal light sweep across the Recommended plan card
+   (see Pricing.jsx), looping slowly so it reads as a subtle shine rather than a distracting
+   flash. Layered on an ::after so it never fights the card's own border/hover-lift transform. */
+@keyframes shimmer-sweep {
+  0% { transform: translateX(-150%) rotate(8deg); }
+  100% { transform: translateX(150%) rotate(8deg); }
+}
+.animate-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: -20% -60%;
+  background: linear-gradient(100deg, transparent 40%, rgba(255, 214, 10, 0.16) 50%, transparent 60%);
+  animation: shimmer-sweep 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* soft ambient glow behind the Recommended card sir — a blurred yellow blob that pulses
+   gently, distinct from the shimmer sweep above (that's a moving highlight, this is a
+   stationary glow) so the two read as one cohesive "premium" treatment rather than clutter */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.05); }
+}
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* global keyboard-focus fallback sir — most inputs/buttons already swap border-color on
+   focus (focus:border-yellow-50 etc.), but plenty of icon-only buttons and links don't style
+   focus at all, and with outline-none used liberally across the app there was otherwise NO
+   visible focus indicator for keyboard users on those elements. Scoped to :focus-visible
+   (keyboard/programmatic focus only, not every mouse click) so it doesn't add a ring on
+   every click the way a plain :focus rule would. */
+:focus-visible {
+  outline: 2px solid var(--color-yellow-50);
+  outline-offset: 2px;
+}
+
+/* thin scrollbar sir — default browser scrollbars (esp. Chrome/Edge on Windows) render ~15px
+   wide, which looks oversized on narrow panels like the dashboard sidebar. Firefox reads the
+   `scrollbar-width`/`scrollbar-color` properties; WebKit/Chromium needs the ::-webkit- rules.
+   Applied globally on html (the page-level scrollbar every route uses, incl. Note Graph) as
+   well as via the .scrollbar-thin utility for scoped scroll containers like the sidebar. */
+html,
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-soft) transparent;
+}
+html::-webkit-scrollbar,
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+html::-webkit-scrollbar-track,
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb,
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-soft);
+  border-radius: 9999px;
+}
+html::-webkit-scrollbar-thumb:hover,
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-richblack-600);
+}
