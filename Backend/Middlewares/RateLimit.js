@@ -1,0 +1,102 @@
+const rateLimit = require('express-rate-limit')
+
+// all the rate limiters live here sir — tune the numbers ONLY here
+// every limiter sends the standard RateLimit headers so the frontend can show "try again in X"
+
+// a common 429 reply shape matching the rest of our API sir
+const tooMany = (message) => ({
+    success: false,
+    message,
+})
+
+// global safety net sir — generous, only stops floods/scrapers, never a real user
+const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: tooMany('Too many requests, please slow down and try again in a few minutes'),
+})
+
+// login/signup brute-force protection sir — 20 tries per 15 min per IP
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: tooMany('Too many login attempts, please try again after 15 minutes'),
+})
+
+// OTP is the most abusable route (it sends real emails) sir — keep this one tight
+const otpLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: tooMany('Too many OTP requests, please try again after 15 minutes'),
+})
+
+// AI routes burn Groq tokens and credits sir — 10 calls per minute per IP is plenty for a human
+const aiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: tooMany('You are sending requests too fast, please wait a minute and try again'),
+})
+
+// plain-text chat message/regenerate sir — now also metered by consumeChatMessage (a
+// per-cycle feature cap + one shared credit every 20 messages, see utils/Plans.js), but
+// that alone doesn't stop a short burst of rapid-fire messages within the cycle window, so
+// this sits tighter than the general aiLimiter specifically on the chat-turn routes
+const chatLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 6,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: tooMany('You are chatting too fast, please wait a minute and try again'),
+})
+
+// payment order-creation sir — no dedicated limiter existed before (only the generous global
+// 300/15min applied), flagged in the 2026-09-02 security audit: unmetered order creation is
+// real API abuse against our Razorpay account plus Payment-row spam in Mongo. /payment/verify
+// doesn't need this one — it's already signature-gated (a forged/replayed signature just fails
+// crypto.timingSafeEqual) — this is specifically for order creation.
+const paymentLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 15,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: tooMany('Too many payment attempts, please try again after 15 minutes'),
+})
+
+// contact form sends a real email too sir — same abuse profile as otpLimiter, same limit
+const contactLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: tooMany('Too many messages sent, please try again after 15 minutes'),
+})
+
+// bug/feature reports sir — same abuse profile as contactLimiter (real email, now also a
+// Cloudinary upload), same limit
+const feedbackLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: tooMany('Too many reports submitted, please try again after 15 minutes'),
+})
+
+// visit pings are cheap (one Mongo insert, no email/AI cost) but public and fired on every
+// navigation sir — generous enough for real browsing, still a ceiling against a scripted flood
+const visitLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: tooMany('Too many requests, please slow down'),
+})
+
+module.exports = { globalLimiter, authLimiter, otpLimiter, aiLimiter, chatLimiter, contactLimiter, feedbackLimiter, visitLimiter, paymentLimiter }
