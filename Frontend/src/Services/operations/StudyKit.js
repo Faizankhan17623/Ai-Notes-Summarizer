@@ -1,0 +1,543 @@
+import { logError } from "../../utils/logError.js"
+import toast from "react-hot-toast"
+import { showAiErrorToast } from "../../utils/creditErrorToast.jsx"
+import { apiConnector, axiosinstance } from "../apiConnector.js"
+import { StudyKitData } from "../Apis/StudyKitApi.js"
+import { setFlashcards, setDueFlashcards, setQuizzes, setActiveQuiz, setExams, setActiveExam, setWeakTopics, setStudyPlan, setPlanLoading, setLoading } from "../../Slices/studyKitSlice.js"
+
+const {
+    generateFlashcards, flashcardsForNote, dueFlashcards, reviewFlashcard, deleteFlashcard,
+    generateQuiz, quizzesForNote, attemptQuiz, deleteQuiz, exportReviewQueue, exportFlashcardDeck, exportQuiz,
+    generateExam, exams, exam, attemptExam, deleteExam,
+    weakTopics, generateStudyPlan, todayStudyPlan, toggleStudyPlanItem, examSchedule,
+    adaptivePractice,
+} = StudyKitData
+
+// ---------- Flashcards ----------
+
+export function GenerateFlashcards(noteId, count, token) {
+    return async (dispatch) => {
+        dispatch(setLoading(true))
+        const toastId = toast.loading("Generating flashcards...")
+        try {
+            const response = await apiConnector("POST", `${generateFlashcards}/${noteId}/flashcards`, { count }, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            toast.success(`${response.data.flashcards.length} flashcards generated`)
+            dispatch(GetFlashcardsForNote(noteId, token))
+        } catch (error) {
+            logError("Error generating flashcards", error)
+            showAiErrorToast(error, "Could not generate flashcards")
+        } finally {
+            dispatch(setLoading(false))
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+export function GetFlashcardsForNote(noteId, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", `${flashcardsForNote}/${noteId}/flashcards`, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            dispatch(setFlashcards(response.data.flashcards))
+        } catch (error) {
+            logError("Error fetching flashcards", error)
+        }
+    }
+}
+
+export function GetDueFlashcards(token) {
+    return async (dispatch) => {
+        dispatch(setLoading(true))
+        try {
+            const response = await apiConnector("GET", dueFlashcards, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            dispatch(setDueFlashcards(response.data.flashcards))
+        } catch (error) {
+            logError("Error fetching due flashcards", error)
+        } finally {
+            dispatch(setLoading(false))
+        }
+    }
+}
+
+// rating is 'again' | 'hard' | 'good' | 'easy' sir
+export function ReviewFlashcard(cardId, rating, token) {
+    return async (dispatch, getState) => {
+        try {
+            const response = await apiConnector("POST", `${reviewFlashcard}/${cardId}/review`, { rating }, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            // pull the just-reviewed card out of the due queue so the review session moves on sir
+            const remaining = getState().studyKit.dueFlashcards.filter((c) => c._id !== cardId)
+            dispatch(setDueFlashcards(remaining))
+        } catch (error) {
+            logError("Error reviewing flashcard", error)
+            toast.error(error?.response?.data?.message || "Could not record the review")
+        }
+    }
+}
+
+export function DeleteFlashcard(cardId, noteId, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Deleting flashcard...")
+        try {
+            const response = await apiConnector("DELETE", `${deleteFlashcard}/${cardId}`, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            toast.success("Flashcard deleted")
+            dispatch(GetFlashcardsForNote(noteId, token))
+        } catch (error) {
+            logError("Error deleting flashcard", error)
+            toast.error(error?.response?.data?.message || "Could not delete the flashcard")
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+// downloads the whole due-flashcard review queue as a PDF study sheet sir — same blob/object-URL
+// pattern already used by ExportNote in Services/operations/Notes.js
+export function ExportReviewQueue(token) {
+    return async () => {
+        const toastId = toast.loading("Preparing your review queue PDF...")
+        try {
+            const response = await axiosinstance({
+                method: 'GET',
+                url: exportReviewQueue,
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: 'blob',
+            })
+
+            const url = window.URL.createObjectURL(new Blob([response.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', 'review-queue.pdf')
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+
+            toast.success('Export ready')
+        } catch (error) {
+            logError("Error exporting the review queue", error)
+            toast.error("Could not export the review queue")
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+// downloads every flashcard for ONE note as a printable deck PDF sir — same blob/object-URL
+// pattern as ExportReviewQueue above, but scoped to a single note regardless of due date
+export function ExportFlashcardDeck(noteId, title, token) {
+    return async () => {
+        const toastId = toast.loading("Preparing your flashcard deck PDF...")
+        try {
+            const response = await axiosinstance({
+                method: 'GET',
+                url: `${exportFlashcardDeck}/${noteId}/flashcards/export`,
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: 'blob',
+            })
+
+            const url = window.URL.createObjectURL(new Blob([response.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', `${title || 'deck'}-flashcards.pdf`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+
+            toast.success('Export ready')
+        } catch (error) {
+            logError("Error exporting the flashcard deck", error)
+            toast.error(error?.response?.data?.message || "Could not export the flashcard deck")
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+// ---------- Quiz ----------
+
+export function GenerateQuiz(noteId, count, token) {
+    return async (dispatch) => {
+        dispatch(setLoading(true))
+        const toastId = toast.loading("Generating quiz...")
+        try {
+            const response = await apiConnector("POST", `${generateQuiz}/${noteId}/quiz`, { count }, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            toast.success("Quiz ready")
+            dispatch(setActiveQuiz(response.data.quiz))
+            dispatch(GetQuizzesForNote(noteId, token))
+        } catch (error) {
+            logError("Error generating quiz", error)
+            showAiErrorToast(error, "Could not generate the quiz")
+        } finally {
+            dispatch(setLoading(false))
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+export function GetQuizzesForNote(noteId, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", `${quizzesForNote}/${noteId}/quizzes`, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            dispatch(setQuizzes(response.data.quizzes))
+        } catch (error) {
+            logError("Error fetching quizzes", error)
+        }
+    }
+}
+
+export function AttemptQuiz(quizId, answers, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("POST", `${attemptQuiz}/${quizId}/attempt`, { answers }, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            dispatch(setActiveQuiz(response.data.quiz))
+            return response.data
+        } catch (error) {
+            logError("Error submitting quiz attempt", error)
+            toast.error(error?.response?.data?.message || "Could not submit your answers")
+            return null
+        }
+    }
+}
+
+// downloads one quiz as a printable question sheet + answer key PDF sir — same blob/object-URL
+// pattern as ExportReviewQueue/ExportFlashcardDeck above
+export function ExportQuiz(quizId, title, token) {
+    return async () => {
+        const toastId = toast.loading("Preparing your quiz PDF...")
+        try {
+            const response = await axiosinstance({
+                method: 'GET',
+                url: `${exportQuiz}/${quizId}/export`,
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: 'blob',
+            })
+
+            const url = window.URL.createObjectURL(new Blob([response.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', `${title || 'quiz'}-quiz.pdf`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+
+            toast.success('Export ready')
+        } catch (error) {
+            logError("Error exporting the quiz", error)
+            toast.error(error?.response?.data?.message || "Could not export the quiz")
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+export function DeleteQuiz(quizId, noteId, token) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Deleting quiz...")
+        try {
+            const response = await apiConnector("DELETE", `${deleteQuiz}/${quizId}`, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            toast.success("Quiz deleted")
+            dispatch(GetQuizzesForNote(noteId, token))
+        } catch (error) {
+            logError("Error deleting quiz", error)
+            toast.error(error?.response?.data?.message || "Could not delete the quiz")
+        } finally {
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+// ---------- Practice exams ----------
+
+// spans multiple notes sir — payload is { noteIds, count?, timeLimitSeconds? }
+export function GenerateExam(payload, token, navigate) {
+    return async (dispatch) => {
+        dispatch(setLoading(true))
+        const toastId = toast.loading("Building your practice exam...")
+        try {
+            const response = await apiConnector("POST", generateExam, payload, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            toast.success("Exam ready")
+            dispatch(setActiveExam(response.data.exam))
+            if (navigate) navigate(`/Dashboard/Exam/${response.data.exam._id}`)
+            return response.data.exam
+        } catch (error) {
+            logError("Error generating exam", error)
+            showAiErrorToast(error, "Could not generate the exam")
+            return null
+        } finally {
+            dispatch(setLoading(false))
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+export function GetExams(token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", exams, null, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setExams(response.data.exams))
+        } catch (error) {
+            logError("Error fetching exams", error)
+        }
+    }
+}
+
+export function GetExam(examId, token) {
+    return async (dispatch) => {
+        dispatch(setLoading(true))
+        try {
+            const response = await apiConnector("GET", `${exam}/${examId}`, null, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setActiveExam(response.data.exam))
+        } catch (error) {
+            logError("Error fetching exam", error)
+            toast.error(error?.response?.data?.message || "Could not load that exam")
+        } finally {
+            dispatch(setLoading(false))
+        }
+    }
+}
+
+// durationSeconds is optional — actual wall-clock time spent, separate from the exam's
+// offered timeLimitSeconds sir
+export function AttemptExam(examId, answers, durationSeconds, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("POST", `${attemptExam}/${examId}/attempt`, { answers, durationSeconds }, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            dispatch(setActiveExam(response.data.exam))
+            return response.data
+        } catch (error) {
+            logError("Error submitting exam attempt", error)
+            toast.error(error?.response?.data?.message || "Could not submit your answers")
+            return null
+        }
+    }
+}
+
+export function DeleteExam(examId, token, onSettled) {
+    return async (dispatch) => {
+        const toastId = toast.loading("Deleting exam...")
+        try {
+            const response = await apiConnector("DELETE", `${deleteExam}/${examId}`, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            toast.success("Exam deleted")
+            dispatch(GetExams(token))
+        } catch (error) {
+            logError("Error deleting exam", error)
+            toast.error(error?.response?.data?.message || "Could not delete the exam")
+        } finally {
+            toast.dismiss(toastId)
+            if (onSettled) onSettled()
+        }
+    }
+}
+
+export function SaveExamSchedule(examId, payload, token) {
+    return async () => {
+        try {
+            const response = await apiConnector('PUT', `${examSchedule}/${examId}/schedule`, payload, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success('Exam preparation calendar saved')
+            return response.data
+        } catch (error) {
+            toast.error(error?.response?.data?.message || 'Could not save the calendar')
+            return null
+        }
+    }
+}
+
+export function ToggleExamScheduleItem(examId, date, token) {
+    return async () => {
+        try {
+            const response = await apiConnector('PATCH', `${examSchedule}/${examId}/schedule/${date}`, null, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            return response.data.item
+        } catch (error) { toast.error(error?.response?.data?.message || 'Could not update calendar progress'); return null }
+    }
+}
+
+export function GenerateAdaptivePractice(sourceType, sourceId, token) {
+    return async () => {
+        const toastId = toast.loading('Building targeted practice...')
+        try {
+            const response = await apiConnector('POST', adaptivePractice, { sourceType, sourceId }, { Authorization: `Bearer ${token}` })
+            if (!response.data.success) throw new Error(response.data.message)
+            toast.success(response.data.message || 'Targeted practice added')
+            return response.data
+        } catch (error) { toast.error(error?.response?.data?.message || 'Could not build targeted practice'); return null }
+        finally { toast.dismiss(toastId) }
+    }
+}
+
+// ---------- Weak-topic analytics ----------
+
+// mined from existing flashcard ease/quiz answer data sir, no AI call — quiet failure like
+// AnalyticsWidget's GetMyAnalytics, this is a nice-to-have dashboard widget, not worth a toast
+export function GetWeakTopics(token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", weakTopics, null, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setWeakTopics(response.data.weakTopics))
+        } catch (error) {
+            logError("Error fetching weak topics", error)
+        }
+    }
+}
+
+// ---------- AI study plan ----------
+
+// quiet on load sir — same "no toast" treatment as GetWeakTopics/GetMyAnalytics, this just
+// checks whether today's plan already exists so the page can show it without user action
+export function GetTodayStudyPlan(token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("GET", todayStudyPlan, null, {
+                Authorization: `Bearer ${token}`
+            })
+            if (!response.data.success) throw new Error(response.data.message)
+            dispatch(setStudyPlan(response.data.plan))
+        } catch (error) {
+            logError("Error fetching today's study plan", error)
+        }
+    }
+}
+
+// user-triggered sir — costs a credit, so this DOES toast like GenerateFlashcards/GenerateQuiz
+export function GenerateStudyPlan(token) {
+    return async (dispatch) => {
+        dispatch(setPlanLoading(true))
+        const toastId = toast.loading("Building your study plan...")
+        try {
+            const response = await apiConnector("POST", generateStudyPlan, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            if (!response.data.plan) {
+                toast(response.data.message || "Nothing due today")
+            } else {
+                dispatch(setStudyPlan(response.data.plan))
+                if (!response.data.reused) toast.success("Your study plan is ready")
+            }
+        } catch (error) {
+            logError("Error generating the study plan", error)
+            showAiErrorToast(error, "Could not build your study plan")
+        } finally {
+            dispatch(setPlanLoading(false))
+            toast.dismiss(toastId)
+        }
+    }
+}
+
+export function ToggleStudyPlanItem(planId, itemId, token) {
+    return async (dispatch) => {
+        try {
+            const response = await apiConnector("PATCH", `${toggleStudyPlanItem}/${planId}/items/${itemId}`, null, {
+                Authorization: `Bearer ${token}`
+            })
+
+            if (!response.data.success) {
+                throw new Error(response.data.message)
+            }
+
+            dispatch(setStudyPlan(response.data.plan))
+        } catch (error) {
+            logError("Error updating the study plan item", error)
+            toast.error(error?.response?.data?.message || "Could not update that item")
+        }
+    }
+}

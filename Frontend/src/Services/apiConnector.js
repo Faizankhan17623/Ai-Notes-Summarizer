@@ -1,0 +1,130 @@
+import axios from "axios"
+import { store } from "../store.js"
+import { setToken, setSessionChecked } from "../Slices/authSlice.js"
+
+// withCredentials so the httpOnly auth cookie flows sir
+export const axiosinstance = axios.create({
+    withCredentials: true
+})
+
+// CSRF token lives in memory only sir — fetched once on app load (and again after login)
+// via GET /csrf-token, then echoed back on every state-changing request via this header
+let csrfToken = null
+export const setCsrfToken = (t) => { csrfToken = t }
+// exposed for the raw-fetch SSE stream helper sir (streamChat.js) — axios requests get this
+// stamped on automatically by the interceptor below, but a plain fetch() call needs it directly
+export const getCsrfToken = () => csrfToken
+
+axiosinstance.interceptors.request.use((config) => {
+    if (csrfToken && config.method?.toLowerCase() !== 'get') {
+        config.headers['x-csrf-token'] = csrfToken
+    }
+    // tells the backend what "today" means for this user (streaks, daily study plan,
+    // dashboard "today" stats — see Backend/Middlewares/Auth.js) sir, same sign convention
+    // as Date.getTimezoneOffset() itself. Harmless to send on every request; the backend
+    // just falls back to UTC if it's ever missing.
+    config.headers['x-tz-offset'] = new Date().getTimezoneOffset()
+    return config
+})
+
+// silent refresh sir — the access token now lives only 1 hour (used to be 7 days), so this
+// catches the resulting 401, mints a new access token via the httpOnly refresh cookie, and
+// retries the original request once. No changes needed in any of the operation files — they
+// all flow through this same shared axios instance
+let refreshPromise = null
+
+// same single-flight idea as refreshPromise above sir — without this, a burst of concurrent
+// state-changing requests that all hit a stale CSRF token at once (e.g. right after a session
+// change) would each independently fire their own GET /csrf-token instead of sharing one
+let csrfFetchPromise = null
+const fetchFreshCsrfToken = () => {
+    if (!csrfFetchPromise) {
+        csrfFetchPromise = axiosinstance
+            .get(`${import.meta.env.VITE_MAIN_BACKEND_URL}/csrf-token`)
+            .finally(() => { csrfFetchPromise = null })
+    }
+    return csrfFetchPromise
+}
+
+axiosinstance.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const original = error.config
+        const status = error.response?.status
+        const isAuthRoute = original?.url?.includes('/Login') || original?.url?.includes('/refresh-token')
+
+        // CSRF self-heal sir — a 403 "Invalid or missing CSRF token" means our in-memory
+        // token is stale (login/refresh changed the session cookie) or was never fetched
+        // (user acted before the on-load fetch landed). Re-fetch and retry ONCE — the
+        // request interceptor above stamps the fresh token onto the retried request.
+        const isCsrfError = status === 403 && /csrf/i.test(error.response?.data?.message || '')
+        if (isCsrfError && original && !original._csrfRetry) {
+            original._csrfRetry = true
+            try {
+                const csrfRes = await fetchFreshCsrfToken()
+                if (csrfRes.data?.success) setCsrfToken(csrfRes.data.csrfToken)
+                return axiosinstance(original)
+            } catch (csrfErr) {
+                return Promise.reject(error)
+            }
+        }
+
+        if (status === 401 && original && !original._retry && !isAuthRoute) {
+            original._retry = true
+            try {
+                if (!refreshPromise) {
+                    refreshPromise = axiosinstance
+                        .post(`${import.meta.env.VITE_MAIN_BACKEND_URL}/refresh-token`)
+                        .finally(() => { refreshPromise = null })
+                }
+                const refreshRes = await refreshPromise
+                const newToken = refreshRes.data.token
+
+                store.dispatch(setToken(newToken))
+                // no localStorage write here sir — see authSlice.js/Auth.js RestoreSession for
+                // why the access token now lives only in memory + the httpOnly cookie
+
+                // refresh-token mints a new access-token cookie, and the CSRF token is signed
+                // against that cookie's value (see Backend/Middlewares/Csrf.js getSessionIdentifier),
+                // so the in-memory csrfToken from before the refresh no longer validates. Re-fetch
+                // it here, otherwise every state-changing request after a silent refresh fails with
+                // "Invalid or missing CSRF token".
+                try {
+                    const csrfRes = await fetchFreshCsrfToken()
+                    if (csrfRes.data?.success) setCsrfToken(csrfRes.data.csrfToken)
+                } catch (csrfErr) {
+                    // non-fatal sir — worst case the next state-changing request 403s and surfaces its own error
+                }
+
+                if (original.headers) original.headers.Authorization = `Bearer ${newToken}`
+                return axiosinstance(original)
+            } catch (refreshErr) {
+                store.dispatch(setToken(null))
+                // wipes every slice (notes/chats/payments/admin, etc.), not just auth sir — otherwise
+                // a different user logging in on the same tab right after can briefly see this
+                // session's leftover data before their own fetches land
+                store.dispatch({ type: 'auth/logoutReset' })
+                // logoutReset wipes auth back to initialState (sessionChecked: false too) sir —
+                // restore it immediately so route guards don't briefly show a loading state for
+                // what is actually just a normal "your session expired" case
+                store.dispatch(setSessionChecked(true))
+                return Promise.reject(error)
+            }
+        }
+        return Promise.reject(error)
+    }
+)
+
+// signal is optional sir — pass an AbortController's .signal to let the caller cancel an
+// in-flight request (debounced search/filter inputs use this so a slow EARLIER response can't
+// land after and overwrite a faster LATER one; see SearchResults.jsx/History.jsx)
+export const apiConnector = (method, url, bodyData = null, headers = {}, params, signal) => {
+    return axiosinstance({
+        method: `${method}`,
+        url: `${url}`,
+        data: bodyData ? bodyData : null,
+        headers: headers ? headers : null,
+        params: params ? params : null,
+        ...(signal ? { signal } : null)
+    })
+}

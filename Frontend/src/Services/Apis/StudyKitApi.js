@@ -1,0 +1,31 @@
+const BASE_URL = import.meta.env.VITE_MAIN_BACKEND_URL
+
+export const StudyKitData = {
+    generateFlashcards: BASE_URL + "/notes",     // + /:noteId/flashcards
+    flashcardsForNote: BASE_URL + "/notes",      // + /:noteId/flashcards
+    dueFlashcards: BASE_URL + "/flashcards/due",
+    reviewFlashcard: BASE_URL + "/flashcards",   // + /:id/review
+    deleteFlashcard: BASE_URL + "/flashcards",   // + /:id
+    exportReviewQueue: BASE_URL + "/flashcards/review/export",
+    exportFlashcardDeck: BASE_URL + "/notes",    // + /:noteId/flashcards/export
+
+    generateQuiz: BASE_URL + "/notes",           // + /:noteId/quiz
+    quizzesForNote: BASE_URL + "/notes",         // + /:noteId/quizzes
+    attemptQuiz: BASE_URL + "/quizzes",          // + /:id/attempt
+    deleteQuiz: BASE_URL + "/quizzes",           // + /:id
+    exportQuiz: BASE_URL + "/quizzes",           // + /:quizId/export
+
+    generateExam: BASE_URL + "/study/exam/generate",
+    exams: BASE_URL + "/study/exams",
+    exam: BASE_URL + "/study/exams",             // + /:id
+    attemptExam: BASE_URL + "/study/exams",       // + /:id/attempt
+    deleteExam: BASE_URL + "/study/exams",        // + /:id
+
+    weakTopics: BASE_URL + "/study/weak-topics",
+
+    generateStudyPlan: BASE_URL + "/study/plan/generate",
+    todayStudyPlan: BASE_URL + "/study/plan/today",
+    toggleStudyPlanItem: BASE_URL + "/study/plan",   // + /:planId/items/:itemId
+    examSchedule: BASE_URL + "/study/exams",         // + /:id/schedule
+    adaptivePractice: BASE_URL + "/study/adaptive/generate",
+}

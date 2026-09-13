@@ -1,0 +1,22 @@
+const BASE_URL = import.meta.env.VITE_MAIN_BACKEND_URL
+
+export const NotesData = {
+    summarize: BASE_URL + "/summarize",
+    allNotes: BASE_URL + "/notes",
+    tags: BASE_URL + "/notes/tags",
+    importNote: BASE_URL + "/notes/import",
+    singleNote: BASE_URL + "/notes",      // + /:noteId
+    deleteNote: BASE_URL + "/notes",      // + /:noteId
+    organizeNote: BASE_URL + "/notes",    // + /:noteId/organize
+    enableShare: BASE_URL + "/notes",     // + /:noteId/share
+    disableShare: BASE_URL + "/notes",    // + /:noteId/share
+    sharedNote: BASE_URL + "/shared",     // + /:shareId
+    exportNote: BASE_URL + "/notes",      // + /:noteId/export/:format
+    relatedNotes: BASE_URL + "/notes",    // + /:noteId/related
+    editNote: BASE_URL + "/notes",        // + /:noteId/edit
+    noteVersions: BASE_URL + "/notes",    // + /:noteId/versions
+    restoreVersion: BASE_URL + "/notes",  // + /:noteId/versions/:versionId/restore
+    checkDuplicate: BASE_URL + "/notes/check-duplicate",
+    noteGraph: BASE_URL + "/notes/graph",
+    noteLinks: BASE_URL + "/notes",       // + /:noteId/links (+ /:targetNoteId for delete)
+}
