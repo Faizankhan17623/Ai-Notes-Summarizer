@@ -1,0 +1,12 @@
+.vercel
+.env*
+
+# internal reference doc, not for the public repo
+FEATURES.md
+
+# Claude Code local session/config data — never pushed
+.claude/
+docker-compose.yaml
+AiNotesSummarizer-DeepDive.pdf
+.tmp
+.output/pdf

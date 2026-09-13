@@ -1,0 +1,42 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Environment variables — never commit real secrets
+.env
+.env.local
+.env.*.local
+.env.screenshots
+
+# Mobile-layout screenshot tooling — local testing only, not pushed
+screenshots/
+scripts/
+.env.screenshots.example
+
+# throwaway diagnostic/Playwright scripts sir — underscore-prefixed at Frontend root,
+# e.g. _toggle-check.mjs, kept local for one-off manual verification, never committed
+_*.mjs
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.vercel
+.env*
