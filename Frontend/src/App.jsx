@@ -1,0 +1,228 @@
+import { lazy, Suspense, useEffect } from 'react'
+import { useDispatch } from 'react-redux'
+import { Routes, Route, Navigate, useLocation } from "react-router-dom"
+import { Helmet } from 'react-helmet-async'
+import { AnimatePresence, motion } from 'motion/react'
+import Navbar from './Components/Home/Navbar'
+import Banner from './Components/Home/Banner'
+import Footer from './Components/Home/Footer'
+import OpenRoute from './Hooks/OpenRoute'
+import PrivateRoute from './Hooks/PrivateRoute'
+import AdminRoute from './Hooks/AdminRoute'
+import SupportRoute from './Hooks/SupportRoute'
+import NoStaffRoute from './Hooks/NoStaffRoute'
+import ScrollToTop from './Components/extra/ScrollToTop'
+import ErrorBoundary from './Components/extra/ErrorBoundary'
+import AnnouncementBanner from './Components/extra/AnnouncementBanner'
+import CookieConsent from './Components/extra/CookieConsent'
+import ProMaxPlanNotice from './Components/extra/ProMaxPlanNotice'
+import CommandPalette from './Components/extra/CommandPalette'
+import PaymentVerifyOverlay from './Components/extra/PaymentVerifyOverlay'
+import SummarizeLoaderOverlay from './Components/extra/SummarizeLoaderOverlay'
+import PaymentSuccessModal from './Components/extra/PaymentSuccessModal'
+import { pageTransition } from './Components/extra/motionVariants.js'
+import { FetchCsrfToken, RestoreSession } from './Services/operations/Auth.js'
+import { wakeUpServer } from './utils/wakeUpServer.js'
+import { logVisit } from './utils/logVisit.js'
+
+// Lazy-loaded route components sir — split into separate chunks for faster initial load
+const Join = lazy(() => import('./Components/UserCreation/Join'))
+const OTP = lazy(() => import('./Components/UserCreation/OTP'))
+const Login = lazy(() => import('./Components/Login/User'))
+const Verify2FA = lazy(() => import('./Components/Login/Verify2FA'))
+const OAuthCallback = lazy(() => import('./Components/Login/OAuthCallback'))
+const ForgotPassword = lazy(() => import('./Components/Login/ForgotPassword'))
+const ResetPassword = lazy(() => import('./Components/Login/ResetPassword'))
+const Pricing = lazy(() => import('./Components/Home/Pricing'))
+const Features = lazy(() => import('./Components/Home/Features'))
+const Solutions = lazy(() => import('./Components/Home/Solutions'))
+const Resources = lazy(() => import('./Components/Home/Resources'))
+const HelpCenter = lazy(() => import('./Components/Home/HelpCenter'))
+const PrivacyPolicy = lazy(() => import('./Components/Home/PrivacyPolicy'))
+const TermsOfService = lazy(() => import('./Components/Home/TermsOfService'))
+const Contact = lazy(() => import('./Components/Home/Contact'))
+const ReportBug = lazy(() => import('./Components/Home/ReportBug'))
+const SuggestFeature = lazy(() => import('./Components/Home/SuggestFeature'))
+const NoteGroundedChat = lazy(() => import('./Components/Home/NoteGroundedChat'))
+const FlashcardsAndQuizzes = lazy(() => import('./Components/Home/FlashcardsAndQuizzes'))
+const SpacedRepetitionFeature = lazy(() => import('./Components/Home/SpacedRepetitionFeature'))
+const DashboardLayout = lazy(() => import('./Components/Dashboard/DashboardLayout'))
+const DashboardHome = lazy(() => import('./Components/Dashboard/DashboardHome'))
+const NewSummary = lazy(() => import('./Components/Dashboard/NewSummary'))
+const Articles = lazy(() => import('./Components/Dashboard/Articles'))
+const Report = lazy(() => import('./Components/Dashboard/Report'))
+const SharedNote = lazy(() => import('./Components/Dashboard/SharedNote'))
+const Review = lazy(() => import('./Components/Dashboard/Review'))
+const StudyPlan = lazy(() => import('./Components/Dashboard/StudyPlan'))
+const Exams = lazy(() => import('./Components/Dashboard/Exams'))
+const StudyRooms = lazy(() => import('./Components/Dashboard/StudyRooms'))
+const ExamPlayer = lazy(() => import('./Components/Dashboard/ExamPlayer'))
+const History = lazy(() => import('./Components/Dashboard/History'))
+const NoteGraph = lazy(() => import('./Components/Dashboard/NoteGraph'))
+const Chat = lazy(() => import('./Components/Dashboard/Chat'))
+const SearchResults = lazy(() => import('./Components/Dashboard/SearchResults'))
+const Account = lazy(() => import('./Components/Dashboard/Account'))
+const AdminLayout = lazy(() => import('./Components/Admin/AdminLayout'))
+const AdminOverview = lazy(() => import('./Components/Admin/Overview'))
+const AdminAnalytics = lazy(() => import('./Components/Admin/Analytics'))
+const AdminTraffic = lazy(() => import('./Components/Admin/Traffic'))
+const AdminUsers = lazy(() => import('./Components/Admin/Users'))
+const AdminPayments = lazy(() => import('./Components/Admin/Payments'))
+const AdminAudit = lazy(() => import('./Components/Admin/Audit'))
+const AdminAnnouncements = lazy(() => import('./Components/Admin/Announcements'))
+const AdminContactMessages = lazy(() => import('./Components/Admin/ContactMessages'))
+const AdminFeedbackReports = lazy(() => import('./Components/Admin/FeedbackReports'))
+const AdminHealth = lazy(() => import('./Components/Admin/Health'))
+const SupportLayout = lazy(() => import('./Components/Support/SupportLayout'))
+
+const PageLoader = () => (
+  <div className="min-h-screen bg-richblack-900 flex items-center justify-center">
+    <div className="w-10 h-10 border-4 border-yellow-50 border-t-transparent rounded-full animate-spin" />
+  </div>
+)
+
+const PageFade = ({ children }) => {
+  const location = useLocation()
+  return (
+    <motion.div key={location.pathname} initial="initial" animate="animate" exit="exit" variants={pageTransition}>
+      {children}
+    </motion.div>
+  )
+}
+
+const Homelayout = () => {
+  return (
+    <div className="bg-richblack-900 min-h-screen flex flex-col">
+      <Helmet>
+        <title>Notewise — turn any notes into clear summaries</title>
+      </Helmet>
+      <Navbar showMegaMenu />
+      <div className="flex-1">
+        <Banner />
+      </div>
+      <Footer />
+    </div>
+  )
+}
+
+function App() {
+  const dispatch = useDispatch()
+  const location = useLocation()
+
+  useEffect(() => {
+    // Fire both in PARALLEL sir — the CSRF fetch also wakes the server (on a cold start
+    // it just hangs until boot finishes, then succeeds). Chaining it after wakeUpServer()
+    // was a bug: ad-blockers block /health (ERR_BLOCKED_BY_CLIENT), so the retry loop
+    // burned ~15s before the CSRF token was fetched, and any summarize clicked in that
+    // window 403'd with "Invalid or missing CSRF token".
+    wakeUpServer()
+    dispatch(FetchCsrfToken())
+    dispatch(RestoreSession())
+  }, [dispatch])
+
+  // one ping per route change sir — powers the admin Traffic dashboard's unique-visitor
+  // and page-view charts. Fire-and-forget, never blocks or affects the page transition above.
+  useEffect(() => {
+    logVisit(location.pathname)
+  }, [location.pathname])
+
+  return (
+    <>
+      <AnnouncementBanner />
+      <ProMaxPlanNotice />
+      <CookieConsent />
+      <CommandPalette />
+      <PaymentVerifyOverlay />
+      <SummarizeLoaderOverlay />
+      <PaymentSuccessModal />
+      <ScrollToTop />
+      <Suspense fallback={<PageLoader />}>
+        {/* keyed by pathname sir — an error caught on one page resets the boundary the moment
+            the user navigates elsewhere, instead of the whole app staying stuck on the fallback */}
+        <ErrorBoundary key={location.pathname}>
+        <AnimatePresence mode="wait" initial={false}>
+          <Routes location={location}>
+            {/* Public sir */}
+            <Route path="/" element={<Homelayout />} />
+            <Route path="/Pricing" element={<NoStaffRoute><PageFade><Pricing /></PageFade></NoStaffRoute>} />
+            <Route path="/Features" element={<PageFade><Features /></PageFade>} />
+            <Route path="/Solutions" element={<PageFade><Solutions /></PageFade>} />
+            <Route path="/Resources" element={<PageFade><Resources /></PageFade>} />
+            <Route path="/HelpCenter" element={<PageFade><HelpCenter /></PageFade>} />
+            <Route path="/PrivacyPolicy" element={<PageFade><PrivacyPolicy /></PageFade>} />
+            <Route path="/TermsOfService" element={<PageFade><TermsOfService /></PageFade>} />
+            <Route path="/Contact" element={<PageFade><Contact /></PageFade>} />
+            <Route path="/ReportBug" element={<PageFade><ReportBug /></PageFade>} />
+            <Route path="/SuggestFeature" element={<PageFade><SuggestFeature /></PageFade>} />
+            <Route path="/Features/Chat" element={<PageFade><NoteGroundedChat /></PageFade>} />
+            <Route path="/Features/FlashcardsAndQuizzes" element={<PageFade><FlashcardsAndQuizzes /></PageFade>} />
+            <Route path="/Features/SpacedRepetition" element={<PageFade><SpacedRepetitionFeature /></PageFade>} />
+            <Route path="/shared/:shareId" element={<PageFade><SharedNote /></PageFade>} />
+
+            {/* Only for the logged-OUT sir */}
+            <Route path="/Signup" element={<OpenRoute><PageFade><Join /></PageFade></OpenRoute>} />
+            <Route path="/Verify-Otp" element={<OpenRoute><PageFade><OTP /></PageFade></OpenRoute>} />
+            <Route path="/Login" element={<OpenRoute><PageFade><Login /></PageFade></OpenRoute>} />
+            <Route path="/Verify-2FA" element={<OpenRoute><PageFade><Verify2FA /></PageFade></OpenRoute>} />
+            <Route path="/oauth/callback" element={<OpenRoute><PageFade><OAuthCallback /></PageFade></OpenRoute>} />
+            <Route path="/forgot-password" element={<OpenRoute><PageFade><ForgotPassword /></PageFade></OpenRoute>} />
+            <Route path="/reset-password/:token" element={<OpenRoute><PageFade><ResetPassword /></PageFade></OpenRoute>} />
+
+            {/* Only for the logged-IN sir — one shared sidebar shell via Outlet instead of every
+                page rendering its own Navbar */}
+            <Route element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
+              <Route path="/Dashboard" element={<DashboardHome />} />
+              <Route path="/Dashboard/New-Summary" element={<NewSummary />} />
+              <Route path="/Dashboard/Articles" element={<Articles />} />
+              <Route path="/Dashboard/Note/:noteId" element={<Report />} />
+              <Route path="/Dashboard/Review" element={<Review />} />
+              <Route path="/Dashboard/StudyPlan" element={<StudyPlan />} />
+              <Route path="/Dashboard/Exams" element={<Exams />} />
+              <Route path="/Dashboard/StudyRooms" element={<StudyRooms />} />
+              <Route path="/Dashboard/Exam/:examId" element={<ExamPlayer />} />
+              <Route path="/Dashboard/History" element={<History />} />
+              <Route path="/Dashboard/Graph" element={<NoteGraph />} />
+              <Route path="/Dashboard/Chats" element={<Chat />} />
+              <Route path="/Dashboard/Chat/:chatId" element={<Chat />} />
+              <Route path="/Dashboard/Search" element={<SearchResults />} />
+              <Route path="/Dashboard/Account" element={<Account />} />
+            </Route>
+
+            {/* Admin only sir — Support has its own completely separate dashboard below, not a
+                filtered view of this one. The backend re-checks the role on every call anyway. */}
+            <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
+              <Route path="/Admin" element={<AdminOverview />} />
+              <Route path="/Admin/Analytics" element={<AdminAnalytics />} />
+              <Route path="/Admin/Traffic" element={<AdminTraffic />} />
+              <Route path="/Admin/Users" element={<AdminUsers />} />
+              <Route path="/Admin/Payments" element={<AdminPayments />} />
+              <Route path="/Admin/Messages" element={<AdminContactMessages />} />
+              <Route path="/Admin/Feedback" element={<AdminFeedbackReports />} />
+              <Route path="/Admin/Health" element={<AdminHealth />} />
+              <Route path="/Admin/Audit" element={<AdminAudit />} />
+              <Route path="/Admin/Announcements" element={<AdminAnnouncements />} />
+            </Route>
+
+            {/* Support only sir — its own dashboard at /Support, reusing the same Overview/Users/
+                Payments components (they're role-agnostic, read from the same Redux state and
+                hit the same endpoints Support is allowed to call) but never AdminLayout's shell
+                or its Admin-only tabs */}
+            <Route element={<SupportRoute><SupportLayout /></SupportRoute>}>
+              <Route path="/Support" element={<AdminOverview />} />
+              <Route path="/Support/Users" element={<AdminUsers />} />
+              <Route path="/Support/Payments" element={<AdminPayments />} />
+              <Route path="/Support/Messages" element={<AdminContactMessages />} />
+              <Route path="/Support/Feedback" element={<AdminFeedbackReports />} />
+            </Route>
+
+            {/* anything unknown goes home sir */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </AnimatePresence>
+        </ErrorBoundary>
+      </Suspense>
+    </>
+  )
+}
+
+export default App
