@@ -1,0 +1,345 @@
+const crypto = require('crypto')
+const { instance, isConfigured } = require('../utils/Razorpay')
+const Payment = require('../Models/Payment')
+const User = require('../Models/User')
+const { PLANS, CREDIT_PACKS, MODEL_CATALOG } = require('../utils/Plans')
+
+// short in-flight window sir — a double-click/double-submit on "Buy" (or a retried request
+// after a slow response) shouldn't mint a second live Razorpay order for the exact same
+// purchase. If the user already has a 'created' (unpaid/unverified) order for this same
+// plan/pack from the last couple minutes, hand that one back instead of creating a new one —
+// the frontend's Razorpay Checkout modal opens against whichever order id it gets either way.
+// Older abandoned 'created' rows (a user who opened checkout, closed it, came back an hour
+// later) are intentionally NOT deduped — that's a legitimately new attempt.
+const DUPLICATE_ORDER_WINDOW_MS = 2 * 60 * 1000
+
+// price table sir — only used once Razorpay keys are actually configured
+const PRICE_INR = {
+    Pro: 499,
+    // dropped from 1499 sir — priced down alongside the 2026-07 change from unlimited
+    // to 500 credits/mo (see utils/Plans.js); ~Rs2/credit vs Pro's ~Rs5/credit
+    ProMax: 999,
+}
+
+// POST /payment/order — creates a Razorpay order sir, or a friendly stub response until real keys are added
+// accepts EITHER { plan } (existing subscription upgrade flow) OR { packKey } (one-time credit top-up)
+exports.createOrder = async (req, res) => {
+    try {
+        // Admin AND Support accounts are internal/staff accounts sir — neither should be
+        // spending real money through the app, so purchases are blocked at the point of
+        // order creation for both roles, not just Admin
+        if (['Admin', 'Support'].includes(req.User.role)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Staff accounts cannot make purchases',
+            })
+        }
+
+        const { plan, packKey } = req.body
+
+        let amount, paymentDoc
+
+        if (packKey) {
+            const pack = CREDIT_PACKS[packKey]
+            if (!pack) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'A valid credit pack is required',
+                })
+            }
+
+            // no live keys yet sir — tell the frontend plainly instead of pretending to charge anyone
+            if (!isConfigured) {
+                return res.status(503).json({
+                    success: false,
+                    message: 'Payments are coming soon — top-ups are not live yet, please check back later',
+                })
+            }
+
+            const recentDuplicate = await Payment.findOne({
+                user: req.User.id,
+                plan: 'CreditPack',
+                creditsGranted: pack.credits,
+                status: 'created',
+                createdAt: { $gte: new Date(Date.now() - DUPLICATE_ORDER_WINDOW_MS) },
+            }).sort({ createdAt: -1 })
+            if (recentDuplicate?.razorpayOrderId) {
+                try {
+                    const existingOrder = await instance.orders.fetch(recentDuplicate.razorpayOrderId)
+                    return res.status(200).json({ success: true, order: existingOrder, key: process.env.RAZORPAY_KEY_ID })
+                } catch (fetchErr) {
+                    // stale/deleted order on Razorpay's side sir — fall through and create a
+                    // fresh one rather than failing a legitimate new attempt
+                    console.log('Could not reuse existing order, creating a new one:', fetchErr.message)
+                }
+            }
+
+            amount = pack.priceInr * 100 // paise sir
+            paymentDoc = {
+                user: req.User.id,
+                plan: 'CreditPack',
+                amount: pack.priceInr,
+                creditsGranted: pack.credits,
+                status: 'created',
+            }
+        } else {
+            if (!plan || !['Pro', 'ProMax'].includes(plan)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'A valid plan (Pro or ProMax) is required',
+                })
+            }
+
+            if (!isConfigured) {
+                return res.status(503).json({
+                    success: false,
+                    message: 'Payments are coming soon — upgrades are not live yet, please check back later',
+                })
+            }
+
+            const recentDuplicate = await Payment.findOne({
+                user: req.User.id,
+                plan,
+                status: 'created',
+                createdAt: { $gte: new Date(Date.now() - DUPLICATE_ORDER_WINDOW_MS) },
+            }).sort({ createdAt: -1 })
+            if (recentDuplicate?.razorpayOrderId) {
+                try {
+                    const existingOrder = await instance.orders.fetch(recentDuplicate.razorpayOrderId)
+                    return res.status(200).json({ success: true, order: existingOrder, key: process.env.RAZORPAY_KEY_ID })
+                } catch (fetchErr) {
+                    console.log('Could not reuse existing order, creating a new one:', fetchErr.message)
+                }
+            }
+
+            amount = PRICE_INR[plan] * 100 // paise sir
+            paymentDoc = {
+                user: req.User.id,
+                plan,
+                amount: PRICE_INR[plan],
+                status: 'created',
+            }
+        }
+
+        // Razorpay caps receipt at 40 chars sir — the user/plan link already lives on the
+        // Payment document itself, so the receipt only needs to be short and unique
+        const order = await instance.orders.create({
+            amount,
+            currency: 'INR',
+            receipt: `rcpt_${Date.now()}`,
+        })
+
+        paymentDoc.razorpayOrderId = order.id
+        await Payment.create(paymentDoc)
+
+        return res.status(200).json({
+            success: true,
+            order,
+            key: process.env.RAZORPAY_KEY_ID,
+        })
+    } catch (error) {
+        console.log(error)
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while creating the order',
+        })
+    }
+}
+
+// POST /payment/verify — called by the frontend right after Razorpay's Checkout.js succeeds sir
+// verifies the HMAC signature so we KNOW this callback genuinely came from Razorpay (never trust
+// the client's word alone that a payment succeeded — that's the entire point of this endpoint)
+// then upgrades the user's plan for 30 days
+exports.verifyPayment = async (req, res) => {
+    try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body
+
+        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing payment verification fields',
+            })
+        }
+
+        if (!isConfigured) {
+            return res.status(503).json({
+                success: false,
+                message: 'Payments are not live yet',
+            })
+        }
+
+        const payment = await Payment.findOne({ razorpayOrderId: razorpay_order_id, user: req.User.id })
+        if (!payment) {
+            return res.status(404).json({
+                success: false,
+                message: 'No matching order found for this payment',
+            })
+        }
+
+        // the HMAC check sir — this is the actual proof the payment is real, not just a client claim
+        const expectedSignature = crypto
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+            .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+            .digest('hex')
+
+        // timing-safe compare sir — a plain !== leaks byte-by-byte match info via response
+        // timing, which crypto.timingSafeEqual avoids; length check first since it throws on
+        // mismatched buffer lengths rather than returning false
+        const expectedBuf = Buffer.from(expectedSignature)
+        const providedBuf = Buffer.from(razorpay_signature)
+        const signatureValid = expectedBuf.length === providedBuf.length && crypto.timingSafeEqual(expectedBuf, providedBuf)
+
+        if (!signatureValid) {
+            payment.status = 'failed'
+            await payment.save()
+            return res.status(400).json({
+                success: false,
+                message: 'Payment verification failed — signature mismatch',
+            })
+        }
+
+        // atomic claim sir — conditioned on the row still being 'created' so a retried/duplicated
+        // verify call (double-click, client timeout+retry, two tabs) can't re-run the reward
+        // logic below twice for the same order. Whichever request wins this update proceeds;
+        // the loser sees claimed === null and returns the already-recorded result instead.
+        const claimed = await Payment.findOneAndUpdate(
+            { _id: payment._id, status: 'created' },
+            { status: 'paid', razorpayPaymentId: razorpay_payment_id },
+            { new: true }
+        )
+
+        if (!claimed) {
+            // already processed sir — reload the current state and answer as if this call had
+            // done the work, instead of erroring or (worse) re-granting the reward
+            const existing = await Payment.findById(payment._id)
+            if (existing.plan === 'CreditPack') {
+                return res.status(200).json({
+                    success: true,
+                    message: `${existing.creditsGranted} credits added to your account`,
+                    creditsGranted: existing.creditsGranted,
+                })
+            }
+            return res.status(200).json({
+                success: true,
+                message: `Upgraded to ${existing.plan} successfully`,
+                plan: existing.plan,
+            })
+        }
+
+        // credit-pack purchase sir — grants bonus credits only, never touches the subscription tier
+        if (payment.plan === 'CreditPack') {
+            const updated = await User.findByIdAndUpdate(
+                req.User.id,
+                { $inc: { bonusCredits: payment.creditsGranted } },
+                { returnDocument: 'after' }
+            ).select('bonusCredits')
+
+            return res.status(200).json({
+                success: true,
+                message: `${payment.creditsGranted} credits added to your account`,
+                creditsGranted: payment.creditsGranted,
+                bonusCredits: updated.bonusCredits,
+            })
+        }
+
+        // 30-day upgrade sir — a renewal before expiry just extends from now, matching how most subscriptions feel to a user
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        await User.findByIdAndUpdate(req.User.id, {
+            SubType: payment.plan,
+            Subscription: true,
+            SubscriptionExpires: expiresAt,
+            // credit cycle realigns to the fresh subscription sir — SubscriptionExpires is already
+            // bumped unconditionally on every payment, the credit cycle shouldn't lag behind it.
+            // bonusCredits is intentionally untouched — an upgrade shouldn't wipe out top-up
+            // credits already paid for separately, only the lazy cycle rollover clears those.
+            // per-feature counters reset alongside count sir — same fresh-cycle reasoning
+            count: 0,
+            docSummaryCount: 0,
+            bulkSummaryCount: 0,
+            audioSummaryCount: 0,
+            voiceChatCount: 0,
+            creditCycleStart: new Date(),
+            // fresh SubscriptionExpires means the old expiry warning no longer applies sir —
+            // re-arms utils/PlanExpiryJob.js for whenever THIS expiry eventually approaches
+            planExpiryNotified: false,
+        })
+
+        return res.status(200).json({
+            success: true,
+            message: `Upgraded to ${payment.plan} successfully`,
+            plan: payment.plan,
+            expiresAt,
+        })
+    } catch (error) {
+        console.log(error)
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Something went wrong while verifying the payment',
+        })
+    }
+}
+
+// GET /payment/history — the logged-in user's own purchase history sir, most recent first.
+// only 'paid' rows are shown — 'created'/'failed' rows are checkout attempts the user never
+// actually completed, and would just be confusing clutter in a receipts list
+exports.getPaymentHistory = async (req, res) => {
+    try {
+        const payments = await Payment.find({ user: req.User.id, status: 'paid' })
+            .sort({ createdAt: -1 })
+            .select('plan amount creditsGranted currency status createdAt')
+
+        return res.status(200).json({ success: true, payments })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to load purchase history',
+        })
+    }
+}
+
+// POST /payment/cancel sir — no recurring billing exists in this app (every upgrade is a
+// one-off manual checkout, see verifyPayment above), so "cancel" can't stop a future charge
+// that was never going to happen automatically. What it actually does: drop the user to Basic
+// RIGHT NOW instead of waiting for SubscriptionExpires to lapse naturally. Deliberately leaves
+// SubscriptionExpires and this cycle's count/bonusCredits untouched — they already paid for
+// this cycle, cancelling shouldn't claw back credits already granted.
+exports.cancelSubscription = async (req, res) => {
+    try {
+        const user = await User.findById(req.User.id).select('SubType')
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Account not found' })
+        }
+        if (user.SubType === 'Basic') {
+            return res.status(400).json({ success: false, message: 'You are already on the Basic plan' })
+        }
+
+        await User.findByIdAndUpdate(req.User.id, {
+            SubType: 'Basic',
+            Subscription: false,
+        })
+
+        return res.status(200).json({ success: true, message: 'Your plan has been cancelled — you are now on the Basic plan' })
+    } catch (error) {
+        console.log(error.message)
+        return res.status(500).json({ success: false, message: 'Failed to cancel your subscription' })
+    }
+}
+
+// GET /payment/plans — the public plan comparison table sir, always available even in stub mode
+exports.getPlans = async (req, res) => {
+    return res.status(200).json({
+        success: true,
+        plans: Object.values(PLANS).map((p) => ({
+            ...p,
+            priceInr: PRICE_INR[p.key] || 0,
+            // model NAMES only sir — the Pricing page is public/pre-login, no preferredModel
+            // to resolve here, just "what's on offer" for this tier (see MODEL_CATALOG)
+            models: (MODEL_CATALOG[p.key] || []).map((m) => m.label.replace(' (default)', '')),
+        })),
+        creditPacks: Object.values(CREDIT_PACKS),
+        paymentsLive: isConfigured,
+    })
+}
