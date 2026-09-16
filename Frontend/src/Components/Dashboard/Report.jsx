@@ -1,8 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { FaComments, FaTrash, FaClipboardList, FaLayerGroup, FaDownload } from 'react-icons/fa'
+import { FaComments, FaTrash, FaClipboardList, FaLayerGroup, FaDownload, FaExpand } from 'react-icons/fa'
 import Swal from 'sweetalert2'
 import { GetSingleNote, DeleteNote, GetRelatedNotes, GetAllNotes } from '../../Services/operations/Notes.js'
 import { setRelatedNotes } from '../../Slices/notesSlice.js'
@@ -18,6 +18,7 @@ import ShareExport from './ShareExport.jsx'
 import RelatedNotes from './RelatedNotes.jsx'
 import LinkedNotes from './LinkedNotes.jsx'
 import NoteVersionHistory from './NoteVersionHistory.jsx'
+import FocusReader from './FocusReader.jsx'
 import { formatReadingTime } from '../../utils/readingTime.js'
 
 const Report = () => {
@@ -27,6 +28,7 @@ const Report = () => {
     const { token, user } = useSelector((state) => state.auth)
     const { currentNote, relatedNotes } = useSelector((state) => state.notes)
     const { flashcards, quizzes, activeQuiz } = useSelector((state) => state.studyKit)
+    const [focusMode, setFocusMode] = useState(false)
 
     const isPaidPlan = user?.SubType && user.SubType !== 'Basic'
 
@@ -78,6 +80,9 @@ const Report = () => {
                         </p>
                     </div>
                     <div className="flex gap-2 shrink-0">
+                        <button onClick={() => setFocusMode(true)} title="Focus mode" className="text-richblack-400 hover:text-richblack-5 p-2 cursor-pointer rounded-md hover:bg-surface-hover transition-colors">
+                            <FaExpand />
+                        </button>
                         <IconBtn text="Chat" outline onclick={() => dispatch(CreateChat(noteId, token, navigate))}>
                             <FaComments />
                         </IconBtn>
@@ -86,6 +91,8 @@ const Report = () => {
                         </button>
                     </div>
                 </div>
+
+                {focusMode && <FocusReader note={currentNote} onClose={() => setFocusMode(false)} />}
 
                 <div className="grid lg:grid-cols-[1fr_260px] gap-8 items-start">
                     {/* main content column sir */}
