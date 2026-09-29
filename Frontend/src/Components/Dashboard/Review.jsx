@@ -5,11 +5,13 @@ import { FaClipboardCheck, FaCheckCircle } from 'react-icons/fa'
 import { GetDueFlashcards, ExportReviewQueue } from '../../Services/operations/StudyKit.js'
 import IconBtn from '../extra/IconBtn.jsx'
 import FlashcardDeck from './FlashcardDeck.jsx'
+import useTheme from '../../Hooks/useTheme.js'
 
 // cross-note spaced-repetition review queue sir — everything due right now, across every note
 const Review = () => {
     const dispatch = useDispatch()
     const { token } = useSelector((state) => state.auth)
+    const { theme } = useTheme()
     const { dueFlashcards, loading } = useSelector((state) => state.studyKit)
 
     useEffect(() => {
@@ -34,7 +36,7 @@ const Review = () => {
                         text="Export as PDF"
                         outline
                         disabled={dueFlashcards.length === 0}
-                        onclick={() => dispatch(ExportReviewQueue(token))}
+                        onclick={() => dispatch(ExportReviewQueue(token, theme))}
                     />
                 </div>
 

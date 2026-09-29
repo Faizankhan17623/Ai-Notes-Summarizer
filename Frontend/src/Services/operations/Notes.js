@@ -500,13 +500,13 @@ export function RemoveNoteLink(noteId, targetNoteId, token) {
 
 // triggers a real file download sir — axios responseType 'blob' + a synthetic <a> click,
 // since the browser has no native "download this authenticated URL" primitive
-export function ExportNote(noteId, format, title, token) {
+export function ExportNote(noteId, format, title, token, theme) {
     return async () => {
         const toastId = toast.loading(`Exporting as ${format.toUpperCase()}...`)
         try {
             const response = await axiosinstance({
                 method: 'GET',
-                url: `${exportNote}/${noteId}/export/${format}`,
+                url: `${exportNote}/${noteId}/export/${format}${format === 'pdf' && theme === 'dark' ? '?theme=dark' : ''}`,
                 headers: { Authorization: `Bearer ${token}` },
                 responseType: 'blob',
             })

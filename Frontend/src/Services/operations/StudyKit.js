@@ -126,13 +126,13 @@ export function DeleteFlashcard(cardId, noteId, token) {
 
 // downloads the whole due-flashcard review queue as a PDF study sheet sir — same blob/object-URL
 // pattern already used by ExportNote in Services/operations/Notes.js
-export function ExportReviewQueue(token) {
+export function ExportReviewQueue(token, theme) {
     return async () => {
         const toastId = toast.loading("Preparing your review queue PDF...")
         try {
             const response = await axiosinstance({
                 method: 'GET',
-                url: exportReviewQueue,
+                url: `${exportReviewQueue}${theme === 'dark' ? '?theme=dark' : ''}`,
                 headers: { Authorization: `Bearer ${token}` },
                 responseType: 'blob',
             })
@@ -158,13 +158,13 @@ export function ExportReviewQueue(token) {
 
 // downloads every flashcard for ONE note as a printable deck PDF sir — same blob/object-URL
 // pattern as ExportReviewQueue above, but scoped to a single note regardless of due date
-export function ExportFlashcardDeck(noteId, title, token) {
+export function ExportFlashcardDeck(noteId, title, token, theme) {
     return async () => {
         const toastId = toast.loading("Preparing your flashcard deck PDF...")
         try {
             const response = await axiosinstance({
                 method: 'GET',
-                url: `${exportFlashcardDeck}/${noteId}/flashcards/export`,
+                url: `${exportFlashcardDeck}/${noteId}/flashcards/export${theme === 'dark' ? '?theme=dark' : ''}`,
                 headers: { Authorization: `Bearer ${token}` },
                 responseType: 'blob',
             })
@@ -257,13 +257,13 @@ export function AttemptQuiz(quizId, answers, token) {
 
 // downloads one quiz as a printable question sheet + answer key PDF sir — same blob/object-URL
 // pattern as ExportReviewQueue/ExportFlashcardDeck above
-export function ExportQuiz(quizId, title, token) {
+export function ExportQuiz(quizId, title, token, theme) {
     return async () => {
         const toastId = toast.loading("Preparing your quiz PDF...")
         try {
             const response = await axiosinstance({
                 method: 'GET',
-                url: `${exportQuiz}/${quizId}/export`,
+                url: `${exportQuiz}/${quizId}/export${theme === 'dark' ? '?theme=dark' : ''}`,
                 headers: { Authorization: `Bearer ${token}` },
                 responseType: 'blob',
             })

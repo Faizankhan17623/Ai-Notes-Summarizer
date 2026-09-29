@@ -19,6 +19,7 @@ import RelatedNotes from './RelatedNotes.jsx'
 import LinkedNotes from './LinkedNotes.jsx'
 import NoteVersionHistory from './NoteVersionHistory.jsx'
 import FocusReader from './FocusReader.jsx'
+import useTheme from '../../Hooks/useTheme.js'
 import { formatReadingTime } from '../../utils/readingTime.js'
 
 const Report = () => {
@@ -26,6 +27,7 @@ const Report = () => {
     const dispatch = useDispatch()
     const navigate = useNavigate()
     const { token, user } = useSelector((state) => state.auth)
+    const { theme } = useTheme()
     const { currentNote, relatedNotes } = useSelector((state) => state.notes)
     const { flashcards, quizzes, activeQuiz } = useSelector((state) => state.studyKit)
     const [focusMode, setFocusMode] = useState(false)
@@ -192,7 +194,7 @@ const Report = () => {
                                         <div className="flex items-center gap-2">
                                             {flashcards.length > 0 && (
                                                 <button
-                                                    onClick={() => dispatch(ExportFlashcardDeck(noteId, summary.title, token))}
+                                                    onClick={() => dispatch(ExportFlashcardDeck(noteId, summary.title, token, theme))}
                                                     title="Download deck as PDF"
                                                     aria-label="Download flashcard deck as PDF"
                                                     className="text-richblack-400 hover:text-yellow-50 p-1.5 cursor-pointer rounded-md hover:bg-surface-hover transition-colors"
@@ -218,7 +220,7 @@ const Report = () => {
                                         <div className="flex items-center gap-2">
                                             {latestQuiz && (
                                                 <button
-                                                    onClick={() => dispatch(ExportQuiz(latestQuiz._id, summary.title, token))}
+                                                    onClick={() => dispatch(ExportQuiz(latestQuiz._id, summary.title, token, theme))}
                                                     title="Download quiz as PDF"
                                                     aria-label="Download quiz as PDF"
                                                     className="text-richblack-400 hover:text-yellow-50 p-1.5 cursor-pointer rounded-md hover:bg-surface-hover transition-colors"

@@ -4,6 +4,11 @@ const Flashcard = require('../Models/Flashcard')
 const Quiz = require('../Models/Quiz')
 const { toMarkdown, toPdf, toDocx, toReviewQueuePdf, toFlashcardDeckPdf, toQuizPdf } = require('../utils/Export')
 
+// shared across every PDF export route sir — anything other than the literal string 'dark'
+// (typo, missing query param, tampered value) quietly falls back to 'light' rather than 400ing,
+// since this only affects cosmetic PDF colors, never note content or access control
+const resolvePdfTheme = (theme) => (theme === 'dark' ? 'dark' : 'light')
+
 // GET /notes/:noteId/export/:format sir — format is md | pdf | docx
 exports.exportNote = async (req, res) => {
     try {
@@ -34,7 +39,7 @@ exports.exportNote = async (req, res) => {
         }
 
         if (format === 'pdf') {
-            const buffer = await toPdf(note)
+            const buffer = await toPdf(note, resolvePdfTheme(req.query.theme))
             res.setHeader('Content-Type', 'application/pdf')
             res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}.pdf"`)
             return res.status(200).send(buffer)
@@ -62,7 +67,7 @@ exports.exportReviewQueue = async (req, res) => {
             .sort({ dueDate: 1 })
             .limit(50)
 
-        const buffer = await toReviewQueuePdf(flashcards)
+        const buffer = await toReviewQueuePdf(flashcards, resolvePdfTheme(req.query.theme))
         res.setHeader('Content-Type', 'application/pdf')
         res.setHeader('Content-Disposition', `attachment; filename="review-queue.pdf"`)
         return res.status(200).send(buffer)
@@ -95,7 +100,7 @@ exports.exportFlashcardDeck = async (req, res) => {
         }
 
         const safeTitle = (note.summary?.title || note.title || 'deck').replace(/[^\w\s-]/g, '').trim().slice(0, 60) || 'deck'
-        const buffer = await toFlashcardDeckPdf(note, flashcards)
+        const buffer = await toFlashcardDeckPdf(note, flashcards, resolvePdfTheme(req.query.theme))
         res.setHeader('Content-Type', 'application/pdf')
         res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}-flashcards.pdf"`)
         return res.status(200).send(buffer)
@@ -122,7 +127,7 @@ exports.exportQuiz = async (req, res) => {
         }
 
         const safeTitle = (quiz.note?.summary?.title || quiz.note?.title || 'quiz').replace(/[^\w\s-]/g, '').trim().slice(0, 60) || 'quiz'
-        const buffer = await toQuizPdf(quiz.note, quiz)
+        const buffer = await toQuizPdf(quiz.note, quiz, resolvePdfTheme(req.query.theme))
         res.setHeader('Content-Type', 'application/pdf')
         res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}-quiz.pdf"`)
         return res.status(200).send(buffer)

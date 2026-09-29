@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { FaShareAlt, FaDownload, FaCopy } from 'react-icons/fa'
 import toast from 'react-hot-toast'
 import { EnableShare, DisableShare, ExportNote } from '../../Services/operations/Notes.js'
+import useTheme from '../../Hooks/useTheme.js'
 
 const EXPORT_FORMATS = [
     { key: 'md', label: 'Markdown' },
@@ -13,6 +14,7 @@ const EXPORT_FORMATS = [
 const ShareExport = ({ note }) => {
     const dispatch = useDispatch()
     const { token } = useSelector((state) => state.auth)
+    const { theme } = useTheme()
     const [shareId, setShareId] = useState(note.shareEnabled ? note.shareId : null)
     const [busy, setBusy] = useState(false)
 
@@ -65,7 +67,7 @@ const ShareExport = ({ note }) => {
                     {EXPORT_FORMATS.map((f) => (
                         <button
                             key={f.key}
-                            onClick={() => dispatch(ExportNote(note._id, f.key, note.summary?.title, token))}
+                            onClick={() => dispatch(ExportNote(note._id, f.key, note.summary?.title, token, theme))}
                             className="text-xs bg-surface-hover text-richblack-200 border border-border-soft rounded-md px-3 py-1.5 cursor-pointer hover:border-yellow-50 text-left"
                         >
                             {f.label}
